@@ -57,6 +57,7 @@ function CopyButtons({
         aria-label="Copy login (username then password)"
         className={cn(
           "rounded-md border border-[var(--border)] bg-[var(--primary)]/10 px-2 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/20",
+          "min-h-9 touch-target px-3",
           copyFlash === `${id}:login` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -71,7 +72,7 @@ function CopyButtons({
         title="Copy all fields as a labeled block"
         aria-label="Copy all fields"
         className={cn(
-          "rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--inset)]",
+          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
           copyFlash === `${id}:all` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -86,7 +87,7 @@ function CopyButtons({
         title="Copy username"
         aria-label="Copy username"
         className={cn(
-          "rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--inset)]",
+          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
           copyFlash === `${id}:user` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -101,7 +102,7 @@ function CopyButtons({
         title="Copy password"
         aria-label="Copy password"
         className={cn(
-          "rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--inset)]",
+          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
           copyFlash === `${id}:pass` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -224,13 +225,13 @@ export function EntryList({
         <li
           key={e.id}
           className={cn(
-            "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition",
+            "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
             selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
           )}
         >
           <button
             type="button"
-            className="min-w-0 flex-1 text-left"
+            className="min-h-11 min-w-0 flex-1 touch-target text-left"
             onClick={() => onSelect(e.id)}
           >
             <div className="flex flex-wrap items-center gap-2">

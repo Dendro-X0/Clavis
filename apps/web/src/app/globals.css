@@ -164,3 +164,13 @@ body::-webkit-scrollbar {
   border-color: var(--primary);
   outline: none;
 }
+
+/* Phase C compact / touch surface */
+[data-compact="true"] .touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+[data-compact="true"] .panel {
+  border-radius: 12px;
+}

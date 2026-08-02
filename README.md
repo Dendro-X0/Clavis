@@ -21,6 +21,8 @@ pnpm install
 | `pnpm dev` | Desktop app (Tauri + web UI) |
 | `pnpm dev:web` | Web UI only (browser, no vault IPC) |
 | `pnpm dev:desktop` | Same as `pnpm dev` |
+| `pnpm --filter @clavis/mobile android:init` | Once: generate Android Studio project |
+| `pnpm --filter @clavis/mobile android:dev` | Mobile preview on emulator/device |
 | `pnpm build` | Release desktop build |
 | `pnpm build:web` | Static export of the web UI |
 | `pnpm test:vault` | Rust `vault-core` tests |
@@ -54,14 +56,16 @@ Maintainer release steps: [docs/release-checklist.md](docs/release-checklist.md)
 
 ```
 apps/web          @clavis/web     Next.js static UI
-apps/desktop      @clavis/desktop Tauri shell (src-tauri/)
+apps/desktop      @clavis/desktop Desktop Tauri shell
+apps/mobile       @clavis/mobile  Mobile preview shell (Android/iOS)
 crates/vault-core                 Encrypted vault library
-docs/                             Start-here, threat model, roadmap, release
+crates/clavis-shell               Shared Tauri IPC
+docs/                             Start-here, threat model, roadmap, platforms
 scripts/                          Release checksum helper
 ```
 
 ## Data location
 
-All vault state lives under `{executable_directory}/data/` (portable). Encrypted file: `data/vault.km`.
+Desktop: `{executable_directory}/data/` (portable) or a custom folder from Settings. Mobile preview: OS app sandbox. Encrypted file: `vault.km`.
 
 See [docs/START-HERE.md](docs/START-HERE.md). Platforms & keyring: [docs/platforms.md](docs/platforms.md). Future work: [docs/roadmap.md](docs/roadmap.md).

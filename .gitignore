@@ -17,6 +17,7 @@ data/
 
 # Tauri generated
 apps/desktop/src-tauri/gen/
+apps/mobile/src-tauri/gen/
 apps/web/out/
 
 # OS / editor

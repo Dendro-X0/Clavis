@@ -94,9 +94,25 @@ Preference persists in `AppSettings.entryLayout` (`"list" | "grid"`).
 
 ## Window chrome
 
-- `decorations: false`
+- `decorations: false` (desktop)
 - Custom titlebar ~40px, `data-tauri-drag-region`
 - Controls: minimize, maximize/toggle, close via `@tauri-apps/api/window`
+
+## Compact / mobile surface (Phase C)
+
+Activate when viewport `< 768px` (CSS + `matchMedia`) — same web bundle on desktop narrow windows and Tauri mobile WebView.
+
+| Element | Compact behavior |
+|---------|------------------|
+| Window controls | Hidden |
+| Titlebar subtitle (“Local vault”) | Hidden; brand + theme only |
+| Sidebar | Collapsed by default; filters remain reachable |
+| Primary actions | Min tap height **44px**; copy buttons padded |
+| Entry layout | Prefer **list**; grid still available |
+| Padding | Tighter main padding (`p-3`) |
+| Desktop-only settings | Hide “Change data folder” on compact (mobile uses app sandbox) |
+
+Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[data-desktop-only]`).
 
 ## Persistence
 

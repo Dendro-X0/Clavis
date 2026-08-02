@@ -30,6 +30,7 @@ export function SettingsPanel({
   onImported,
   onWorkspacesChanged,
   onDataDirChanged,
+  compact = false,
 }: {
   status: StatusDto;
   settings: AppSettings;
@@ -39,6 +40,8 @@ export function SettingsPanel({
   onImported: (result?: ImportResult) => Promise<void>;
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
   onDataDirChanged?: () => void | Promise<void>;
+  /** Phone-width / mobile — hide desktop portable data-folder controls. */
+  compact?: boolean;
 }) {
   const { theme, setTheme } = useTheme();
   const [currentPw, setCurrentPw] = useState("");
@@ -61,9 +64,11 @@ export function SettingsPanel({
         <h2 className="font-display text-2xl">Settings</h2>
         <p className="mt-2 break-all text-xs text-[var(--muted)]">
           Data directory: {status.dataDir}
-          {dataPortable ? " (portable default)" : " (custom)"}
+          {!compact && (dataPortable ? " (portable default)" : " (custom)")}
+          {compact && " (app sandbox)"}
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        {!compact && (
+        <div className="mt-3 flex flex-wrap gap-2" data-desktop-only>
           <button
             type="button"
             className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
@@ -114,6 +119,7 @@ export function SettingsPanel({
             Use portable default
           </button>
         </div>
+        )}
 
         <label className="mt-5 block text-sm">
           Theme

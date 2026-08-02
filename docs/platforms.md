@@ -1,8 +1,8 @@
-# Platforms — desktop matrix (Phase B)
+# Platforms — desktop + mobile preview
 
-Clavis desktop targets **Windows, macOS, and Linux** via Tauri v2 + shared `vault-core`. Releases are **OSS · self-signed / unsigned** until store notarization exists.
+Clavis targets **Windows, macOS, and Linux** (desktop) and a **Phase C mobile preview** (Android / iOS via Tauri v2). Releases are **OSS · self-signed / unsigned** until store notarization exists.
 
-## Supported shells
+## Desktop shells
 
 | OS | Bundle (typical) | CI artifact job | Notes |
 |----|------------------|-----------------|-------|
@@ -19,7 +19,34 @@ pnpm build
 
 Tag builds: push `vX.Y.Z` → CI runs `test` then matrix desktop builds and uploads artifacts + `SHA256SUMS-*.txt`.
 
-## Data directory
+## Mobile preview (Phase C)
+
+| OS | Shell | Notes |
+|----|-------|--------|
+| Android | `apps/mobile` + `tauri android` | Requires Android SDK/NDK; vault in app sandbox |
+| iOS | `apps/mobile` + `tauri ios` | macOS + Xcode only; not built on Windows CI yet |
+
+```bash
+pnpm install
+pnpm --filter @clavis/mobile android:init   # once per machine
+pnpm --filter @clavis/mobile android:dev    # emulator / device
+```
+
+Shared stack: `crates/vault-core` + `crates/clavis-shell` + `apps/web` (compact UI under 768px).
+
+### Mobile data directory
+
+Uses the OS **app data** directory (sandboxed). Custom folder picker is **desktop-only**. OS cloud backups may copy the encrypted `vault.km` ciphertext — treat device backup policy as part of your threat model.
+
+### Mobile keyring / biometric
+
+Same Settings flag as desktop (`biometricUnlock` → keyring commands). Coverage depends on the OS Keystore / Keychain path exposed to the `keyring` crate; master password always recovers the vault. Secure-flag / screenshot mitigations are planned, not yet wired.
+
+### Import on mobile
+
+File dialogs via Tauri dialog plugin when available. Share-sheet / Files intent import is a follow-up.
+
+## Desktop data directory
 
 | Mode | Location | How |
 |------|----------|-----|
@@ -39,6 +66,7 @@ Optional OS keyring storage of the master password for convenience unlock (`biom
 | Windows | Credential Manager | “Remember unlock via OS keyring” |
 | macOS | Keychain | Same checkbox; may prompt for keychain access |
 | Linux | Secret Service (libsecret) / fallback | Needs a running secrets daemon (GNOME Keyring, KWallet, etc.) |
+| Android / iOS | Keystore / Keychain (where supported) | Preview — verify on device |
 
 **Security notes**
 
@@ -50,8 +78,9 @@ Optional OS keyring storage of the master password for convenience unlock (`biom
 
 See README [Installing self-signed builds](../README.md#installing-self-signed-builds) and [docs/release-checklist.md](release-checklist.md).
 
-## Out of scope for Phase B
+## Out of scope for Phase C preview
 
-- iOS / Android (Phase C)
+- App Store / Play Store listing
 - Apple notarization / Windows EV Authenticode
 - Auto-update channel
+- Full share-sheet import

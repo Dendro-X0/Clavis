@@ -1,0 +1,20 @@
+[package]
+name = "clavis-shell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared Tauri IPC shell for Clavis desktop and mobile"
+
+[dependencies]
+vault-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-process = "2"
+uuid = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+keyring = "3"

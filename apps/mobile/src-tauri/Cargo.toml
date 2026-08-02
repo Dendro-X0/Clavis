@@ -1,0 +1,24 @@
+[package]
+name = "clavis-mobile"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Clavis mobile preview shell (Tauri)"
+
+[lib]
+name = "clavis_mobile_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+clavis-shell = { workspace = true }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-process = "2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

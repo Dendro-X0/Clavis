@@ -6,6 +6,7 @@
     "dev": "pnpm --filter @clavis/desktop dev",
     "dev:web": "pnpm --filter @clavis/web dev",
     "dev:desktop": "pnpm --filter @clavis/desktop dev",
+    "dev:mobile": "pnpm --filter @clavis/mobile android:dev",
     "build": "pnpm --filter @clavis/desktop build",
     "build:web": "pnpm --filter @clavis/web build",
     "build:desktop": "pnpm --filter @clavis/desktop build",

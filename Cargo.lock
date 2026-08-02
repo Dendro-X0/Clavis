@@ -447,6 +447,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "clavis-mobile"
+version = "0.2.0"
+dependencies = [
+ "clavis-shell",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-process",
+]
+
+[[package]]
+name = "clavis-shell"
+version = "0.2.0"
+dependencies = [
+ "chrono",
+ "keyring",
+ "rand",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-dialog",
+ "tauri-plugin-process",
+ "thiserror 2.0.19",
+ "uuid",
+ "vault-core",
+]
+
+[[package]]
 name = "clipboard-win"
 version = "5.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1907,19 +1937,12 @@ dependencies = [
 name = "keys-manager"
 version = "0.2.0"
 dependencies = [
- "chrono",
- "keyring",
- "rand",
- "serde",
- "serde_json",
+ "clavis-shell",
  "tauri",
  "tauri-build",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-process",
- "thiserror 2.0.19",
- "uuid",
- "vault-core",
 ]
 
 [[package]]

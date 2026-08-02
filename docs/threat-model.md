@@ -33,16 +33,17 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 
-## Mobile threats (preview — Phase C)
+## Mobile threats (Phase C preview)
 
-| Threat | Planned mitigation |
-|--------|--------------------|
-| Device backup / iCloud / Google backup of app data | Keep vault encrypted at rest; document backup behavior per OS |
-| Screenshots / app switcher thumbnails | Flag secure windows where APIs exist; blur in switcher when possible |
-| Notification leakage | Never put secrets in notifications |
-| Biometric unlock | Unlock wrapped key via OS biometrics; master password still recovers vault |
-| Shared / lost phone | Auto-lock; remote wipe is OS-level (not Clavis cloud) |
-| Sideload / sideloaded APK integrity | Checksums + reproducible build notes (same as desktop OSS) |
+| Threat | Mitigation | Status |
+|--------|------------|--------|
+| Device backup / iCloud / Google backup of app data | Vault stays Argon2id + AES-GCM at rest under OS app data; document that OS backups may copy ciphertext | Documented — `docs/platforms.md` |
+| Screenshots / app switcher thumbnails | Prefer secure/FLAG_SECURE (or iOS equivalent) when plugin/API exists | Planned — not wired in preview shell |
+| Notification leakage | App never schedules notifications containing secrets | Done by policy (no notification features) |
+| Biometric / keyring unlock | Optional keyring / Keystore path; master password recovers vault | Preview — same IPC as desktop; OS coverage varies |
+| Shared / lost phone | Auto-lock settings; remote wipe is OS-level only | Done (auto-lock) / Explicit (wipe) |
+| Sideload / APK integrity | Checksums + build-from-tag (same OSS model as desktop) | Process |
+| Clipboard on mobile | Sequential copy + clear timers still apply in WebView | Done / improving |
 
 ## Self-signed distribution
 

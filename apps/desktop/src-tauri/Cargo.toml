@@ -3,24 +3,18 @@ name = "keys-manager"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Keys Manager desktop shell"
+description = "Clavis desktop shell"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-vault-core = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+clavis-shell = { workspace = true }
 tauri = { version = "2", features = [] }
+# Direct deps so tauri-build registers plugin ACL permissions for this package.
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-process = "2"
-uuid = { workspace = true }
-chrono = { workspace = true }
-thiserror = { workspace = true }
-rand = { workspace = true }
-keyring = "3"
 
 [features]
 default = ["custom-protocol"]

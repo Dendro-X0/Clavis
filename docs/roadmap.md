@@ -139,4 +139,15 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Platform + keyring docs | Done — `docs/platforms.md` |
 | Optional custom data directory | Done — Settings → Change data folder / portable default |
 
-Next phase band: **Phase C** mobile preview (Tauri mobile + threat-model follow-ups).
+### Phase C — Mobile preview
+
+| Item | Status |
+|------|--------|
+| Shared `clavis-shell` + `apps/mobile` Tauri shell | Done — scaffold; Android init per machine |
+| Compact / touch UI (<768px) | Done — fewer chrome controls, larger tap targets |
+| Threat model mobile rows | Done — `docs/threat-model.md` |
+| Platform docs (mobile data + keyring) | Done — `docs/platforms.md` |
+| Biometric / secure-window polish | Preview — keyring IPC; FLAG_SECURE later |
+| Share-sheet import | Follow-up |
+
+Next phase band: **Phase D** interop & trust (imports, optional file sync, store signing when ready).

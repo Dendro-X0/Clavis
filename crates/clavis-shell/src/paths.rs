@@ -13,19 +13,32 @@ struct DataLocationFile {
     data_dir: Option<String>,
 }
 
-/// Portable data root: `{exe_parent}/data` (install directory), never OS user profile dumps.
+/// App install / sandbox root used to resolve the data directory.
+///
+/// - **Desktop:** `{exe_parent}` (portable install folder).
+/// - **Mobile:** OS app data directory (sandboxed); not next to a user-visible binary.
 pub fn app_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            // In `tauri dev`, exe lives under target/...; still keep data next to that binary
-            // so secrets never land in Documents/Desktop. For portable release bundles this
-            // is the install directory.
-            return Ok(parent.to_path_buf());
-        }
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        return app
+            .path()
+            .app_data_dir()
+            .map_err(|e| e.to_string());
     }
-    app.path()
-        .resource_dir()
-        .map_err(|e| e.to_string())
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                // In `tauri dev`, exe lives under target/...; still keep data next to that binary
+                // so secrets never land in Documents/Desktop. For portable release bundles this
+                // is the install directory.
+                return Ok(parent.to_path_buf());
+            }
+        }
+        app.path()
+            .resource_dir()
+            .map_err(|e| e.to_string())
+    }
 }
 
 fn data_location_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {

@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard } from "@/lib/clipboard";
+import { useCompactSurface } from "@/lib/use-compact-surface";
 import { useTheme } from "next-themes";
 
 const emptyForm: UpsertEntryInput = {
@@ -53,6 +54,7 @@ function normalizeLayout(value: string | undefined): "list" | "grid" {
 
 export default function HomePage() {
   const { setTheme } = useTheme();
+  const compact = useCompactSurface();
   const [boot, setBoot] = useState(true);
   const [status, setStatus] = useState<StatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -429,6 +431,10 @@ export default function HomePage() {
   const unlocked = status?.state === "unlocked";
 
   useEffect(() => {
+    if (compact) setSidebarCollapsed(true);
+  }, [compact]);
+
+  useEffect(() => {
     if (!unlocked) return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
@@ -478,8 +484,8 @@ export default function HomePage() {
   }, [unlocked, form, refreshStatus]);
 
   return (
-    <div className="app-shell">
-      <Titlebar />
+    <div className="app-shell" data-compact={compact ? "true" : "false"}>
+      <Titlebar compact={compact} />
       <div className="flex min-h-0 flex-1">
         {unlocked && (
           <AppSidebar
@@ -496,7 +502,13 @@ export default function HomePage() {
           />
         )}
 
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5">
+        <main
+          className={
+            compact
+              ? "flex min-w-0 flex-1 flex-col overflow-hidden p-3"
+              : "flex min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5"
+          }
+        >
           {error && (
             <div
               className={
@@ -541,6 +553,7 @@ export default function HomePage() {
                 settings={settings}
                 setSettings={setSettings}
                 workspaces={workspaces}
+                compact={compact}
                 onError={(msg) => setError(msg || null)}
                 onImported={async (result) => {
                   if (result) {
