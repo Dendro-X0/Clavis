@@ -13,6 +13,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   test:
     name: Tests & typecheck
@@ -135,9 +138,18 @@ jobs:
           ls -la release-out || true
           node scripts/checksum-release.mjs --out "release-out/SHA256SUMS-${{ matrix.artifact }}.txt" release-out
 
-      - name: Upload release artifacts
+      - name: Upload Actions artifact
         uses: actions/upload-artifact@v4
         with:
           name: clavis-${{ matrix.artifact }}-${{ github.ref_name }}
           path: release-out/
           if-no-files-found: warn
+
+      - name: Attach installers to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-out/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

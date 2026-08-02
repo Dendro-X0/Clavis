@@ -68,14 +68,14 @@ git push origin vX.Y.Z
 
 A green main push with “Desktop build skipped” does **not** mean release packaging was verified. Fix packaging on `main`, then either move the release tag to that commit or use **Run workflow**.
 
+Tag CI attaches installers + `SHA256SUMS-*.txt` to the GitHub Release automatically (`softprops/action-gh-release`). Actions artifacts remain available as a backup.
+
 Create a GitHub Release for `vX.Y.Z` with:
 
 - Summary of changes
 - **Self-signed / unsigned** callout + link to [Installing self-signed builds](../README.md#installing-self-signed-builds)
-- Checksums
+- Checksums (from CI attach or manual)
 - Build-from-source fallback (`pnpm install && pnpm build`)
-
-CI on tag (when enabled) uploads Windows artifacts; still attach checksums.
 
 ## Signing notes (current policy)
 
