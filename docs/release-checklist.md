@@ -23,7 +23,8 @@ pnpm build
 
 Artifacts typically land under:
 
-- `apps/desktop/src-tauri/target/release/bundle/` (NSIS / MSI / app folders — platform dependent)
+- `target/release/bundle/` (workspace Cargo target — NSIS / MSI / DMG / AppImage / deb — platform dependent)
+- Legacy/local: `apps/desktop/src-tauri/target/release/bundle/` if building outside the workspace root
 
 ## Checksums
 

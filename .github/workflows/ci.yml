@@ -93,8 +93,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-out
-          BUNDLE="apps/desktop/src-tauri/target/release/bundle"
-          if [ -d "$BUNDLE" ]; then
+          # Cargo workspace builds land in repo-root target/, not apps/desktop/src-tauri/target/
+          BUNDLE=""
+          for candidate in target/release/bundle apps/desktop/src-tauri/target/release/bundle; do
+            if [ -d "$candidate" ]; then
+              BUNDLE="$candidate"
+              break
+            fi
+          done
+          echo "Using bundle dir: ${BUNDLE:-"(none)"}"
+          if [ -n "$BUNDLE" ]; then
             find "$BUNDLE" -type f \( \
               -name '*.exe' -o -name '*.msi' -o -name '*.nsis.zip' \
               -o -name '*.dmg' -o -name '*.app.tar.gz' \
@@ -109,10 +117,16 @@ jobs:
             done
           fi
           if [ -z "$(ls -A release-out 2>/dev/null)" ]; then
-            cp apps/desktop/src-tauri/target/release/keys-manager.exe release-out/ 2>/dev/null || true
-            cp apps/desktop/src-tauri/target/release/keys-manager release-out/ 2>/dev/null || true
-            cp apps/desktop/src-tauri/target/release/clavis.exe release-out/ 2>/dev/null || true
-            cp apps/desktop/src-tauri/target/release/clavis release-out/ 2>/dev/null || true
+            for bin in \
+              target/release/keys-manager.exe \
+              target/release/keys-manager \
+              apps/desktop/src-tauri/target/release/keys-manager.exe \
+              apps/desktop/src-tauri/target/release/keys-manager \
+              apps/desktop/src-tauri/target/release/clavis.exe \
+              apps/desktop/src-tauri/target/release/clavis
+            do
+              cp "$bin" release-out/ 2>/dev/null || true
+            done
           fi
           ls -la release-out || true
           node scripts/checksum-release.mjs --out "release-out/SHA256SUMS-${{ matrix.artifact }}.txt" release-out
