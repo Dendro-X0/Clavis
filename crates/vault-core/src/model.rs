@@ -171,6 +171,10 @@ impl VaultDocument {
         self.workspaces.iter_mut().find(|w| w.id == id)
     }
 
+    pub fn workspace(&self, id: &str) -> Option<&Workspace> {
+        self.workspaces.iter().find(|w| w.id == id)
+    }
+
     pub fn workspace_mut(&mut self, id: &str) -> Option<&mut Workspace> {
         self.workspaces.iter_mut().find(|w| w.id == id)
     }

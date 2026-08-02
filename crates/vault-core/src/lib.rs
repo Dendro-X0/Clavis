@@ -322,6 +322,37 @@ Password: has-pass
     }
 
     #[test]
+    fn merge_duplicate_workspaces_keeps_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let params = fast_params();
+        let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
+        crate::format::write_all_atomic(&path, &encoded).unwrap();
+        let mut session = open_vault_file(&path, "pw").unwrap();
+
+        let mut a = Entry::new(EntryType::Login, "A");
+        a.password = "1".into();
+        let mut b = Entry::new(EntryType::Login, "B");
+        b.password = "2".into();
+        session
+            .import_as_workspace("Dup", None, vec![a])
+            .unwrap();
+        session
+            .import_as_workspace("dup", None, vec![b])
+            .unwrap();
+        assert_eq!(session.list_workspaces().len(), 3); // Personal + 2 dups
+        let removed = session.merge_duplicate_workspaces().unwrap();
+        assert_eq!(removed, 1);
+        assert_eq!(session.list_workspaces().len(), 2);
+        let dup = session
+            .list_workspaces()
+            .iter()
+            .find(|w| w.name.eq_ignore_ascii_case("dup"))
+            .unwrap();
+        assert_eq!(dup.entries.len(), 2);
+    }
+
+    #[test]
     fn legacy_flat_entries_migrate() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("legacy.km");

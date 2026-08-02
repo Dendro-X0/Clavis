@@ -33,9 +33,17 @@ export function Gate({
       </h2>
       <p className="mt-2 text-sm text-[var(--muted)]">
         {missing
-          ? "Choose a strong master password. It never leaves this device."
+          ? "Clavis stores an encrypted vault next to the app. Your master password never leaves this device."
           : "Enter your master password to decrypt the local vault."}
       </p>
+
+      {missing && (
+        <ol className="mt-4 list-decimal space-y-1 pl-5 text-xs text-[var(--muted)]">
+          <li>Name the vault (optional label).</li>
+          <li>Choose a strong master password (8+ characters).</li>
+          <li>After unlock: import a file or add an entry, then use <span className="text-[var(--foreground)]">Copy</span> to paste into logins.</li>
+        </ol>
+      )}
 
       {missing && (
         <label className="mt-5 block text-sm">
@@ -88,6 +96,11 @@ export function Gate({
               if (password.length < 8) throw new Error("Use at least 8 characters.");
               if (password !== confirm) throw new Error("Passwords do not match.");
               await api.createVault(name || "Personal", password);
+              try {
+                localStorage.setItem("clavis_show_onboarding", "1");
+              } catch {
+                /* ignore */
+              }
             } else {
               await api.unlock(password);
             }

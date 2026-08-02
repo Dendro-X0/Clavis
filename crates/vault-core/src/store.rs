@@ -124,6 +124,72 @@ impl VaultSession {
         self.persist()
     }
 
+    /// Merge `source_id` into `target_id` (append entries), then delete source.
+    pub fn merge_workspace_into(&mut self, target_id: &str, source_id: &str) -> Result<Workspace> {
+        if target_id == source_id {
+            return Err(VaultError::Message("cannot merge a workspace into itself".into()));
+        }
+        let source_entries = {
+            let source = self
+                .document
+                .workspace(source_id)
+                .ok_or_else(|| VaultError::Message("source workspace not found".into()))?;
+            source.entries.clone()
+        };
+        {
+            let target = self
+                .document
+                .workspace_mut(target_id)
+                .ok_or_else(|| VaultError::Message("target workspace not found".into()))?;
+            target.entries.extend(source_entries);
+            target.updated_at = Utc::now();
+        }
+        self.delete_workspace(source_id)?;
+        self.document.active_workspace_id = target_id.to_string();
+        self.document.meta.updated_at = Utc::now();
+        self.persist()?;
+        let out = self
+            .document
+            .workspace(target_id)
+            .cloned()
+            .ok_or_else(|| VaultError::Message("target workspace not found".into()))?;
+        Ok(out)
+    }
+
+    /// Merge workspaces that share the same name (case-insensitive).
+    /// Keeps the largest (entry count), then active, then first; returns how many were removed.
+    pub fn merge_duplicate_workspaces(&mut self) -> Result<usize> {
+        use std::collections::HashMap;
+        let mut by_name: HashMap<String, Vec<(String, usize, bool)>> = HashMap::new();
+        let active = self.document.active_workspace_id.clone();
+        for w in &self.document.workspaces {
+            let key = w.name.trim().to_ascii_lowercase();
+            by_name.entry(key).or_default().push((
+                w.id.clone(),
+                w.entries.len(),
+                w.id == active,
+            ));
+        }
+        let mut removed = 0usize;
+        let groups: Vec<Vec<(String, usize, bool)>> = by_name
+            .into_values()
+            .filter(|g| g.len() > 1)
+            .collect();
+        for mut group in groups {
+            group.sort_by(|a, b| {
+                b.1.cmp(&a.1)
+                    .then_with(|| b.2.cmp(&a.2))
+                    .then_with(|| a.0.cmp(&b.0))
+            });
+            let keep = group[0].0.clone();
+            for (id, _, _) in group.into_iter().skip(1) {
+                self.merge_workspace_into(&keep, &id)?;
+                removed += 1;
+            }
+        }
+        Ok(removed)
+    }
+
     /// Create a dedicated workspace from an imported file and make it active.
     pub fn import_as_workspace(
         &mut self,

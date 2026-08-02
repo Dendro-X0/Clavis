@@ -24,6 +24,7 @@ fn main() {
             commands::create_workspace,
             commands::rename_workspace,
             commands::delete_workspace,
+            commands::merge_duplicate_workspaces,
             commands::get_entry,
             commands::upsert_entry,
             commands::delete_entry,

@@ -130,8 +130,8 @@ export function SettingsPanel({
       <div className="panel p-5">
         <h3 className="font-display text-xl">Workspaces</h3>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Each imported file becomes its own workspace. Switch from the sidebar; manage the
-          active one here.
+          Each imported file becomes its own workspace. Manage cards on the dashboard; rename or
+          delete the active one here. Merge collapses same-name duplicates from older imports.
         </p>
         <p className="mt-3 text-sm">
           Active: <span className="font-medium">{active?.name ?? "—"}</span>
@@ -183,6 +183,32 @@ export function SettingsPanel({
             }}
           >
             Delete active
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--border)] px-4 py-2"
+            onClick={async () => {
+              const ok = await appConfirm({
+                title: "Merge duplicate workspaces?",
+                description:
+                  "Workspaces with the same name (ignoring case) will be combined. Entries are kept; extra copies of the workspace are removed.",
+                confirmLabel: "Merge duplicates",
+              });
+              if (!ok) return;
+              try {
+                const result = await api.mergeDuplicateWorkspaces();
+                await onWorkspacesChanged(result.workspaces);
+                onError(
+                  result.removed === 0
+                    ? "No duplicate workspace names found."
+                    : `Merged duplicates — removed ${result.removed} workspace(s).`,
+                );
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            Merge duplicates
           </button>
         </div>
       </div>

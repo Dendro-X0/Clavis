@@ -106,6 +106,8 @@ export const api = {
   renameWorkspace: (id: string, name: string) =>
     call<WorkspaceSummary[]>("rename_workspace", { id, name }),
   deleteWorkspace: (id: string) => call<WorkspaceSummary[]>("delete_workspace", { id }),
+  mergeDuplicateWorkspaces: () =>
+    call<{ removed: number; workspaces: WorkspaceSummary[] }>("merge_duplicate_workspaces"),
   getEntry: (id: string) => call<Entry>("get_entry", { id }),
   upsertEntry: (input: UpsertEntryInput) =>
     call<Entry>("upsert_entry", {

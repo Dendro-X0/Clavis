@@ -65,6 +65,13 @@ pub struct ImportResult {
     pub replaced: bool,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MergeDuplicatesResult {
+    pub removed: usize,
+    pub workspaces: Vec<WorkspaceSummary>,
+}
+
 fn workspace_name_from_path(path: &str) -> String {
     std::path::Path::new(path)
         .file_stem()
@@ -252,6 +259,19 @@ pub fn delete_workspace(state: State<'_, AppState>, id: String) -> Result<Vec<Wo
         .ok_or_else(|| "vault is locked".to_string())?;
     session.delete_workspace(&id).map_err(map_err)?;
     Ok(map_workspace(session))
+}
+
+#[tauri::command]
+pub fn merge_duplicate_workspaces(state: State<'_, AppState>) -> Result<MergeDuplicatesResult, String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "vault is locked".to_string())?;
+    let removed = session.merge_duplicate_workspaces().map_err(map_err)?;
+    Ok(MergeDuplicatesResult {
+        removed,
+        workspaces: map_workspace(session),
+    })
 }
 
 #[tauri::command]

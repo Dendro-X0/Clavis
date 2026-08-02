@@ -124,4 +124,11 @@ apps/web                   ← UI shell (static); platform plugins differ
 | 3 | CI matrix: test + Windows build artifact on tag | Done — `.github/workflows/ci.yml` |
 | 4 | Threat-model v2 draft (desktop + future mobile) | Done — `docs/threat-model.md` |
 
-Next phase band: **Phase A polish** (onboarding, workspace dedupe) or **Phase B** multi-desktop packages — maintainer picks one.
+### Phase A polish
+
+| Item | Status |
+|------|--------|
+| Onboarding (create vault steps + dismissible tip) | Done |
+| Merge duplicate workspace names | Done — Settings → Workspaces → Merge duplicates |
+
+Next phase band: **Phase B** multi-desktop packages (macOS / Linux CI + docs).

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Gate } from "@/components/gate/gate";
 import { DashboardHeader } from "@/components/shell/dashboard-header";
+import { OnboardingTip } from "@/components/shell/onboarding-tip";
 import { AppSidebar, type NavId } from "@/components/shell/sidebar";
 import { SettingsPanel } from "@/components/shell/settings-panel";
 import { Titlebar } from "@/components/titlebar/titlebar";
@@ -72,6 +73,7 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +121,18 @@ export default function HomePage() {
       })
       .catch(() => undefined);
   }, [status?.state, setTheme]);
+
+  useEffect(() => {
+    if (status?.state !== "unlocked") {
+      setShowOnboarding(false);
+      return;
+    }
+    try {
+      setShowOnboarding(localStorage.getItem("clavis_show_onboarding") === "1");
+    } catch {
+      setShowOnboarding(false);
+    }
+  }, [status?.state]);
 
   useEffect(() => {
     const onResize = () => setSidebarCollapsed(window.innerWidth < 900);
@@ -489,7 +503,9 @@ export default function HomePage() {
                 error.startsWith("Imported") ||
                 error.startsWith("Replaced") ||
                 error.startsWith("Username copied") ||
-                error.startsWith("Password copied")
+                error.startsWith("Password copied") ||
+                error.startsWith("Merged") ||
+                error.startsWith("No duplicate")
                   ? "mb-3 shrink-0 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm"
                   : "mb-3 shrink-0 rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm"
               }
@@ -547,6 +563,19 @@ export default function HomePage() {
           {!boot && unlocked && nav !== "settings" && (
             <div className="animate-rise flex min-h-0 flex-1 flex-col gap-4 overflow-hidden lg:flex-row">
               <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+                {showOnboarding && (
+                  <OnboardingTip
+                    onDismiss={() => {
+                      setShowOnboarding(false);
+                      try {
+                        localStorage.removeItem("clavis_show_onboarding");
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    onImportHint={() => setNav("settings")}
+                  />
+                )}
                 <DashboardHeader
                   workspaces={workspaces}
                   entryCount={entries.length}
