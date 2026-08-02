@@ -12,7 +12,9 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `apps/desktop/src-tauri` | Tauri v2 shell + IPC commands |
 | `apps/web` | Next.js static UI + Tailwind |
 | `specs/backend/vault-core-design.md` | Vault format contract |
-| `docs/threat-model.md` | Threat assumptions |
+| `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile preview) |
+| `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
+| `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |
 
 ## Dev loop
 

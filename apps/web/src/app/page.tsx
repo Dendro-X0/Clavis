@@ -73,6 +73,8 @@ export default function HomePage() {
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshVault = useCallback(async () => {
     const [list, ws] = await Promise.all([api.listEntries(), api.listWorkspaces()]);
@@ -203,27 +205,65 @@ export default function HomePage() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  async function copyText(label: string, text: string) {
+  async function copyText(label: string, text: string, opts?: { scheduleClear?: boolean }) {
     if (!text) {
       setError("Nothing to copy for that field.");
       return;
     }
+    const scheduleClear = opts?.scheduleClear !== false;
     try {
       await copyToClipboard(text);
       setCopyFlash(label);
       setTimeout(() => setCopyFlash(null), 700);
-      try {
-        const { clear } = await import("@tauri-apps/plugin-clipboard-manager");
-        const clearAfter = Math.max(5, settings.clipboardClearSeconds) * 1000;
-        setTimeout(() => {
-          clear().catch(() => undefined);
-        }, clearAfter);
-      } catch {
-        /* browser clipboard has no clear API */
+      if (scheduleClear) {
+        if (clipboardClearTimer.current) clearTimeout(clipboardClearTimer.current);
+        try {
+          const { clear } = await import("@tauri-apps/plugin-clipboard-manager");
+          const clearAfter = Math.max(5, settings.clipboardClearSeconds) * 1000;
+          clipboardClearTimer.current = setTimeout(() => {
+            clear().catch(() => undefined);
+          }, clearAfter);
+        } catch {
+          /* browser clipboard has no clear API */
+        }
       }
     } catch (e) {
       setError(String(e).replace(/^Error:\s*/, ""));
     }
+  }
+
+  /** Username now; password replaces clipboard after a short delay (login paste flow). */
+  async function copyLoginSequence(id: string) {
+    if (loginCopyTimer.current) {
+      clearTimeout(loginCopyTimer.current);
+      loginCopyTimer.current = null;
+    }
+    const full = normalizeEntry(await api.getEntry(id));
+    const user = full.username.trim();
+    const pass = full.password;
+    if (!user && !pass) {
+      setError("Nothing to copy for that entry.");
+      return;
+    }
+    if (!user) {
+      await copyText(`${id}:pass`, pass);
+      setError("Password copied.");
+      return;
+    }
+    // Don't clear yet — password stage still needs the clipboard.
+    await copyText(`${id}:login`, user, { scheduleClear: false });
+    if (!pass) {
+      setError("Username copied (no password on this entry).");
+      return;
+    }
+    const delaySec = Math.min(15, Math.max(5, Math.floor(settings.clipboardClearSeconds / 2) || 8));
+    setError(`Username copied. Password copies in ${delaySec}s — paste user, then wait.`);
+    loginCopyTimer.current = setTimeout(() => {
+      copyText(`${id}:pass`, pass)
+        .then(() => setError("Password copied — paste it now."))
+        .catch((e) => setError(String(e)));
+      loginCopyTimer.current = null;
+    }, delaySec * 1000);
   }
 
   async function openEntry(id: string) {
@@ -374,6 +414,55 @@ export default function HomePage() {
 
   const unlocked = status?.state === "unlocked";
 
+  useEffect(() => {
+    if (!unlocked) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      if (e.key === "Escape") {
+        if (form) {
+          e.preventDefault();
+          setForm(null);
+        }
+        return;
+      }
+
+      if (typing && e.key !== "Escape") return;
+
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        document.getElementById("vault-search")?.focus();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.getElementById("vault-search")?.focus();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setNav("all");
+        setForm({ ...emptyForm });
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
+        e.preventDefault();
+        api
+          .lock()
+          .then(() => refreshStatus())
+          .catch((err) => setError(String(err)));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [unlocked, form, refreshStatus]);
+
   return (
     <div className="app-shell">
       <Titlebar />
@@ -397,7 +486,10 @@ export default function HomePage() {
           {error && (
             <div
               className={
-                error.startsWith("Imported") || error.startsWith("Replaced")
+                error.startsWith("Imported") ||
+                error.startsWith("Replaced") ||
+                error.startsWith("Username copied") ||
+                error.startsWith("Password copied")
                   ? "mb-3 shrink-0 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm"
                   : "mb-3 shrink-0 rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm"
               }
@@ -494,6 +586,9 @@ export default function HomePage() {
                       emptyWorkspace={entries.length === 0}
                       workspaceName={activeWorkspace?.name}
                       onSelect={(id) => openEntry(id).catch((err) => setError(String(err)))}
+                      onCopyLogin={(id) => {
+                        copyLoginSequence(id).catch((err) => setError(String(err)));
+                      }}
                       onCopyAll={async (id) => {
                         const full = normalizeEntry(await api.getEntry(id));
                         const block = formatEntryForClipboard(full);

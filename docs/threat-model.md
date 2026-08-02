@@ -1,27 +1,63 @@
-# Threat model (v1)
+# Threat model (v2)
+
+Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis remains local-first OSS with self-signed / unsigned distribution.
 
 ## Assets
 
-- Master password / derived vault key
-- Entry secrets (passwords, tokens, notes)
-- Encrypted vault blob on disk
-
-## Out of scope (v1)
-
-- Malware with same-user memory access while unlocked
-- Evil maid with unlimited offline brute-force of a weak master password
-- Compromised OS keyring when biometric unlock is enabled
-
-## Mitigations
-
-| Threat | Mitigation |
-|--------|------------|
-| Disk theft / casual browsing | Argon2id + AES-256-GCM; no plaintext vault dumps in Documents |
-| Wrong password | AEAD failure → closed |
-| Accidental sync of secrets | No cloud; export is explicit encrypted backup |
-| Clipboard residue | Configurable clipboard clear |
-| Idle exposure | Auto-lock timeout |
+- Master password and derived vault key material (in-memory while unlocked)
+- Entry secrets (passwords, tokens, notes, TOTP seeds when added)
+- Encrypted vault blob on disk (`vault.km`) and encrypted backups
+- Optional OS keyring secret used only to unlock (not a substitute for the master password recovery)
 
 ## Trust boundary
 
-React UI never holds the master key. Rust session state drops key material on lock.
+| Layer | Trust |
+|-------|--------|
+| `vault-core` (Rust) | Holds KDF + AEAD; session drops key on lock |
+| Tauri commands | Thin IPC; no logging of secrets |
+| React UI | Displays secrets only when unlocked; must not persist master key |
+| OS | Filesystem, clipboard, keyring, screenshots — outside Clavis control |
+
+## Desktop threats & mitigations
+
+| Threat | Mitigation | Status |
+|--------|------------|--------|
+| Disk theft / casual browse | Argon2id + AES-256-GCM; portable `data/` not in Documents by default | Done |
+| Wrong password | AEAD fail → closed | Done |
+| Accidental cloud sync of plaintext | No Clavis cloud; export is encrypted backup | Done |
+| Clipboard residue | Configurable clear; sequential user→pass reduces multi-secret dwell | Done / improving |
+| Idle / background exposure | Auto-lock; lock on window hide | Done |
+| Malware with same-user memory access while unlocked | Out of scope | Explicit |
+| Evil maid + weak master password offline | Out of scope for strong passwords; document KDF cost | Explicit |
+| Compromised OS keyring | Optional feature; disable in Settings | Documented |
+| Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
+| Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
+
+## Mobile threats (preview — Phase C)
+
+| Threat | Planned mitigation |
+|--------|--------------------|
+| Device backup / iCloud / Google backup of app data | Keep vault encrypted at rest; document backup behavior per OS |
+| Screenshots / app switcher thumbnails | Flag secure windows where APIs exist; blur in switcher when possible |
+| Notification leakage | Never put secrets in notifications |
+| Biometric unlock | Unlock wrapped key via OS biometrics; master password still recovers vault |
+| Shared / lost phone | Auto-lock; remote wipe is OS-level (not Clavis cloud) |
+| Sideload / sideloaded APK integrity | Checksums + reproducible build notes (same as desktop OSS) |
+
+## Self-signed distribution
+
+Self-signed or unsigned binaries are a **trust-on-first-use** model:
+
+1. User verifies tag + checksum (or builds from source).
+2. OS warnings (SmartScreen / Gatekeeper) are expected — document in README.
+3. Not a substitute for code signing reputation; do not over-claim.
+
+## Non-goals
+
+- Clavis-operated sync or accounts
+- Protecting secrets from a fully compromised OS while the vault is unlocked
+- Guaranteeing safety of weak master passwords against unbounded offline attack
+
+## Review triggers
+
+Update this doc when adding: autofill/autotype, TOTP, mobile shell, file-based sync, or hardware-key unlock.

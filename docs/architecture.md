@@ -14,9 +14,9 @@ crates/vault-core (Argon2id + AES-256-GCM vault.km)
 {exe_dir}/data/config.json
 ```
 
-## IPC commands
+## IPC commands (summary)
 
-`vault_status`, `create_vault`, `unlock`, `lock`, `list_entries`, `get_entry`, `upsert_entry`, `delete_entry`, `export_vault`, `import_vault`, `import_csv`, `change_master_password`, `get_settings`, `save_settings`, `generate_password`, `read_text_file`, `try_keyring_unlock`, `store_keyring_secret`, `clear_keyring_secret`, `get_data_dir`.
+Vault lock/unlock, entry CRUD, workspaces, import/export, settings, clipboard helpers, path pickers, keyring unlock. See `apps/desktop/src-tauri/src/commands.rs` for the full handler list.
 
 ## Locking
 

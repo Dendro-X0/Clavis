@@ -35,6 +35,7 @@ function CategoryChips({ tags }: { tags: string[] }) {
 function CopyButtons({
   id,
   copyFlash,
+  onCopyLogin,
   onCopyAll,
   onCopyUser,
   onCopyPass,
@@ -42,6 +43,7 @@ function CopyButtons({
 }: {
   id: string;
   copyFlash: string | null;
+  onCopyLogin: (id: string) => void;
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
   onCopyPass: (id: string) => void;
@@ -51,10 +53,25 @@ function CopyButtons({
     <div className={cn("flex flex-wrap gap-1.5", compact && "mt-auto pt-2")}>
       <button
         type="button"
-        title="Copy all fields (name, username, password, URL…)"
-        aria-label="Copy all fields"
+        title="Copy username now, then password shortly (login flow)"
+        aria-label="Copy login (username then password)"
         className={cn(
           "rounded-md border border-[var(--border)] bg-[var(--primary)]/10 px-2 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/20",
+          copyFlash === `${id}:login` && "animate-copy border-[var(--primary)]",
+        )}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCopyLogin(id);
+        }}
+      >
+        Copy
+      </button>
+      <button
+        type="button"
+        title="Copy all fields as a labeled block"
+        aria-label="Copy all fields"
+        className={cn(
+          "rounded-md border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--inset)]",
           copyFlash === `${id}:all` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -62,7 +79,7 @@ function CopyButtons({
           onCopyAll(id);
         }}
       >
-        Copy
+        Copy all
       </button>
       <button
         type="button"
@@ -77,7 +94,7 @@ function CopyButtons({
           onCopyUser(id);
         }}
       >
-        Copy user
+        User
       </button>
       <button
         type="button"
@@ -92,7 +109,7 @@ function CopyButtons({
           onCopyPass(id);
         }}
       >
-        Copy pass
+        Pass
       </button>
     </div>
   );
@@ -105,6 +122,7 @@ export function EntryList({
   layout = "list",
   emptyWorkspace = false,
   onSelect,
+  onCopyLogin,
   onCopyAll,
   onCopyUser,
   onCopyPass,
@@ -122,6 +140,7 @@ export function EntryList({
   /** True when the active workspace has no entries at all (vs filter miss). */
   emptyWorkspace?: boolean;
   onSelect: (id: string) => void;
+  onCopyLogin: (id: string) => void;
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
   onCopyPass: (id: string) => void;
@@ -186,6 +205,7 @@ export function EntryList({
               <CopyButtons
                 id={e.id}
                 copyFlash={copyFlash}
+                onCopyLogin={onCopyLogin}
                 onCopyAll={onCopyAll}
                 onCopyUser={onCopyUser}
                 onCopyPass={onCopyPass}
@@ -225,6 +245,7 @@ export function EntryList({
           <CopyButtons
             id={e.id}
             copyFlash={copyFlash}
+            onCopyLogin={onCopyLogin}
             onCopyAll={onCopyAll}
             onCopyUser={onCopyUser}
             onCopyPass={onCopyPass}

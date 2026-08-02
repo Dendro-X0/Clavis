@@ -10,6 +10,7 @@
     "build:web": "pnpm --filter @clavis/web build",
     "build:desktop": "pnpm --filter @clavis/desktop build",
     "test:vault": "cargo test -p vault-core",
+    "checksum": "node scripts/checksum-release.mjs",
     "tauri": "pnpm --filter @clavis/desktop exec tauri"
   }
 }

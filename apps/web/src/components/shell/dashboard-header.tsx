@@ -131,7 +131,8 @@ export function DashboardHeader({
       <div className="flex flex-wrap items-center gap-2">
         <input
           className="inset-field min-w-[180px] flex-1 px-3 py-2"
-          placeholder="Search names, users, URLs, categories…"
+          id="vault-search"
+          placeholder="Search names, users, URLs, categories… (/)"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />
