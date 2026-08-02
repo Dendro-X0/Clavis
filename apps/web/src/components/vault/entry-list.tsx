@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import type { EntrySummary, EntryType, ImportResult } from "@/lib/api";
 import type { EntryLayout } from "@/components/shell/dashboard-header";
 import { EntryIcon } from "@/components/vault/entry-icon";
+import { SwipeableRow } from "@/components/vault/swipeable-row";
 import { VaultEmptyState } from "@/components/vault/vault-empty-state";
+import { useCompactSurface } from "@/lib/use-compact-surface";
 import { cn } from "@/lib/utils";
 
 function TypePill({ type }: { type: EntryType }) {
@@ -117,6 +120,70 @@ function CopyButtons({
   );
 }
 
+function CompactCopyMenu({
+  entry,
+  onClose,
+  onCopyLogin,
+  onCopyAll,
+  onCopyUser,
+  onCopyPass,
+}: {
+  entry: EntrySummary;
+  onClose: () => void;
+  onCopyLogin: (id: string) => void;
+  onCopyAll: (id: string) => void;
+  onCopyUser: (id: string) => void;
+  onCopyPass: (id: string) => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-[rgba(15,28,28,0.45)] p-4 sm:items-center"
+      role="dialog"
+      aria-label={`Copy actions for ${entry.title}`}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-lg backdrop-blur-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="font-medium text-[var(--foreground)]">{entry.title}</p>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Swipe right to copy login · swipe left to open · long-press for this menu
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          {(
+            [
+              ["login", "Copy login (user → pass)", onCopyLogin],
+              ["all", "Copy all fields", onCopyAll],
+              ["user", "Copy username", onCopyUser],
+              ["pass", "Copy password", onCopyPass],
+            ] as const
+          ).map(([key, label, fn]) => (
+            <button
+              key={key}
+              type="button"
+              className="min-h-11 rounded-md border border-[var(--border)] px-3 py-2 text-left text-sm hover:bg-[var(--inset)]"
+              onClick={() => {
+                fn(entry.id);
+                onClose();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--inset)]"
+            onClick={onClose}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EntryList({
   entries,
   selectedId,
@@ -141,7 +208,6 @@ export function EntryList({
   selectedId?: string;
   copyFlash: string | null;
   layout?: EntryLayout;
-  /** True when the active workspace has no entries at all (vs filter miss). */
   emptyWorkspace?: boolean;
   onSelect: (id: string, workspaceId?: string) => void;
   onCopyLogin: (id: string) => void;
@@ -157,6 +223,9 @@ export function EntryList({
   activeWorkspaceId?: string;
   fetchFavicons?: boolean;
 }) {
+  const compact = useCompactSurface();
+  const [menuEntry, setMenuEntry] = useState<EntrySummary | null>(null);
+
   function foreignWorkspace(e: EntrySummary) {
     if (!e.workspaceName) return null;
     if (e.workspaceId && activeWorkspaceId && e.workspaceId === activeWorkspaceId) return null;
@@ -184,111 +253,167 @@ export function EntryList({
     );
   }
 
+  const menu = menuEntry ? (
+    <CompactCopyMenu
+      entry={menuEntry}
+      onClose={() => setMenuEntry(null)}
+      onCopyLogin={onCopyLogin}
+      onCopyAll={onCopyAll}
+      onCopyUser={onCopyUser}
+      onCopyPass={onCopyPass}
+    />
+  ) : null;
+
   if (layout === "grid") {
     return (
-      <ul className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
-        {entries.map((e) => {
-          const wsLabel = foreignWorkspace(e);
-          return (
-          <li key={`${e.workspaceId ?? "ws"}-${e.id}`}>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelect(e.id, e.workspaceId)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" || ev.key === " ") {
-                  ev.preventDefault();
-                  onSelect(e.id, e.workspaceId);
-                }
-              }}
-              className={cn(
-                "flex h-full w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition",
-                selectedId === e.id
-                  ? "border-[var(--primary)]/45 bg-[var(--accent-wash)]"
-                  : "border-[var(--border)] bg-[var(--card)]/50 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
-              )}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex min-w-0 items-start gap-2">
-                  <EntryIcon title={e.title} url={e.url} fetchEnabled={fetchFavicons} />
-                  <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+      <>
+        <ul className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
+          {entries.map((e) => {
+            const wsLabel = foreignWorkspace(e);
+            const card = (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (!compact) onSelect(e.id, e.workspaceId);
+                }}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter" || ev.key === " ") {
+                    ev.preventDefault();
+                    onSelect(e.id, e.workspaceId);
+                  }
+                }}
+                className={cn(
+                  "flex h-full w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition",
+                  selectedId === e.id
+                    ? "border-[var(--primary)]/45 bg-[var(--accent-wash)]"
+                    : "border-[var(--border)] bg-[var(--card)]/50 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <EntryIcon title={e.title} url={e.url} fetchEnabled={fetchFavicons} />
+                    <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+                  </div>
+                  <TypePill type={e.entryType} />
                 </div>
-                <TypePill type={e.entryType} />
-              </div>
-              {wsLabel && (
-                <p className="truncate text-[10px] tracking-wide text-[var(--muted)] uppercase">
-                  {wsLabel}
+                {wsLabel && (
+                  <p className="truncate text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                    {wsLabel}
+                  </p>
+                )}
+                <p className="truncate text-sm text-[var(--muted)]">
+                  {e.username || e.url || "—"}
                 </p>
-              )}
-              <p className="truncate text-sm text-[var(--muted)]">
-                {e.username || e.url || "—"}
-              </p>
-              <CategoryChips tags={e.tags} />
-              <CopyButtons
-                id={e.id}
-                copyFlash={copyFlash}
-                onCopyLogin={onCopyLogin}
-                onCopyAll={onCopyAll}
-                onCopyUser={onCopyUser}
-                onCopyPass={onCopyPass}
-                compact
-              />
-            </div>
-          </li>
-          );
-        })}
-      </ul>
+                <CategoryChips tags={e.tags} />
+                {!compact && (
+                  <CopyButtons
+                    id={e.id}
+                    copyFlash={copyFlash}
+                    onCopyLogin={onCopyLogin}
+                    onCopyAll={onCopyAll}
+                    onCopyUser={onCopyUser}
+                    onCopyPass={onCopyPass}
+                    compact
+                  />
+                )}
+                {compact && (
+                  <p className="mt-auto pt-2 text-[10px] text-[var(--muted)]">
+                    Swipe → copy · ← open · hold for more
+                  </p>
+                )}
+              </div>
+            );
+            return (
+              <li key={`${e.workspaceId ?? "ws"}-${e.id}`}>
+                {compact ? (
+                  <SwipeableRow
+                    className="rounded-lg"
+                    onSwipeRight={() => onCopyLogin(e.id)}
+                    onSwipeLeft={() => onSelect(e.id, e.workspaceId)}
+                    onLongPress={() => setMenuEntry(e)}
+                  >
+                    {card}
+                  </SwipeableRow>
+                ) : (
+                  card
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {menu}
+      </>
     );
   }
 
   return (
-    <ul className="divide-y divide-[var(--border)]">
-      {entries.map((e) => {
-        const wsLabel = foreignWorkspace(e);
-        return (
-        <li
-          key={`${e.workspaceId ?? "ws"}-${e.id}`}
-          className={cn(
-            "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
-            selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
-          )}
-        >
-          <button
-            type="button"
-            className="min-h-11 min-w-0 flex-1 touch-target text-left"
-            onClick={() => onSelect(e.id, e.workspaceId)}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <EntryIcon
-                title={e.title}
-                url={e.url}
-                fetchEnabled={fetchFavicons}
-                className="h-7 w-7 text-[10px]"
-              />
-              <span className="font-medium">{e.title}</span>
-              <TypePill type={e.entryType} />
-              {wsLabel && (
-                <span className="rounded bg-[var(--inset)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
-                  {wsLabel}
-                </span>
+    <>
+      <ul className="divide-y divide-[var(--border)]">
+        {entries.map((e) => {
+          const wsLabel = foreignWorkspace(e);
+          const row = (
+            <div
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
+                selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
               )}
-              <CategoryChips tags={e.tags} />
+            >
+              <button
+                type="button"
+                className="min-h-11 min-w-0 flex-1 touch-target text-left"
+                onClick={() => onSelect(e.id, e.workspaceId)}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <EntryIcon
+                    title={e.title}
+                    url={e.url}
+                    fetchEnabled={fetchFavicons}
+                    className="h-7 w-7 text-[10px]"
+                  />
+                  <span className="font-medium">{e.title}</span>
+                  <TypePill type={e.entryType} />
+                  {wsLabel && (
+                    <span className="rounded bg-[var(--inset)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                      {wsLabel}
+                    </span>
+                  )}
+                  <CategoryChips tags={e.tags} />
+                </div>
+                <p className="truncate text-sm text-[var(--muted)]">
+                  {e.username || e.url || "—"}
+                </p>
+              </button>
+              {!compact && (
+                <CopyButtons
+                  id={e.id}
+                  copyFlash={copyFlash}
+                  onCopyLogin={onCopyLogin}
+                  onCopyAll={onCopyAll}
+                  onCopyUser={onCopyUser}
+                  onCopyPass={onCopyPass}
+                />
+              )}
             </div>
-            <p className="truncate text-sm text-[var(--muted)]">
-              {e.username || e.url || "—"}
-            </p>
-          </button>
-          <CopyButtons
-            id={e.id}
-            copyFlash={copyFlash}
-            onCopyLogin={onCopyLogin}
-            onCopyAll={onCopyAll}
-            onCopyUser={onCopyUser}
-            onCopyPass={onCopyPass}
-          />
-        </li>
-        );
-      })}
-    </ul>
+          );
+          return (
+            <li key={`${e.workspaceId ?? "ws"}-${e.id}`}>
+              {compact ? (
+                <SwipeableRow
+                  onSwipeRight={() => onCopyLogin(e.id)}
+                  onSwipeLeft={() => onSelect(e.id, e.workspaceId)}
+                  onLongPress={() => setMenuEntry(e)}
+                >
+                  {row}
+                </SwipeableRow>
+              ) : (
+                row
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {menu}
+    </>
   );
 }

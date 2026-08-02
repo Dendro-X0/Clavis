@@ -148,7 +148,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Compact / touch UI (<768px) | Done — fewer chrome controls, larger tap targets |
 | Threat model mobile rows | Done — `docs/threat-model.md` |
 | Platform docs (mobile data + keyring) | Done — `docs/platforms.md` |
-| Biometric / secure-window polish | Preview — keyring IPC; FLAG_SECURE later |
+| Biometric / secure-window polish | Done biometrics (v0.4.0); FLAG_SECURE later |
 | Share-sheet import | Follow-up |
 
 ### v0.3.0 — Usability refinements
@@ -161,4 +161,15 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Entry lettermark + optional favicon cache | Done |
 | Version bump 0.3.0 | Done |
 
-Next phase band after 0.3.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+### v0.4.0 — Mobile UX
+
+| Item | Status |
+|------|--------|
+| Compact swipe: right = copy login, left = open entry | Done |
+| Long-press copy menu (hide granular buttons on compact) | Done |
+| OS biometric unlock + password fallback | Done — mobile plugin + Gate |
+| Version bump 0.4.0 | Done |
+
+**Parked:** desktop tag CI macOS/Windows flake chase (Linux apt conflict fixed in `69ba173`).
+
+Next after 0.4.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).

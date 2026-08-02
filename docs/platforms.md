@@ -40,7 +40,7 @@ Uses the OS **app data** directory (sandboxed). Custom folder picker is **deskto
 
 ### Mobile keyring / biometric
 
-Same Settings flag as desktop (`biometricUnlock` → keyring commands). Coverage depends on the OS Keystore / Keychain path exposed to the `keyring` crate; master password always recovers the vault. Secure-flag / screenshot mitigations are planned, not yet wired.
+**Off by default.** Enable in Settings → “Convenience unlock”: stores the master password in the OS keyring/Keystore. On mobile, Gate uses **`tauri-plugin-biometric`** before `try_keyring_unlock`. Master password always recovers the vault. Gate does not offer a remember-me opt-in. Desktop silent keyring try runs only when the setting is on and biometrics are unavailable. Secure-flag / screenshot mitigations remain planned.
 
 ### Import on mobile
 
@@ -59,14 +59,14 @@ File dialogs via Tauri dialog plugin when available. Share-sheet / Files intent 
 
 ## Keyring / “Remember unlock”
 
-Optional OS keyring storage of the master password for convenience unlock (`biometricUnlock` in settings).
+Optional OS keyring storage of the master password for convenience unlock (`biometricUnlock` in Settings, **default off**).
 
 | Platform | Backend (keyring crate) | Typical UX |
 |----------|-------------------------|------------|
 | Windows | Credential Manager | “Remember unlock via OS keyring” |
 | macOS | Keychain | Same checkbox; may prompt for keychain access |
 | Linux | Secret Service (libsecret) / fallback | Needs a running secrets daemon (GNOME Keyring, KWallet, etc.) |
-| Android / iOS | Keystore / Keychain (where supported) | Preview — verify on device |
+| Android / iOS | Keystore / Keychain (where supported) + `tauri-plugin-biometric` Gate | “Unlock with biometrics” then keyring; password fallback |
 
 **Security notes**
 

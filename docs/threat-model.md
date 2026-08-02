@@ -40,7 +40,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Device backup / iCloud / Google backup of app data | Vault stays Argon2id + AES-GCM at rest under OS app data; document that OS backups may copy ciphertext | Documented — `docs/platforms.md` |
 | Screenshots / app switcher thumbnails | Prefer secure/FLAG_SECURE (or iOS equivalent) when plugin/API exists | Planned — not wired in preview shell |
 | Notification leakage | App never schedules notifications containing secrets | Done by policy (no notification features) |
-| Biometric / keyring unlock | Optional keyring / Keystore path; master password recovers vault | Preview — same IPC as desktop; OS coverage varies |
+| Biometric / keyring unlock | Opt-in Settings only (default off); OS biometric on mobile + keyring; master password recovers | Done (v0.4.0) |
 | Shared / lost phone | Auto-lock settings; remote wipe is OS-level only | Done (auto-lock) / Explicit (wipe) |
 | Sideload / APK integrity | Checksums + build-from-tag (same OSS model as desktop) | Process |
 | Clipboard on mobile | Sequential copy + clear timers still apply in WebView | Done / improving |

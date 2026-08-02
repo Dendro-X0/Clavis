@@ -49,6 +49,9 @@ export function SettingsPanel({
   const [importPw, setImportPw] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [dataPortable, setDataPortable] = useState(true);
+  const [bioPassword, setBioPassword] = useState("");
+  /** Last persisted convenience-unlock flag — used so re-saving other prefs does not demand the password again. */
+  const [bioPersistedOn, setBioPersistedOn] = useState(settings.biometricUnlock);
   const active = workspaces.find((w) => w.active);
 
   useEffect(() => {
@@ -169,14 +172,45 @@ export function SettingsPanel({
             }
           />
         </label>
-        <label className="mt-4 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.biometricUnlock}
-            onChange={(e) => setSettings({ ...settings, biometricUnlock: e.target.checked })}
-          />
-          Remember unlock on this device (OS keyring)
-        </label>
+        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={settings.biometricUnlock}
+              onChange={(e) =>
+                setSettings({ ...settings, biometricUnlock: e.target.checked })
+              }
+            />
+            <span>
+              <span className="font-medium text-[var(--foreground)]">
+                Convenience unlock (off by default)
+              </span>
+              <span className="mt-1 block text-xs text-[var(--muted)]">
+                Stores your master password in the OS keyring. On mobile, Gate asks for OS
+                biometrics before unlocking. Master password always works. Enable only on devices
+                you trust.
+              </span>
+            </span>
+          </label>
+          {settings.biometricUnlock && (
+            <label className="mt-3 block text-sm">
+              Master password to store in keyring
+              <input
+                type="password"
+                className="inset-field mt-1 w-full px-3 py-2"
+                value={bioPassword}
+                onChange={(e) => setBioPassword(e.target.value)}
+                placeholder={
+                  bioPersistedOn
+                    ? "Optional — enter only to refresh the stored secret"
+                    : "Required to enable"
+                }
+                autoComplete="current-password"
+              />
+            </label>
+          )}
+        </div>
         <label className="mt-3 flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -187,17 +221,32 @@ export function SettingsPanel({
         </label>
         <button
           className="mt-4 rounded-md bg-[var(--primary)] px-4 py-2 text-[var(--primary-fg)]"
-          onClick={() =>
-            api
-              .saveSettings(settings)
-              .then(async () => {
-                if (!settings.biometricUnlock) {
+          onClick={() => {
+            void (async () => {
+              try {
+                if (settings.biometricUnlock && !bioPassword.trim() && !bioPersistedOn) {
+                  throw new Error(
+                    "Enter your master password to enable convenience unlock, then save again.",
+                  );
+                }
+                await api.saveSettings(settings);
+                if (settings.biometricUnlock) {
+                  if (bioPassword.trim()) {
+                    await api.storeKeyringSecret(bioPassword);
+                    setBioPassword("");
+                  }
+                  setBioPersistedOn(true);
+                } else {
                   await api.clearKeyringSecret().catch(() => undefined);
+                  setBioPassword("");
+                  setBioPersistedOn(false);
                 }
                 onError("");
-              })
-              .catch((e) => onError(String(e)))
-          }
+              } catch (e) {
+                onError(String(e));
+              }
+            })();
+          }}
         >
           Save preferences
         </button>

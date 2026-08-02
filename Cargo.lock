@@ -448,11 +448,12 @@ dependencies = [
 
 [[package]]
 name = "clavis-mobile"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clavis-shell",
  "tauri",
  "tauri-build",
+ "tauri-plugin-biometric",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",
  "tauri-plugin-process",
@@ -460,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "clavis-shell"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1937,7 +1938,7 @@ dependencies = [
 
 [[package]]
 name = "keys-manager"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clavis-shell",
  "tauri",
@@ -3662,6 +3663,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-biometric"
+version = "2.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "306175b744890b5e4aeb8add6aae7debec1b1504c5087bd0310ed7c9c6feae38"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "tauri-plugin-clipboard-manager"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4351,7 +4367,7 @@ dependencies = [
 
 [[package]]
 name = "vault-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "aes-gcm",
  "argon2",

@@ -75,6 +75,8 @@ Workspaces are **not** in the sidebar.
 7. **Sidebar workspace pins**: pinned IDs under Vault; pin/unpin from workspace cards; active workspace always listed if not pinned.
 8. **Clipboard toast**: countdown while auto-clear is pending after copy.
 9. **Entry icons**: lettermark from host/title; optional favicon fetch when `fetchFavicons` is on.
+10. **v0.4.0 compact gestures**: swipe right → copy login; swipe left → open entry; long-press → Copy all / User / Pass menu. Granular copy buttons hidden on compact; desktop buttons unchanged.
+11. **Biometric / convenience unlock**: **off by default**. Enable only in Settings (`biometricUnlock` + store master password in OS keyring). Gate never opts the user in. When enabled and OS biometrics are available (mobile), primary “Unlock with biometrics”; otherwise desktop may silent-try keyring. Master password always available.
 
 ### Dialogs
 
@@ -113,10 +115,12 @@ Activate when viewport `< 768px` (CSS + `matchMedia`) — same web bundle on des
 | Window controls | Hidden |
 | Titlebar subtitle (“Local vault”) | Hidden; brand + theme only |
 | Sidebar | Collapsed by default; filters remain reachable |
-| Primary actions | Min tap height **44px**; copy buttons padded |
+| Primary actions | Min tap height **44px**; desktop keeps copy buttons |
+| Entry list | Swipe right = copy login; swipe left = open; long-press = copy menu; hide granular Copy/User/Pass |
 | Entry layout | Prefer **list**; grid still available |
 | Padding | Tighter main padding (`p-3`) |
 | Desktop-only settings | Hide “Change data folder” on compact (mobile uses app sandbox) |
+| Unlock | Biometrics primary when enabled + available; password fallback |
 
 Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[data-desktop-only]`).
 
@@ -129,4 +133,5 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `pageSize`: `10 | 25 | 50 | 100` (default `25`)
 - `pinnedWorkspaceIds`: `string[]` (default `[]`)
 - `fetchFavicons`: `boolean` (default `false`)
-- auto-lock / clipboard / biometric as before
+- `biometricUnlock`: `boolean` (default `false`) — convenience unlock via OS keyring; configure only in Settings
+- auto-lock / clipboard as before
