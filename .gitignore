@@ -1,0 +1,26 @@
+# Dependencies & build
+node_modules/
+.pnpm-store/
+target/
+.next/
+out/
+dist/
+*.log
+
+# App data / secrets (portable vault)
+data/
+*.km
+*.km.tmp
+.env
+.env.*
+
+# Tauri generated
+apps/desktop/src-tauri/gen/
+apps/web/out/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,15 @@
+{
+  "name": "clavis",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "dev": "pnpm --filter @clavis/desktop dev",
+    "dev:web": "pnpm --filter @clavis/web dev",
+    "dev:desktop": "pnpm --filter @clavis/desktop dev",
+    "build": "pnpm --filter @clavis/desktop build",
+    "build:web": "pnpm --filter @clavis/web build",
+    "build:desktop": "pnpm --filter @clavis/desktop build",
+    "test:vault": "cargo test -p vault-core",
+    "tauri": "pnpm --filter @clavis/desktop exec tauri"
+  }
+}
