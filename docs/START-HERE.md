@@ -15,6 +15,7 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile preview) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |
+| `docs/platforms.md` | Windows / macOS / Linux matrix, data dir, keyring |
 
 ## Dev loop
 

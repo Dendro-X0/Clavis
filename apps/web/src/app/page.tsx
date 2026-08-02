@@ -505,7 +505,8 @@ export default function HomePage() {
                 error.startsWith("Username copied") ||
                 error.startsWith("Password copied") ||
                 error.startsWith("Merged") ||
-                error.startsWith("No duplicate")
+                error.startsWith("No duplicate") ||
+                error.startsWith("Data directory")
                   ? "mb-3 shrink-0 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm"
                   : "mb-3 shrink-0 rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm"
               }
@@ -555,6 +556,10 @@ export default function HomePage() {
                   setEntries(entriesList);
                   setForm(null);
                   setCategoryFilter(null);
+                }}
+                onDataDirChanged={async () => {
+                  await refreshStatus();
+                  setNav("all");
                 }}
               />
             </div>

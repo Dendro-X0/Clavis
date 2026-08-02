@@ -15,6 +15,9 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::vault_status,
             commands::get_data_dir,
+            commands::get_data_dir_info,
+            commands::set_data_dir,
+            commands::pick_data_dir,
             commands::create_vault,
             commands::unlock,
             commands::lock,

@@ -64,4 +64,4 @@ scripts/                          Release checksum helper
 
 All vault state lives under `{executable_directory}/data/` (portable). Encrypted file: `data/vault.km`.
 
-See [docs/START-HERE.md](docs/START-HERE.md). Future work: [docs/roadmap.md](docs/roadmap.md).
+See [docs/START-HERE.md](docs/START-HERE.md). Platforms & keyring: [docs/platforms.md](docs/platforms.md). Future work: [docs/roadmap.md](docs/roadmap.md).

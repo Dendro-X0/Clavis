@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileDropZone } from "@/components/import/file-drop-zone";
 import { api, type AppSettings, type ImportResult, type StatusDto, type WorkspaceSummary } from "@/lib/api";
 import { importCredentialsFileSmart } from "@/lib/import";
@@ -29,6 +29,7 @@ export function SettingsPanel({
   onError,
   onImported,
   onWorkspacesChanged,
+  onDataDirChanged,
 }: {
   status: StatusDto;
   settings: AppSettings;
@@ -37,13 +38,22 @@ export function SettingsPanel({
   onError: (e: string) => void;
   onImported: (result?: ImportResult) => Promise<void>;
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
+  onDataDirChanged?: () => void | Promise<void>;
 }) {
   const { theme, setTheme } = useTheme();
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [importPw, setImportPw] = useState("");
   const [renameValue, setRenameValue] = useState("");
+  const [dataPortable, setDataPortable] = useState(true);
   const active = workspaces.find((w) => w.active);
+
+  useEffect(() => {
+    api
+      .getDataDirInfo()
+      .then((info) => setDataPortable(info.portable))
+      .catch(() => undefined);
+  }, [status.dataDir]);
 
   return (
     <section className="animate-rise mx-auto grid h-full min-h-0 w-full max-w-2xl gap-5 overflow-y-auto scroll-region p-1 pr-2">
@@ -51,7 +61,59 @@ export function SettingsPanel({
         <h2 className="font-display text-2xl">Settings</h2>
         <p className="mt-2 break-all text-xs text-[var(--muted)]">
           Data directory: {status.dataDir}
+          {dataPortable ? " (portable default)" : " (custom)"}
         </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+            onClick={async () => {
+              const ok = await appConfirm({
+                title: "Change data directory?",
+                description:
+                  "The vault will lock. Choose a folder for vault.km and config.json. Existing data is not moved automatically — copy files yourself if needed.",
+                confirmLabel: "Choose folder",
+              });
+              if (!ok) return;
+              try {
+                const folder = await api.pickDataDir();
+                if (!folder) return;
+                const info = await api.setDataDir(folder);
+                setDataPortable(info.portable);
+                onError(`Data directory set to ${info.path}. Unlock again to continue.`);
+                await onDataDirChanged?.();
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            Change data folder…
+          </button>
+          <button
+            type="button"
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+            disabled={dataPortable}
+            onClick={async () => {
+              const ok = await appConfirm({
+                title: "Reset to portable data folder?",
+                description:
+                  "Uses {app}/data next to the executable again. The vault will lock. Custom-folder files are left in place.",
+                confirmLabel: "Reset",
+              });
+              if (!ok) return;
+              try {
+                const info = await api.setDataDir(null);
+                setDataPortable(info.portable);
+                onError(`Data directory reset to ${info.path}. Unlock again to continue.`);
+                await onDataDirChanged?.();
+              } catch (e) {
+                onError(String(e));
+              }
+            }}
+          >
+            Use portable default
+          </button>
+        </div>
 
         <label className="mt-5 block text-sm">
           Theme

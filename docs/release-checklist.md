@@ -57,6 +57,8 @@ git push origin main
 git push origin vX.Y.Z
 ```
 
+CI builds **Windows, Linux, and macOS** artifacts on `v*` tags and uploads them with per-platform `SHA256SUMS-*.txt`. Attach those to the GitHub Release (or link the Actions artifacts).
+
 Create a GitHub Release for `vX.Y.Z` with:
 
 - Summary of changes

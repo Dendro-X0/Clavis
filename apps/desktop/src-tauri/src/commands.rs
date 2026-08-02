@@ -8,7 +8,9 @@ use vault_core::{
     vault_exists,
 };
 
-use crate::paths::{config_path, ensure_data_dir, vault_path};
+use crate::paths::{
+    config_path, ensure_data_dir, is_portable_data_dir, set_data_dir_override, vault_path,
+};
 use crate::state::{AppSettings, AppState};
 
 #[derive(Debug, Serialize)]
@@ -112,11 +114,54 @@ fn summary(e: &Entry) -> EntrySummary {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataDirInfo {
+    pub path: String,
+    pub portable: bool,
+}
+
 #[tauri::command]
 pub fn get_data_dir(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
     let _ = state;
     let dir = ensure_data_dir(&app)?;
     Ok(dir.display().to_string())
+}
+
+#[tauri::command]
+pub fn get_data_dir_info(app: AppHandle) -> Result<DataDirInfo, String> {
+    let dir = ensure_data_dir(&app)?;
+    Ok(DataDirInfo {
+        path: dir.display().to_string(),
+        portable: is_portable_data_dir(&app)?,
+    })
+}
+
+/// `path = None` restores portable `{exe}/data`. Locks the session if open.
+#[tauri::command]
+pub fn set_data_dir(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: Option<String>,
+) -> Result<DataDirInfo, String> {
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        *guard = None;
+    }
+    let custom = path
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::path::Path::new);
+    set_data_dir_override(&app, custom)?;
+    get_data_dir_info(app)
+}
+
+#[tauri::command]
+pub fn pick_data_dir(app: AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = app.dialog().file().blocking_pick_folder();
+    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
 }
 
 #[tauri::command]

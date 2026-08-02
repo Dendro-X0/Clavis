@@ -131,4 +131,12 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Onboarding (create vault steps + dismissible tip) | Done |
 | Merge duplicate workspace names | Done — Settings → Workspaces → Merge duplicates |
 
-Next phase band: **Phase B** multi-desktop packages (macOS / Linux CI + docs).
+### Phase B — Multi-desktop
+
+| Item | Status |
+|------|--------|
+| Windows + Linux + macOS CI builds on tag | Done — matrix in `.github/workflows/ci.yml` |
+| Platform + keyring docs | Done — `docs/platforms.md` |
+| Optional custom data directory | Done — Settings → Change data folder / portable default |
+
+Next phase band: **Phase C** mobile preview (Tauri mobile + threat-model follow-ups).

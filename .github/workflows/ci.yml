@@ -38,11 +38,21 @@ jobs:
       - name: Web TypeScript
         run: pnpm --filter @clavis/web exec tsc --noEmit
 
-  windows-build:
-    name: Windows Tauri build
+  desktop-build:
+    name: Desktop build (${{ matrix.os }})
     needs: test
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: windows
+          - os: ubuntu-22.04
+            artifact: linux
+          - os: macos-latest
+            artifact: macos
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -57,7 +67,19 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install WebView2 (usually present) & deps
+      - name: Linux WebKit / Tauri deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Install JS deps
         run: pnpm install --frozen-lockfile
 
       - name: Build desktop (self-signed / unsigned)
@@ -67,23 +89,33 @@ jobs:
         shell: bash
         run: |
           mkdir -p release-out
-          # Bundle outputs vary by Tauri target; scoop common installer/bin patterns
-          find apps/desktop/src-tauri/target/release/bundle -type f \
-            \( -name '*.exe' -o -name '*.msi' -o -name '*.nsis.zip' \) \
-            -print 2>/dev/null | while read -r f; do
-              cp "$f" release-out/
+          BUNDLE="apps/desktop/src-tauri/target/release/bundle"
+          if [ -d "$BUNDLE" ]; then
+            find "$BUNDLE" -type f \( \
+              -name '*.exe' -o -name '*.msi' -o -name '*.nsis.zip' \
+              -o -name '*.dmg' -o -name '*.app.tar.gz' \
+              -o -name '*.deb' -o -name '*.AppImage' -o -name '*.rpm' \
+            \) -print 2>/dev/null | while read -r f; do
+              cp "$f" release-out/ || true
             done
-          # Fallback: ship the main executable if no bundle yet
+            # macOS .app is a directory — zip it for upload
+            find "$BUNDLE" -type d -name '*.app' -print 2>/dev/null | while read -r appdir; do
+              base="$(basename "$appdir")"
+              (cd "$(dirname "$appdir")" && zip -r -q "${OLDPWD}/release-out/${base}.zip" "$base") || true
+            done
+          fi
           if [ -z "$(ls -A release-out 2>/dev/null)" ]; then
             cp apps/desktop/src-tauri/target/release/keys-manager.exe release-out/ 2>/dev/null || true
+            cp apps/desktop/src-tauri/target/release/keys-manager release-out/ 2>/dev/null || true
             cp apps/desktop/src-tauri/target/release/clavis.exe release-out/ 2>/dev/null || true
+            cp apps/desktop/src-tauri/target/release/clavis release-out/ 2>/dev/null || true
           fi
-          ls -la release-out
-          node scripts/checksum-release.mjs --out release-out/SHA256SUMS.txt release-out
+          ls -la release-out || true
+          node scripts/checksum-release.mjs --out "release-out/SHA256SUMS-${{ matrix.artifact }}.txt" release-out
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: clavis-windows-${{ github.ref_name }}
+          name: clavis-${{ matrix.artifact }}-${{ github.ref_name }}
           path: release-out/
           if-no-files-found: warn

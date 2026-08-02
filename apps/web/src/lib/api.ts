@@ -92,6 +92,10 @@ export type ImportMode = "new" | "replace";
 export const api = {
   status: () => call<StatusDto>("vault_status").catch(() => browserFallback),
   getDataDir: () => call<string>("get_data_dir"),
+  getDataDirInfo: () => call<{ path: string; portable: boolean }>("get_data_dir_info"),
+  setDataDir: (path: string | null) =>
+    call<{ path: string; portable: boolean }>("set_data_dir", { path }),
+  pickDataDir: () => call<string | null>("pick_data_dir"),
   createVault: (name: string, password: string) =>
     call<StatusDto>("create_vault", { name, password }),
   unlock: (password: string) => call<StatusDto>("unlock", { password }),
