@@ -15,6 +15,7 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `apps/web` | Next.js static UI + Tailwind |
 | `specs/backend/vault-core-design.md` | Vault format contract |
 | `specs/backend/mobile-preview-design.md` | Phase C mobile design |
+| `specs/backend/v0.3.0-ux-design.md` | v0.3.0 palette / pins / favicons |
 | `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |

@@ -2,15 +2,19 @@
 
 import {
   FileKey2,
+  Folder,
   KeyRound,
   Lock,
   NotebookPen,
+  Pin,
+  Search,
   Settings,
   Shield,
   StickyNote,
 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { EntryType } from "@/lib/api";
+import type { EntryType, WorkspaceSummary } from "@/lib/api";
 
 export type NavId = "all" | EntryType | "settings";
 
@@ -22,17 +26,47 @@ const vaultItems: { id: NavId; label: string; icon: typeof Shield }[] = [
   { id: "custom", label: "Custom", icon: NotebookPen },
 ];
 
+function useModKeyHint() {
+  const [hint, setHint] = useState("Ctrl+K");
+  useEffect(() => {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform) || navigator.userAgent.includes("Mac");
+    setHint(mac ? "⌘K" : "Ctrl+K");
+  }, []);
+  return hint;
+}
+
 export function AppSidebar({
   active,
   onNavigate,
   onLock,
+  onSearch,
+  workspaces,
+  pinnedWorkspaceIds,
+  onSelectWorkspace,
   collapsed,
 }: {
   active: NavId;
   onNavigate: (id: NavId) => void;
   onLock: () => void;
+  onSearch?: () => void;
+  workspaces?: WorkspaceSummary[];
+  pinnedWorkspaceIds?: string[];
+  onSelectWorkspace?: (id: string) => void;
   collapsed?: boolean;
 }) {
+  const modHint = useModKeyHint();
+
+  const pinnedList = useMemo(() => {
+    if (!workspaces?.length) return [];
+    const pinned = new Set(pinnedWorkspaceIds ?? []);
+    const activeWs = workspaces.find((w) => w.active);
+    const fromPins = workspaces.filter((w) => pinned.has(w.id));
+    if (activeWs && !fromPins.some((w) => w.id === activeWs.id)) {
+      return [activeWs, ...fromPins];
+    }
+    return fromPins;
+  }, [workspaces, pinnedWorkspaceIds]);
+
   return (
     <aside
       className={cn(
@@ -49,6 +83,27 @@ export function AppSidebar({
         Vault
       </p>
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto scroll-region px-2">
+        {onSearch && (
+          <button
+            type="button"
+            title={`Search (${modHint})`}
+            onClick={onSearch}
+            className={cn(
+              "mb-1 flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <Search className="h-4 w-4 shrink-0" />
+            {!collapsed && (
+              <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <span>Search</span>
+                <kbd className="rounded border border-[var(--border)] px-1 text-[10px] text-[var(--muted)]">
+                  {modHint}
+                </kbd>
+              </span>
+            )}
+          </button>
+        )}
         {vaultItems.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
@@ -71,6 +126,41 @@ export function AppSidebar({
             </button>
           );
         })}
+
+        {onSelectWorkspace && pinnedList.length > 0 && (
+          <>
+            <p
+              className={cn(
+                "mt-3 px-2.5 pb-1 text-[10px] tracking-[0.2em] text-[var(--muted)] uppercase",
+                collapsed && "sr-only",
+              )}
+            >
+              Workspaces
+            </p>
+            {pinnedList.map((ws) => (
+              <button
+                key={ws.id}
+                type="button"
+                title={ws.name}
+                onClick={() => onSelectWorkspace(ws.id)}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
+                  ws.active
+                    ? "bg-[var(--accent-wash)] text-[var(--foreground)] shadow-[inset_2px_0_0_0_var(--primary)]"
+                    : "text-[var(--muted)] hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+                  collapsed && "justify-center px-0",
+                )}
+              >
+                {ws.active || (pinnedWorkspaceIds ?? []).includes(ws.id) ? (
+                  <Pin className="h-4 w-4 shrink-0" />
+                ) : (
+                  <Folder className="h-4 w-4 shrink-0" />
+                )}
+                {!collapsed && <span className="truncate">{ws.name}</span>}
+              </button>
+            ))}
+          </>
+        )}
       </nav>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] px-2 pt-2">
         <button

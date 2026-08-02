@@ -2,6 +2,7 @@
 
 import type { EntrySummary, EntryType, ImportResult } from "@/lib/api";
 import type { EntryLayout } from "@/components/shell/dashboard-header";
+import { EntryIcon } from "@/components/vault/entry-icon";
 import { VaultEmptyState } from "@/components/vault/vault-empty-state";
 import { cn } from "@/lib/utils";
 
@@ -133,6 +134,8 @@ export function EntryList({
   onOpenSettings,
   onReplace,
   workspaceName,
+  activeWorkspaceId,
+  fetchFavicons = false,
 }: {
   entries: EntrySummary[];
   selectedId?: string;
@@ -140,7 +143,7 @@ export function EntryList({
   layout?: EntryLayout;
   /** True when the active workspace has no entries at all (vs filter miss). */
   emptyWorkspace?: boolean;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, workspaceId?: string) => void;
   onCopyLogin: (id: string) => void;
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
@@ -151,7 +154,15 @@ export function EntryList({
   onOpenSettings: () => void;
   onReplace: () => void;
   workspaceName?: string;
+  activeWorkspaceId?: string;
+  fetchFavicons?: boolean;
 }) {
+  function foreignWorkspace(e: EntrySummary) {
+    if (!e.workspaceName) return null;
+    if (e.workspaceId && activeWorkspaceId && e.workspaceId === activeWorkspaceId) return null;
+    return e.workspaceName;
+  }
+
   if (emptyWorkspace) {
     return (
       <VaultEmptyState
@@ -176,16 +187,18 @@ export function EntryList({
   if (layout === "grid") {
     return (
       <ul className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3">
-        {entries.map((e) => (
-          <li key={e.id}>
+        {entries.map((e) => {
+          const wsLabel = foreignWorkspace(e);
+          return (
+          <li key={`${e.workspaceId ?? "ws"}-${e.id}`}>
             <div
               role="button"
               tabIndex={0}
-              onClick={() => onSelect(e.id)}
+              onClick={() => onSelect(e.id, e.workspaceId)}
               onKeyDown={(ev) => {
                 if (ev.key === "Enter" || ev.key === " ") {
                   ev.preventDefault();
-                  onSelect(e.id);
+                  onSelect(e.id, e.workspaceId);
                 }
               }}
               className={cn(
@@ -196,9 +209,17 @@ export function EntryList({
               )}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+                <div className="flex min-w-0 items-start gap-2">
+                  <EntryIcon title={e.title} url={e.url} fetchEnabled={fetchFavicons} />
+                  <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+                </div>
                 <TypePill type={e.entryType} />
               </div>
+              {wsLabel && (
+                <p className="truncate text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                  {wsLabel}
+                </p>
+              )}
               <p className="truncate text-sm text-[var(--muted)]">
                 {e.username || e.url || "—"}
               </p>
@@ -214,16 +235,19 @@ export function EntryList({
               />
             </div>
           </li>
-        ))}
+          );
+        })}
       </ul>
     );
   }
 
   return (
     <ul className="divide-y divide-[var(--border)]">
-      {entries.map((e) => (
+      {entries.map((e) => {
+        const wsLabel = foreignWorkspace(e);
+        return (
         <li
-          key={e.id}
+          key={`${e.workspaceId ?? "ws"}-${e.id}`}
           className={cn(
             "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
             selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
@@ -232,11 +256,22 @@ export function EntryList({
           <button
             type="button"
             className="min-h-11 min-w-0 flex-1 touch-target text-left"
-            onClick={() => onSelect(e.id)}
+            onClick={() => onSelect(e.id, e.workspaceId)}
           >
             <div className="flex flex-wrap items-center gap-2">
+              <EntryIcon
+                title={e.title}
+                url={e.url}
+                fetchEnabled={fetchFavicons}
+                className="h-7 w-7 text-[10px]"
+              />
               <span className="font-medium">{e.title}</span>
               <TypePill type={e.entryType} />
+              {wsLabel && (
+                <span className="rounded bg-[var(--inset)] px-1.5 py-0.5 text-[10px] text-[var(--muted)]">
+                  {wsLabel}
+                </span>
+              )}
               <CategoryChips tags={e.tags} />
             </div>
             <p className="truncate text-sm text-[var(--muted)]">
@@ -252,7 +287,8 @@ export function EntryList({
             onCopyPass={onCopyPass}
           />
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

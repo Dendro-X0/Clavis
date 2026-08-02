@@ -322,6 +322,36 @@ Password: has-pass
     }
 
     #[test]
+    fn list_all_entries_spans_workspaces() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let params = fast_params();
+        let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
+        crate::format::write_all_atomic(&path, &encoded).unwrap();
+        let mut session = open_vault_file(&path, "pw").unwrap();
+
+        let mut a = Entry::new(EntryType::Login, "Alpha");
+        a.password = "1".into();
+        session
+            .import_as_workspace("WS-A", None, vec![a])
+            .unwrap();
+        let mut b = Entry::new(EntryType::Login, "Beta");
+        b.password = "2".into();
+        session
+            .import_as_workspace("WS-B", None, vec![b])
+            .unwrap();
+
+        let all = session.list_all_entries();
+        let titles: Vec<&str> = all.iter().map(|(_, _, e)| e.title.as_str()).collect();
+        assert!(titles.contains(&"Alpha"));
+        assert!(titles.contains(&"Beta"));
+        let alpha = all.iter().find(|(_, _, e)| e.title == "Alpha").unwrap();
+        assert_eq!(alpha.1, "WS-A");
+        let beta = all.iter().find(|(_, _, e)| e.title == "Beta").unwrap();
+        assert_eq!(beta.1, "WS-B");
+    }
+
+    #[test]
     fn merge_duplicate_workspaces_keeps_entries() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("vault.km");

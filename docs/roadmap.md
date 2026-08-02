@@ -64,11 +64,12 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Priority | Item | Why |
 |----------|------|-----|
 | P0 | Onboarding: create vault → import → first copy | Empty-state education |
-| P0 | Search + keyboard shortcuts (lock, new, search focus) | Power-user speed |
+| P0 | Search + keyboard shortcuts (lock, new, search focus) | Done — global search + Ctrl/Cmd+K palette |
 | P1 | Autotype / fill helper (desktop) where safe | Faster logins than copy-paste |
 | P1 | TOTP / otpauth fields | Common password-manager expectation |
-| P1 | Favicons / site icons (optional, offline-safe) | Scanability in grid |
+| P1 | Favicons / site icons (optional, offline-safe) | v0.3.0 — lettermark + optional cache |
 | P1 | Duplicate workspace merge / cleanup | Users already hit duplicate names |
+| P1 | Workspace sidebar pins + clipboard clear toast | v0.3.0 |
 | P2 | Password health (length, reuse warnings — local only) | Guidance without phoning home |
 | P2 | Accessible density modes; larger touch targets for mobile | Mobile readiness |
 | P3 | Plugins / custom field templates | Stretch |
@@ -150,4 +151,14 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Biometric / secure-window polish | Preview — keyring IPC; FLAG_SECURE later |
 | Share-sheet import | Follow-up |
 
-Next phase band: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+### v0.3.0 — Usability refinements
+
+| Item | Status |
+|------|--------|
+| Palette: copy credentials + switch workspace | Done |
+| Clipboard clear countdown toast | Done |
+| Pinned workspaces in sidebar | Done |
+| Entry lettermark + optional favicon cache | Done |
+| Version bump 0.3.0 | Done |
+
+Next phase band after 0.3.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).

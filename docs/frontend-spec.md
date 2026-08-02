@@ -60,19 +60,25 @@ Workspaces are **not** in the sidebar.
    - Dashed “New workspace” card to create
    - Import file → new workspace (name = file stem); same-name → replace confirm dialog
 2. **Toolbar**
-   - Search (titles, users, URLs, categories/tags)
-   - Optional category chip filter (from entry tags in current workspace)
-   - Layout toggle: **list** (default, current) | **grid** (cards)
+   - Search **all workspaces** when query is non-empty (titles, users, URLs, categories/tags, workspace name); empty query = active workspace only
+   - Foreign-workspace hits show a workspace label; selecting switches workspace and opens the entry
+   - Optional category chip filter
+   - Layout toggle: **list** (default) | **grid**
    - Replace | New entry
 3. **Entry surface**
-   - List or grid of entries for active workspace
+   - List or grid of entries (active workspace, or global search results)
    - **Pagination**: page size 10 / 25 / 50 / 100 (user-selectable); footer with prev/next and range
    - Editor panel when creating/editing
 4. Settings replaces main when nav=settings
+5. **Command palette** (`Ctrl/Cmd+K`): search entries globally + actions (New, Settings, Lock, Focus search, Toggle layout). `/` focuses toolbar search. `Ctrl/Cmd+,` opens Settings. Esc closes palette then editor.
+6. **v0.3.0 palette**: switch workspace rows; per-entry Copy login / User / Pass actions.
+7. **Sidebar workspace pins**: pinned IDs under Vault; pin/unpin from workspace cards; active workspace always listed if not pinned.
+8. **Clipboard toast**: countdown while auto-clear is pending after copy.
+9. **Entry icons**: lettermark from host/title; optional favicon fetch when `fetchFavicons` is on.
 
 ### Dialogs
 
-All destructive or naming prompts use custom Radix dialogs via an app-level host (`appConfirm` / `appPrompt`). No native browser pop-ups.
+All destructive or naming prompts use custom Radix dialogs via an app-level host (`appConfirm` / `appPrompt`). No native browser pop-ups. Command palette uses the same Dialog primitive.
 
 ### Entries: name & categorize
 
@@ -86,8 +92,8 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 
 | Mode | Presentation |
 |------|----------------|
-| `list` | Compact rows: name, type, username/url, category chips, User/Pass |
-| `grid` | Responsive card grid: name, type, username/url, categories, copy actions |
+| `list` | Compact rows: icon, name, type, username/url, category chips, User/Pass |
+| `grid` | Responsive card grid: icon, name, type, username/url, categories, copy actions |
 
 Preference persists in `AppSettings.entryLayout` (`"list" | "grid"`).
 `AppSettings.pageSize`: `10 | 25 | 50 | 100` (default `25`).
@@ -96,7 +102,7 @@ Preference persists in `AppSettings.entryLayout` (`"list" | "grid"`).
 
 - `decorations: false` (desktop)
 - Custom titlebar ~40px, `data-tauri-drag-region`
-- Controls: minimize, maximize/toggle, close via `@tauri-apps/api/window`
+- Controls: minimize, maximize/restore (distinct icons), close via `@tauri-apps/api/window`
 
 ## Compact / mobile surface (Phase C)
 
@@ -121,4 +127,6 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `theme`: `"light" | "dark" | "system"`
 - `entryLayout`: `"list" | "grid"` (default `list`)
 - `pageSize`: `10 | 25 | 50 | 100` (default `25`)
+- `pinnedWorkspaceIds`: `string[]` (default `[]`)
+- `fetchFavicons`: `boolean` (default `false`)
 - auto-lock / clipboard / biometric as before

@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderPlus, LayoutGrid, LayoutList, Pencil, Trash2 } from "lucide-react";
+import { FolderPlus, LayoutGrid, LayoutList, Pencil, Pin, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WorkspaceSummary } from "@/lib/api";
 
@@ -20,6 +20,8 @@ export function DashboardHeader({
   onCreateWorkspace,
   onRenameWorkspace,
   onDeleteWorkspace,
+  onTogglePinWorkspace,
+  pinnedWorkspaceIds = [],
   onReplace,
   onNewEntry,
 }: {
@@ -36,11 +38,14 @@ export function DashboardHeader({
   onCreateWorkspace: () => void;
   onRenameWorkspace: (id: string) => void;
   onDeleteWorkspace: (id: string) => void;
+  onTogglePinWorkspace?: (id: string) => void;
+  pinnedWorkspaceIds?: string[];
   onReplace: () => void;
   onNewEntry: () => void;
 }) {
   const active = workspaces.find((w) => w.active);
   const canDelete = workspaces.length > 1;
+  const pinned = new Set(pinnedWorkspaceIds);
 
   return (
     <div className="flex shrink-0 flex-col gap-3">
@@ -52,7 +57,9 @@ export function DashboardHeader({
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {workspaces.map((ws) => (
+        {workspaces.map((ws) => {
+          const isPinned = pinned.has(ws.id);
+          return (
           <div
             key={ws.id}
             role="button"
@@ -79,9 +86,29 @@ export function DashboardHeader({
                 <p className="mt-0.5 text-xs text-[var(--muted)]">
                   {ws.entryCount} {ws.entryCount === 1 ? "entry" : "entries"}
                   {ws.active ? " · active" : ""}
+                  {isPinned ? " · pinned" : ""}
                 </p>
               </div>
               <div className="flex shrink-0 gap-1">
+                {onTogglePinWorkspace && (
+                  <button
+                    type="button"
+                    title={isPinned ? "Unpin from sidebar" : "Pin to sidebar"}
+                    aria-pressed={isPinned}
+                    className={cn(
+                      "rounded-md border border-[var(--border)] p-1.5 transition hover:bg-[var(--inset)]",
+                      isPinned
+                        ? "text-[var(--primary)]"
+                        : "text-[var(--muted)] hover:text-[var(--foreground)]",
+                    )}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePinWorkspace(ws.id);
+                    }}
+                  >
+                    <Pin className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   title="Rename workspace"
@@ -115,7 +142,8 @@ export function DashboardHeader({
               <p className="text-[10px] text-[var(--muted)]">Manual workspace</p>
             )}
           </div>
-        ))}
+          );
+        })}
 
         <button
           type="button"
@@ -132,7 +160,7 @@ export function DashboardHeader({
         <input
           className="inset-field min-w-[180px] flex-1 px-3 py-2"
           id="vault-search"
-          placeholder="Search names, users, URLs, categories… (/)"
+          placeholder="Search all workspaces… (/)"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />

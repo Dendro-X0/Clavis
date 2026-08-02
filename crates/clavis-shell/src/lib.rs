@@ -24,6 +24,7 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::unlock,
             commands::lock,
             commands::list_entries,
+            commands::list_all_entries,
             commands::list_workspaces,
             commands::set_active_workspace,
             commands::create_workspace,
@@ -48,6 +49,8 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::try_keyring_unlock,
             commands::store_keyring_secret,
             commands::clear_keyring_secret,
+            commands::read_entry_icon,
+            commands::fetch_entry_icon,
         ])
         .setup(|app| {
             let data_dir = paths::ensure_data_dir(app.handle())?;

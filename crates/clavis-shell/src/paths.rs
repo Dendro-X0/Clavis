@@ -114,5 +114,12 @@ pub fn ensure_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String
     let dir = data_dir(app)?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     fs::create_dir_all(dir.join("tmp")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(dir.join("icons")).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+pub fn icons_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let dir = ensure_data_dir(app)?.join("icons");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }

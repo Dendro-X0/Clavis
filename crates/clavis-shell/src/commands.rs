@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Read;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
@@ -9,7 +10,7 @@ use vault_core::{
 };
 
 use crate::paths::{
-    config_path, ensure_data_dir, is_portable_data_dir, set_data_dir_override, vault_path,
+    config_path, ensure_data_dir, icons_dir, is_portable_data_dir, set_data_dir_override, vault_path,
 };
 use crate::state::{AppSettings, AppState};
 
@@ -32,6 +33,10 @@ pub struct EntrySummary {
     pub url: String,
     pub tags: Vec<String>,
     pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -111,6 +116,22 @@ fn summary(e: &Entry) -> EntrySummary {
         url: e.url.clone(),
         tags: e.tags.clone(),
         updated_at: e.updated_at.to_rfc3339(),
+        workspace_id: None,
+        workspace_name: None,
+    }
+}
+
+fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> EntrySummary {
+    EntrySummary {
+        id: e.id.clone(),
+        entry_type: e.entry_type,
+        title: e.title.clone(),
+        username: e.username.clone(),
+        url: e.url.clone(),
+        tags: e.tags.clone(),
+        updated_at: e.updated_at.to_rfc3339(),
+        workspace_id: Some(workspace_id.to_string()),
+        workspace_name: Some(workspace_name.to_string()),
     }
 }
 
@@ -246,6 +267,17 @@ pub fn list_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>, Str
         .map_err(map_err)?
         .iter()
         .map(summary)
+        .collect())
+}
+
+#[tauri::command]
+pub fn list_all_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(session
+        .list_all_entries()
+        .into_iter()
+        .map(|(ws_id, ws_name, entry)| summary_in_workspace(entry, ws_id, ws_name))
         .collect())
 }
 
@@ -633,4 +665,105 @@ pub fn try_keyring_unlock(app: AppHandle, state: State<'_, AppState>) -> Result<
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(map_err)?;
     let password = entry.get_password().map_err(map_err)?;
     unlock(app, state, password)
+}
+
+fn sanitize_icon_host(host: &str) -> String {
+    let h = host.trim().to_lowercase();
+    let h = h.strip_prefix("www.").unwrap_or(&h);
+    h.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('.')
+        .to_string()
+}
+
+fn icon_mime(bytes: &[u8]) -> &'static str {
+    if bytes.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+        "image/png"
+    } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        "image/jpeg"
+    } else if bytes.starts_with(b"GIF8") {
+        "image/gif"
+    } else if bytes.starts_with(b"<svg") || bytes.starts_with(b"<?xml") {
+        "image/svg+xml"
+    } else if bytes.len() >= 4 && bytes[0..4] == [0, 0, 1, 0] {
+        "image/x-icon"
+    } else {
+        "image/png"
+    }
+}
+
+fn bytes_to_data_url(bytes: &[u8]) -> String {
+    format!(
+        "data:{};base64,{}",
+        icon_mime(bytes),
+        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes)
+    )
+}
+
+fn icon_cache_path(app: &AppHandle, host: &str) -> Result<std::path::PathBuf, String> {
+    let key = sanitize_icon_host(host);
+    if key.is_empty() {
+        return Err("empty host".into());
+    }
+    Ok(icons_dir(app)?.join(format!("{key}.bin")))
+}
+
+#[tauri::command]
+pub fn read_entry_icon(app: AppHandle, host: String) -> Result<Option<String>, String> {
+    let path = icon_cache_path(&app, &host)?;
+    if !path.is_file() {
+        return Ok(None);
+    }
+    let bytes = fs::read(&path).map_err(map_err)?;
+    if bytes.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(bytes_to_data_url(&bytes)))
+}
+
+#[tauri::command]
+pub fn fetch_entry_icon(app: AppHandle, host: String) -> Result<Option<String>, String> {
+    let key = sanitize_icon_host(&host);
+    if key.is_empty() {
+        return Ok(None);
+    }
+    let path = icon_cache_path(&app, &host)?;
+    if path.is_file() {
+        let bytes = fs::read(&path).map_err(map_err)?;
+        if !bytes.is_empty() {
+            return Ok(Some(bytes_to_data_url(&bytes)));
+        }
+    }
+
+    let urls = [
+        format!("https://{key}/favicon.ico"),
+        format!("https://www.google.com/s2/favicons?domain={key}&sz=64"),
+    ];
+    for url in urls {
+        let resp = ureq::get(&url)
+            .set("User-Agent", "Clavis/0.3")
+            .timeout(std::time::Duration::from_secs(8))
+            .call();
+        let Ok(resp) = resp else { continue };
+        if !(200..300).contains(&resp.status()) {
+            continue;
+        }
+        let mut bytes = Vec::new();
+        if resp.into_reader().take(256 * 1024).read_to_end(&mut bytes).is_err() {
+            continue;
+        }
+        if bytes.len() < 16 {
+            continue;
+        }
+        fs::write(&path, &bytes).map_err(map_err)?;
+        return Ok(Some(bytes_to_data_url(&bytes)));
+    }
+    Ok(None)
 }

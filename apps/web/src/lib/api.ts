@@ -19,6 +19,8 @@ export type EntrySummary = {
   url: string;
   tags: string[];
   updatedAt: string;
+  workspaceId?: string;
+  workspaceName?: string;
 };
 
 export type CustomField = { label: string; value: string };
@@ -46,6 +48,8 @@ export type AppSettings = {
   theme: "light" | "dark" | "system";
   entryLayout: "list" | "grid";
   pageSize: 10 | 25 | 50 | 100;
+  pinnedWorkspaceIds?: string[];
+  fetchFavicons?: boolean;
 };
 
 export type UpsertEntryInput = {
@@ -104,6 +108,7 @@ export const api = {
   clearKeyringSecret: () => call<void>("clear_keyring_secret"),
   lock: () => call<void>("lock"),
   listEntries: () => call<EntrySummary[]>("list_entries"),
+  listAllEntries: () => call<EntrySummary[]>("list_all_entries"),
   listWorkspaces: () => call<WorkspaceSummary[]>("list_workspaces"),
   setActiveWorkspace: (id: string) => call<WorkspaceSummary[]>("set_active_workspace", { id }),
   createWorkspace: (name: string) => call<WorkspaceSummary>("create_workspace", { name }),
@@ -151,6 +156,8 @@ export const api = {
   saveSettings: (settings: AppSettings) => call<void>("save_settings", { settings }),
   generatePassword: (length = 20) => call<string>("generate_password", { length }),
   readTextFile: (path: string) => call<string>("read_text_file", { path }),
+  readEntryIcon: (host: string) => call<string | null>("read_entry_icon", { host }),
+  fetchEntryIcon: (host: string) => call<string | null>("fetch_entry_icon", { host }),
 };
 
 export function normalizeEntry(e: Entry) {

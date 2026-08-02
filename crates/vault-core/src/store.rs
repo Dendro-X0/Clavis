@@ -258,11 +258,24 @@ impl VaultSession {
             .ok_or_else(|| VaultError::Message("no active workspace".into()))
     }
 
+    /// All entries across workspaces: `(workspace_id, workspace_name, entry)`.
+    pub fn list_all_entries(&self) -> Vec<(&str, &str, &Entry)> {
+        let mut out = Vec::new();
+        for ws in &self.document.workspaces {
+            for entry in &ws.entries {
+                out.push((ws.id.as_str(), ws.name.as_str(), entry));
+            }
+        }
+        out
+    }
+
     pub fn get_entry(&self, id: &str) -> Result<&Entry> {
-        self.list_entries()?
-            .iter()
-            .find(|e| e.id == id)
-            .ok_or_else(|| VaultError::EntryNotFound(id.to_string()))
+        for ws in &self.document.workspaces {
+            if let Some(entry) = ws.entries.iter().find(|e| e.id == id) {
+                return Ok(entry);
+            }
+        }
+        Err(VaultError::EntryNotFound(id.to_string()))
     }
 
     pub fn upsert_entry(&mut self, mut entry: Entry) -> Result<Entry> {

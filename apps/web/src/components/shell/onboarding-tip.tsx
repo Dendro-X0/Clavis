@@ -18,8 +18,12 @@ export function OnboardingTip({
           <span className="text-[var(--foreground)]">Copy</span> pastes username then password
           for login forms. Shortcuts:{" "}
           <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">/</kbd> search ·{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl+N</kbd> new ·{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl+L</kbd> lock.
+          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+K</kbd>{" "}
+          palette ·{" "}
+          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+N</kbd>{" "}
+          new ·{" "}
+          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+L</kbd>{" "}
+          lock.
         </p>
         {onImportHint && (
           <button

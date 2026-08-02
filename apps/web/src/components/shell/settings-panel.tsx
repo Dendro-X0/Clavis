@@ -177,6 +177,14 @@ export function SettingsPanel({
           />
           Remember unlock on this device (OS keyring)
         </label>
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={Boolean(settings.fetchFavicons)}
+            onChange={(e) => setSettings({ ...settings, fetchFavicons: e.target.checked })}
+          />
+          Fetch site icons for login URLs (cached under data/icons; off by default)
+        </label>
         <button
           className="mt-4 rounded-md bg-[var(--primary)] px-4 py-2 text-[var(--primary-fg)]"
           onClick={() =>

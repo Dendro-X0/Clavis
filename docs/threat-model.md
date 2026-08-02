@@ -44,6 +44,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Shared / lost phone | Auto-lock settings; remote wipe is OS-level only | Done (auto-lock) / Explicit (wipe) |
 | Sideload / APK integrity | Checksums + build-from-tag (same OSS model as desktop) | Process |
 | Clipboard on mobile | Sequential copy + clear timers still apply in WebView | Done / improving |
+| Optional favicon fetch | Off by default; one-shot cache under `data/icons/`; reveals host intent to remote when enabled | Documented |
 
 ## Self-signed distribution
 

@@ -1,7 +1,7 @@
 # Clavis (Keys Manager)
 
 Local-first portable credential vault. Tauri v2 + Rust core + Next.js UI.  
-**OSS · self-signed / unsigned releases** (see below). Current version: **0.2.0**.
+**OSS · self-signed / unsigned releases** (see below). Current version: **0.3.0**.
 
 ## Prerequisites
 
@@ -32,6 +32,8 @@ Light/dark theme toggle lives in the custom titlebar and Settings. Theme prefere
 
 Credential imports create a **workspace** (named from the file). If that name already exists, Clavis asks whether to **replace** it. Workspaces live in the **dashboard** strip (not the sidebar). Toggle **list / grid** for entries; name and categorize items in the editor.
 
+**Search & shortcuts** (Windows / Linux / macOS): toolbar search matches all workspaces when you type a query; `Ctrl/Cmd+K` opens the command palette; `/` focuses toolbar search; `Ctrl/Cmd+N` new entry; `Ctrl/Cmd+L` lock; `Ctrl/Cmd+,` settings; `Esc` closes palette/editor.
+
 ## Installing self-signed builds
 
 GitHub Releases may include installers that are **not** signed by Microsoft/Apple store certificates.
@@ -45,7 +47,7 @@ GitHub Releases may include installers that are **not** signed by Microsoft/Appl
 **Always verify checksums** against `SHA256SUMS.txt` (or hashes listed on the release) before running a downloaded binary. Prefer building from source if you do not trust a binary:
 
 ```bash
-git checkout v0.2.0   # or the release tag
+git checkout v0.3.0   # or the release tag
 pnpm install
 pnpm build
 ```

@@ -1,6 +1,7 @@
 "use client";
 
-import { Minus, Square, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Copy, Minus, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 async function getWindow() {
@@ -9,6 +10,35 @@ async function getWindow() {
 }
 
 export function WindowControls({ className }: { className?: string }) {
+  const [maximized, setMaximized] = useState(false);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const w = await getWindow();
+        if (cancelled) return;
+        setMaximized(await w.isMaximized());
+        unlisten = await w.onResized(async () => {
+          try {
+            setMaximized(await w.isMaximized());
+          } catch {
+            /* ignore */
+          }
+        });
+      } catch {
+        /* browser / no Tauri window */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
   return (
     <div className={cn("flex items-center gap-0.5", className)}>
       <button
@@ -21,18 +51,28 @@ export function WindowControls({ className }: { className?: string }) {
       </button>
       <button
         type="button"
-        aria-label="Maximize"
+        aria-label={maximized ? "Restore" : "Maximize"}
+        title={maximized ? "Restore" : "Maximize"}
         className="inline-flex h-8 w-10 items-center justify-center rounded-md text-[var(--muted)] hover:bg-[var(--accent-wash)] hover:text-[var(--foreground)]"
         onClick={() =>
           getWindow()
             .then(async (w) => {
-              if (await w.isMaximized()) await w.unmaximize();
-              else await w.maximize();
+              if (await w.isMaximized()) {
+                await w.unmaximize();
+                setMaximized(false);
+              } else {
+                await w.maximize();
+                setMaximized(true);
+              }
             })
             .catch(() => undefined)
         }
       >
-        <Square className="h-3 w-3" />
+        {maximized ? (
+          <Copy className="h-3.5 w-3.5" aria-hidden />
+        ) : (
+          <Square className="h-3 w-3" aria-hidden />
+        )}
       </button>
       <button
         type="button"

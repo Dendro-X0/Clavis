@@ -15,6 +15,10 @@ pub struct AppSettings {
     pub entry_layout: String,
     #[serde(default = "default_page_size")]
     pub page_size: u32,
+    #[serde(default)]
+    pub pinned_workspace_ids: Vec<String>,
+    #[serde(default)]
+    pub fetch_favicons: bool,
 }
 
 fn default_theme() -> String {
@@ -38,6 +42,8 @@ impl Default for AppSettings {
             theme: default_theme(),
             entry_layout: default_entry_layout(),
             page_size: default_page_size(),
+            pinned_workspace_ids: Vec::new(),
+            fetch_favicons: false,
         }
     }
 }

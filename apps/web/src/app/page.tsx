@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Gate } from "@/components/gate/gate";
 import { DashboardHeader } from "@/components/shell/dashboard-header";
 import { OnboardingTip } from "@/components/shell/onboarding-tip";
+import {
+  CommandPalette,
+  type PaletteActionId,
+} from "@/components/shell/command-palette";
+import { ClipboardClearToast } from "@/components/shell/clipboard-clear-toast";
 import { AppSidebar, type NavId } from "@/components/shell/sidebar";
 import { SettingsPanel } from "@/components/shell/settings-panel";
 import { Titlebar } from "@/components/titlebar/titlebar";
@@ -59,6 +64,7 @@ export default function HomePage() {
   const [status, setStatus] = useState<StatusDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [entries, setEntries] = useState<EntrySummary[]>([]);
+  const [allEntries, setAllEntries] = useState<EntrySummary[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -71,20 +77,29 @@ export default function HomePage() {
     theme: "system",
     entryLayout: "list",
     pageSize: 25,
+    pinnedWorkspaceIds: [],
+    fetchFavicons: false,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [clipboardClearEndsAt, setClipboardClearEndsAt] = useState<number | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshVault = useCallback(async () => {
-    const [list, ws] = await Promise.all([api.listEntries(), api.listWorkspaces()]);
+    const [list, all, ws] = await Promise.all([
+      api.listEntries(),
+      api.listAllEntries(),
+      api.listWorkspaces(),
+    ]);
     setEntries(list);
+    setAllEntries(all);
     setWorkspaces(ws);
-    return { list, ws };
+    return { list, all, ws };
   }, []);
 
   const refreshStatus = useCallback(async () => {
@@ -94,6 +109,7 @@ export default function HomePage() {
       await refreshVault();
     } else {
       setEntries([]);
+      setAllEntries([]);
       setWorkspaces([]);
       setForm(null);
       setNav("all");
@@ -118,6 +134,8 @@ export default function HomePage() {
           ...s,
           entryLayout: normalizeLayout(s.entryLayout),
           pageSize: normalizePageSize(s.pageSize),
+          pinnedWorkspaceIds: s.pinnedWorkspaceIds ?? [],
+          fetchFavicons: Boolean(s.fetchFavicons),
         });
         if (s.theme) setTheme(s.theme);
       })
@@ -176,17 +194,19 @@ export default function HomePage() {
   const activeWorkspace = useMemo(() => workspaces.find((w) => w.active), [workspaces]);
 
   const categories = useMemo(() => {
+    const source = query.trim() ? allEntries : entries;
     const set = new Set<string>();
-    for (const e of entries) {
+    for (const e of source) {
       for (const t of e.tags ?? []) {
         if (t.trim()) set.add(t.trim());
       }
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
+  }, [entries, allEntries, query]);
 
   const filtered = useMemo(() => {
-    let list = entries;
+    const q = query.trim().toLowerCase();
+    let list = q ? allEntries : entries;
     if (nav !== "all" && nav !== "settings") {
       list = list.filter((e) => e.entryType === (nav as EntryType));
     }
@@ -194,16 +214,16 @@ export default function HomePage() {
       const needle = categoryFilter.toLowerCase();
       list = list.filter((e) => e.tags.some((t) => t.toLowerCase() === needle));
     }
-    const q = query.trim().toLowerCase();
     if (!q) return list;
     return list.filter(
       (e) =>
         e.title.toLowerCase().includes(q) ||
         e.username.toLowerCase().includes(q) ||
         e.url.toLowerCase().includes(q) ||
-        e.tags.some((t) => t.toLowerCase().includes(q)),
+        e.tags.some((t) => t.toLowerCase().includes(q)) ||
+        (e.workspaceName?.toLowerCase().includes(q) ?? false),
     );
-  }, [entries, query, nav, categoryFilter]);
+  }, [entries, allEntries, query, nav, categoryFilter]);
 
   const pageSize = settings.pageSize;
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -236,11 +256,14 @@ export default function HomePage() {
         try {
           const { clear } = await import("@tauri-apps/plugin-clipboard-manager");
           const clearAfter = Math.max(5, settings.clipboardClearSeconds) * 1000;
+          setClipboardClearEndsAt(Date.now() + clearAfter);
           clipboardClearTimer.current = setTimeout(() => {
             clear().catch(() => undefined);
+            setClipboardClearEndsAt(null);
           }, clearAfter);
         } catch {
           /* browser clipboard has no clear API */
+          setClipboardClearEndsAt(null);
         }
       }
     } catch (e) {
@@ -282,8 +305,18 @@ export default function HomePage() {
     }, delaySec * 1000);
   }
 
-  async function openEntry(id: string) {
+  async function openEntry(id: string, workspaceId?: string) {
     setError(null);
+    const targetWs = workspaceId?.trim();
+    if (targetWs && targetWs !== activeWorkspace?.id) {
+      const list = await api.setActiveWorkspace(targetWs);
+      setWorkspaces(list);
+      const [entriesList, all] = await Promise.all([api.listEntries(), api.listAllEntries()]);
+      setEntries(entriesList);
+      setAllEntries(all);
+      setCategoryFilter(null);
+      setNav("all");
+    }
     const raw = await api.getEntry(id);
     const e = normalizeEntry(raw);
     setForm({
@@ -334,8 +367,9 @@ export default function HomePage() {
       setPage(1);
       const list = await api.setActiveWorkspace(id);
       setWorkspaces(list);
-      const entriesList = await api.listEntries();
+      const [entriesList, all] = await Promise.all([api.listEntries(), api.listAllEntries()]);
       setEntries(entriesList);
+      setAllEntries(all);
       setNav("all");
     } catch (e) {
       setError(String(e).replace(/^Error:\s*/, ""));
@@ -446,6 +480,16 @@ export default function HomePage() {
           target.isContentEditable);
 
       if (e.key === "Escape") {
+        if (paletteOpen) {
+          e.preventDefault();
+          setPaletteOpen(false);
+          return;
+        }
+        if (clipboardClearEndsAt != null) {
+          e.preventDefault();
+          setClipboardClearEndsAt(null);
+          return;
+        }
         if (form) {
           e.preventDefault();
           setForm(null);
@@ -453,15 +497,17 @@ export default function HomePage() {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen(true);
+        return;
+      }
+
       if (typing && e.key !== "Escape") return;
 
       if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        document.getElementById("vault-search")?.focus();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
+        setPaletteOpen(false);
         document.getElementById("vault-search")?.focus();
         return;
       }
@@ -477,23 +523,100 @@ export default function HomePage() {
           .lock()
           .then(() => refreshStatus())
           .catch((err) => setError(String(err)));
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+        e.preventDefault();
+        setForm(null);
+        setNav("settings");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [unlocked, form, refreshStatus]);
+  }, [unlocked, form, refreshStatus, paletteOpen, clipboardClearEndsAt]);
+
+  function handlePaletteAction(id: PaletteActionId) {
+    switch (id) {
+      case "new-entry":
+        setNav("all");
+        setForm({ ...emptyForm });
+        break;
+      case "settings":
+        setForm(null);
+        setNav("settings");
+        break;
+      case "lock":
+        api
+          .lock()
+          .then(() => refreshStatus())
+          .catch((err) => setError(String(err)));
+        break;
+      case "focus-search":
+        setNav("all");
+        requestAnimationFrame(() => document.getElementById("vault-search")?.focus());
+        break;
+      case "toggle-layout":
+        handleLayoutChange(settings.entryLayout === "grid" ? "list" : "grid").catch(
+          () => undefined,
+        );
+        break;
+    }
+  }
 
   return (
     <div className="app-shell" data-compact={compact ? "true" : "false"}>
       <Titlebar compact={compact} />
+      <ClipboardClearToast
+        endsAt={clipboardClearEndsAt}
+        onDismiss={() => setClipboardClearEndsAt(null)}
+      />
+      {unlocked && (
+        <CommandPalette
+          open={paletteOpen}
+          onOpenChange={setPaletteOpen}
+          entries={allEntries}
+          workspaces={workspaces}
+          onSelectEntry={(id, workspaceId) => {
+            openEntry(id, workspaceId).catch((err) => setError(String(err)));
+          }}
+          onSelectWorkspace={(id) => {
+            handleSelectWorkspace(id).catch((err) => setError(String(err)));
+          }}
+          onCopyEntry={(id, mode) => {
+            if (mode === "login") {
+              copyLoginSequence(id).catch((err) => setError(String(err)));
+            } else if (mode === "user") {
+              api
+                .getEntry(id)
+                .then((raw) => copyText(`${id}:user`, normalizeEntry(raw).username))
+                .catch((err) => setError(String(err)));
+            } else {
+              api
+                .getEntry(id)
+                .then((raw) => copyText(`${id}:pass`, normalizeEntry(raw).password))
+                .catch((err) => setError(String(err)));
+            }
+          }}
+          onAction={handlePaletteAction}
+        />
+      )}
       <div className="flex min-h-0 flex-1">
         {unlocked && (
           <AppSidebar
             active={nav}
             collapsed={sidebarCollapsed}
+            workspaces={workspaces}
+            pinnedWorkspaceIds={settings.pinnedWorkspaceIds ?? []}
+            onSelectWorkspace={(id) => {
+              handleSelectWorkspace(id).catch((err) => setError(String(err)));
+            }}
             onNavigate={(id) => {
               setNav(id);
               if (id === "settings") setForm(null);
+            }}
+            onSearch={() => {
+              setNav("all");
+              setPaletteOpen(true);
             }}
             onLock={async () => {
               await api.lock();
@@ -565,8 +688,12 @@ export default function HomePage() {
                 }}
                 onWorkspacesChanged={async (list) => {
                   setWorkspaces(list);
-                  const entriesList = await api.listEntries();
+                  const [entriesList, all] = await Promise.all([
+                    api.listEntries(),
+                    api.listAllEntries(),
+                  ]);
                   setEntries(entriesList);
+                  setAllEntries(all);
                   setForm(null);
                   setCategoryFilter(null);
                 }}
@@ -618,6 +745,16 @@ export default function HomePage() {
                   onDeleteWorkspace={(id) => {
                     handleDeleteWorkspace(id).catch((err) => setError(String(err)));
                   }}
+                  pinnedWorkspaceIds={settings.pinnedWorkspaceIds ?? []}
+                  onTogglePinWorkspace={(id) => {
+                    const current = settings.pinnedWorkspaceIds ?? [];
+                    const next = current.includes(id)
+                      ? current.filter((x) => x !== id)
+                      : [...current, id];
+                    const updated = { ...settings, pinnedWorkspaceIds: next };
+                    setSettings(updated);
+                    api.saveSettings(updated).catch((err) => setError(String(err)));
+                  }}
                   onReplace={() => {
                     handleReplace().catch((err) => setError(String(err)));
                   }}
@@ -630,9 +767,13 @@ export default function HomePage() {
                       selectedId={form?.id}
                       copyFlash={copyFlash}
                       layout={settings.entryLayout}
-                      emptyWorkspace={entries.length === 0}
+                      emptyWorkspace={!query.trim() && entries.length === 0}
+                      activeWorkspaceId={activeWorkspace?.id}
                       workspaceName={activeWorkspace?.name}
-                      onSelect={(id) => openEntry(id).catch((err) => setError(String(err)))}
+                      fetchFavicons={Boolean(settings.fetchFavicons)}
+                      onSelect={(id, workspaceId) =>
+                        openEntry(id, workspaceId).catch((err) => setError(String(err)))
+                      }
                       onCopyLogin={(id) => {
                         copyLoginSequence(id).catch((err) => setError(String(err)));
                       }}
