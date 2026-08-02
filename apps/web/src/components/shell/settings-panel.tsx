@@ -55,6 +55,15 @@ export function SettingsPanel({
   const active = workspaces.find((w) => w.active);
 
   useEffect(() => {
+    return () => {
+      setCurrentPw("");
+      setNewPw("");
+      setImportPw("");
+      setBioPassword("");
+    };
+  }, []);
+
+  useEffect(() => {
     api
       .getDataDirInfo()
       .then((info) => setDataPortable(info.portable))
@@ -145,18 +154,45 @@ export function SettingsPanel({
           </Select>
         </label>
 
-        <label className="mt-4 block text-sm">
-          Auto-lock (seconds)
-          <input
-            type="number"
-            min={30}
-            className="inset-field mt-1 w-full px-3 py-2"
-            value={settings.autoLockSeconds}
-            onChange={(e) =>
-              setSettings({ ...settings, autoLockSeconds: Number(e.target.value) || 300 })
-            }
-          />
-        </label>
+        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
+          <p className="text-sm font-medium text-[var(--foreground)]">Auto-lock</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Idle timer uses app input (pointer/key), not OS system-idle. Lock-on-hide covers tab
+            switch, minimize, and backgrounding the WebView.
+          </p>
+          <label className="mt-3 block text-sm">
+            Idle lock (seconds)
+            <input
+              type="number"
+              min={30}
+              className="inset-field mt-1 w-full px-3 py-2"
+              value={settings.autoLockSeconds}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  autoLockSeconds: Number(e.target.value) || 300,
+                })
+              }
+            />
+          </label>
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={settings.lockOnHide !== false}
+              onChange={(e) =>
+                setSettings({ ...settings, lockOnHide: e.target.checked })
+              }
+            />
+            <span>
+              Lock when window is hidden
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                On by default. Turn off to keep the vault unlocked while switching apps (idle
+                timer still applies).
+              </span>
+            </span>
+          </label>
+        </div>
         <label className="mt-4 block text-sm">
           Clipboard clear (seconds)
           <input
@@ -363,8 +399,13 @@ export function SettingsPanel({
                 .then(() => {
                   setCurrentPw("");
                   setNewPw("");
+                  onError("");
                 })
-                .catch((e) => onError(String(e)))
+                .catch((e) => {
+                  setCurrentPw("");
+                  setNewPw("");
+                  onError(String(e));
+                })
             }
           >
             Update password
@@ -406,6 +447,7 @@ export function SettingsPanel({
                 setImportPw("");
                 await onImported();
               } catch (e) {
+                setImportPw("");
                 onError(String(e));
               }
             }}

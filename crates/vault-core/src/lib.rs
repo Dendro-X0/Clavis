@@ -401,4 +401,34 @@ Password: has-pass
         assert_eq!(session.list_entries().unwrap().len(), 1);
         assert_eq!(session.list_entries().unwrap()[0].title, "Old");
     }
+
+    #[test]
+    fn scrub_secrets_clears_sensitive_fields() {
+        let mut entry = Entry::new(EntryType::Login, "Bank");
+        entry.password = "hunter2".into();
+        entry.notes = "ssn-900".into();
+        entry.custom_fields.push(crate::model::CustomField {
+            label: "pin".into(),
+            value: "1234".into(),
+        });
+        entry.scrub_secrets();
+        assert!(entry.password.is_empty());
+        assert!(entry.notes.is_empty());
+        assert!(entry.custom_fields.iter().all(|f| f.value.is_empty()));
+        assert_eq!(entry.title, "Bank");
+    }
+
+    #[test]
+    fn lock_drops_session_and_vault_remains_readable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("lock.km");
+        let mut session = create_vault(&path, "LockTest", "master-pw").unwrap();
+        let mut e = Entry::new(EntryType::Login, "Site");
+        e.password = "secret-pass".into();
+        session.upsert_entry(e).unwrap();
+        assert_eq!(session.list_entries().unwrap().len(), 1);
+        session.into_locked();
+        let again = open_vault_file(&path, "master-pw").unwrap();
+        assert_eq!(again.list_entries().unwrap()[0].password, "secret-pass");
+    }
 }

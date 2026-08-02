@@ -316,8 +316,10 @@ impl VaultSession {
     }
 
     pub fn change_password(&mut self, current: &str, new_password: &str) -> Result<()> {
-        let bytes = read_all(&self.path)?;
-        let _ = decode_vault(&bytes, current)?;
+        let mut bytes = read_all(&self.path)?;
+        let verified = decode_vault(&bytes, current);
+        bytes.zeroize();
+        let _ = verified?;
         let params = KdfParams::default();
         let salt = crate::crypto::random_salt();
         let key = crate::crypto::derive_key(new_password, &salt, &params)?;
@@ -348,7 +350,9 @@ impl VaultSession {
 
 impl Drop for VaultSession {
     fn drop(&mut self) {
+        self.document.scrub_secrets();
         self.key.bytes.zeroize();
+        self.salt.zeroize();
     }
 }
 
@@ -378,8 +382,10 @@ pub fn open_vault_file(path: &Path, password: &str) -> Result<VaultSession> {
     if !path.is_file() {
         return Err(VaultError::NotFound);
     }
-    let bytes = read_all(path)?;
-    let (mut document, key, salt, params) = decode_vault(&bytes, password)?;
+    let mut bytes = read_all(path)?;
+    let decoded = decode_vault(&bytes, password);
+    bytes.zeroize();
+    let (mut document, key, salt, params) = decoded?;
     document.normalize();
     let session = VaultSession {
         path: path.to_path_buf(),

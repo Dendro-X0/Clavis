@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { api, type StatusDto } from "@/lib/api";
 import { biometricAuthenticate, biometricStatus } from "@/lib/biometric";
 
+function clearGateSecrets(
+  setPassword: (v: string) => void,
+  setConfirm: (v: string) => void,
+) {
+  setPassword("");
+  setConfirm("");
+}
+
 export function Gate({
   status,
   onDone,
@@ -20,6 +28,12 @@ export function Gate({
   const [bioEnabled, setBioEnabled] = useState(false);
   const [bioBusy, setBioBusy] = useState(false);
   const missing = status?.state === "missing";
+
+  useEffect(() => {
+    return () => {
+      clearGateSecrets(setPassword, setConfirm);
+    };
+  }, []);
 
   useEffect(() => {
     if (missing) return;
@@ -64,8 +78,10 @@ export function Gate({
     try {
       await biometricAuthenticate("Unlock your Clavis vault");
       await api.tryKeyringUnlock();
+      clearGateSecrets(setPassword, setConfirm);
       await onDone();
     } catch (e) {
+      clearGateSecrets(setPassword, setConfirm);
       onError(
         String(e).replace(/^Error:\s*/, "") ||
           "Biometric unlock failed. Use your master password.",
@@ -131,6 +147,7 @@ export function Gate({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus={!showBio}
+          autoComplete="current-password"
         />
       </label>
 
@@ -142,6 +159,7 @@ export function Gate({
             className="inset-field mt-1 w-full px-3 py-2"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            autoComplete="new-password"
           />
         </label>
       )}
@@ -167,11 +185,20 @@ export function Gate({
             } else {
               await api.unlock(password);
             }
-            setPassword("");
-            setConfirm("");
+            clearGateSecrets(setPassword, setConfirm);
             await onDone();
           } catch (e) {
-            onError(String(e).replace(/^Error:\s*/, ""));
+            // Validation errors keep fields for correction; IPC failures clear secrets.
+            const msg = String(e).replace(/^Error:\s*/, "");
+            if (
+              msg.includes("do not match") ||
+              msg.includes("at least 8")
+            ) {
+              onError(msg);
+              return;
+            }
+            clearGateSecrets(setPassword, setConfirm);
+            onError(msg);
           }
         }}
       >

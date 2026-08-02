@@ -13,7 +13,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 
 | Layer | Trust |
 |-------|--------|
-| `vault-core` (Rust) | Holds KDF + AEAD; session drops key on lock |
+| `vault-core` (Rust) | Holds KDF + AEAD; zeroizes key, salt, entry secrets on session drop; scrub encode/decode plaintext buffers |
 | Tauri commands | Thin IPC; no logging of secrets |
 | React UI | Displays secrets only when unlocked; must not persist master key |
 | OS | Filesystem, clipboard, keyring, screenshots — outside Clavis control |
@@ -26,8 +26,8 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Wrong password | AEAD fail → closed | Done |
 | Accidental cloud sync of plaintext | No Clavis cloud; export is encrypted backup | Done |
 | Clipboard residue | Configurable clear; sequential user→pass reduces multi-secret dwell | Done / improving |
-| Idle / background exposure | Auto-lock; lock on window hide | Done |
-| Malware with same-user memory access while unlocked | Out of scope | Explicit |
+| Idle / background exposure | Auto-lock idle timer; optional lock-on-hide (`lockOnHide`, default on) | Done (v0.5.0 Settings) |
+| Malware with same-user memory access while unlocked | Out of scope while unlocked; lock/drop scrub shortens window (allocator residual possible) | Explicit / improving (v0.5.0 Rust) |
 | Evil maid + weak master password offline | Out of scope for strong passwords; document KDF cost | Explicit |
 | Compromised OS keyring | Optional feature; disable in Settings | Documented |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |

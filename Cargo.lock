@@ -477,6 +477,7 @@ dependencies = [
  "ureq",
  "uuid",
  "vault-core",
+ "zeroize",
 ]
 
 [[package]]

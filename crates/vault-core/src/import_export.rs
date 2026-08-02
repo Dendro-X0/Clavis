@@ -7,11 +7,14 @@ use crate::error::{Result, VaultError};
 use crate::format::{decode_vault, read_all, write_all_atomic};
 use crate::model::{Entry, EntryType, VaultDocument};
 use crate::store::VaultSession;
+use zeroize::Zeroize;
 
 /// Copy encrypted vault bytes to a backup path (same format).
 pub fn export_encrypted(session: &VaultSession, dest: &Path) -> Result<()> {
-    let bytes = read_all(session.path())?;
-    write_all_atomic(dest, &bytes)
+    let mut bytes = read_all(session.path())?;
+    let result = write_all_atomic(dest, &bytes);
+    bytes.zeroize();
+    result
 }
 
 /// Replace the active vault file with an encrypted backup, then re-open with password.

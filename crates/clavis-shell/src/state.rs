@@ -19,6 +19,9 @@ pub struct AppSettings {
     pub pinned_workspace_ids: Vec<String>,
     #[serde(default)]
     pub fetch_favicons: bool,
+    /// Lock when the app document becomes hidden (tab switch / minimize / background).
+    #[serde(default = "default_lock_on_hide")]
+    pub lock_on_hide: bool,
 }
 
 fn default_theme() -> String {
@@ -33,6 +36,10 @@ fn default_page_size() -> u32 {
     25
 }
 
+fn default_lock_on_hide() -> bool {
+    true
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -44,6 +51,7 @@ impl Default for AppSettings {
             page_size: default_page_size(),
             pinned_workspace_ids: Vec::new(),
             fetch_favicons: false,
+            lock_on_hide: default_lock_on_hide(),
         }
     }
 }

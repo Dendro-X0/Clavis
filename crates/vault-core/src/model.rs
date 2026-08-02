@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use zeroize::Zeroize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,6 +60,15 @@ impl Entry {
             tags: Vec::new(),
             created_at: now,
             updated_at: now,
+        }
+    }
+
+    /// Overwrite secret-bearing fields in place (best-effort before drop).
+    pub fn scrub_secrets(&mut self) {
+        self.password.zeroize();
+        self.notes.zeroize();
+        for field in &mut self.custom_fields {
+            field.value.zeroize();
         }
     }
 }
@@ -177,5 +187,17 @@ impl VaultDocument {
 
     pub fn workspace_mut(&mut self, id: &str) -> Option<&mut Workspace> {
         self.workspaces.iter_mut().find(|w| w.id == id)
+    }
+
+    /// Scrub passwords / notes / custom values across all workspaces (and legacy entries).
+    pub fn scrub_secrets(&mut self) {
+        for ws in &mut self.workspaces {
+            for entry in &mut ws.entries {
+                entry.scrub_secrets();
+            }
+        }
+        for entry in &mut self.entries {
+            entry.scrub_secrets();
+        }
     }
 }

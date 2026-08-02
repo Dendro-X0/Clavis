@@ -50,6 +50,8 @@ export type AppSettings = {
   pageSize: 10 | 25 | 50 | 100;
   pinnedWorkspaceIds?: string[];
   fetchFavicons?: boolean;
+  /** Lock when the window/tab is hidden. Default true. */
+  lockOnHide?: boolean;
 };
 
 export type UpsertEntryInput = {

@@ -3,6 +3,7 @@ use std::io::Read;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
+use zeroize::Zeroize;
 use vault_core::{
     Entry, EntryType, create_vault as core_create, export_encrypted, import_credentials_auto,
     import_credentials_from_path, import_csv_logins, import_encrypted, open_vault_file,
@@ -216,11 +217,13 @@ pub fn create_vault(
     app: AppHandle,
     state: State<'_, AppState>,
     name: String,
-    password: String,
+    mut password: String,
 ) -> Result<StatusDto, String> {
     let path = vault_path(&app)?;
     ensure_data_dir(&app)?;
-    let session = core_create(&path, &name, &password).map_err(map_err)?;
+    let session = core_create(&path, &name, &password).map_err(map_err);
+    password.zeroize();
+    let session = session?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
@@ -235,10 +238,12 @@ pub fn create_vault(
 pub fn unlock(
     app: AppHandle,
     state: State<'_, AppState>,
-    password: String,
+    mut password: String,
 ) -> Result<StatusDto, String> {
     let path = vault_path(&app)?;
-    let session = open_vault_file(&path, &password).map_err(map_err)?;
+    let session = open_vault_file(&path, &password).map_err(map_err);
+    password.zeroize();
+    let session = session?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
@@ -418,7 +423,7 @@ pub fn import_vault(
     app: AppHandle,
     state: State<'_, AppState>,
     source: String,
-    password: String,
+    mut password: String,
 ) -> Result<StatusDto, String> {
     let bytes = fs::read(&source).map_err(map_err)?;
     let path = vault_path(&app)?;
@@ -428,7 +433,9 @@ pub fn import_vault(
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         *guard = None;
     }
-    let session = import_encrypted(&path, &bytes, &password).map_err(map_err)?;
+    let session = import_encrypted(&path, &bytes, &password).map_err(map_err);
+    password.zeroize();
+    let session = session?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
@@ -582,16 +589,21 @@ pub fn pick_save_path(
 #[tauri::command]
 pub fn change_master_password(
     state: State<'_, AppState>,
-    current: String,
-    new_password: String,
+    mut current: String,
+    mut new_password: String,
 ) -> Result<(), String> {
-    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
-    let session = guard
-        .as_mut()
-        .ok_or_else(|| "vault is locked".to_string())?;
-    session
-        .change_password(&current, &new_password)
-        .map_err(map_err)
+    let result = (|| {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session
+            .change_password(&current, &new_password)
+            .map_err(map_err)
+    })();
+    current.zeroize();
+    new_password.zeroize();
+    result
 }
 
 #[tauri::command]
@@ -645,9 +657,13 @@ const KEYRING_SERVICE: &str = "keys-manager";
 const KEYRING_USER: &str = "master-unlock";
 
 #[tauri::command]
-pub fn store_keyring_secret(password: String) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(map_err)?;
-    entry.set_password(&password).map_err(map_err)
+pub fn store_keyring_secret(mut password: String) -> Result<(), String> {
+    let result = (|| {
+        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(map_err)?;
+        entry.set_password(&password).map_err(map_err)
+    })();
+    password.zeroize();
+    result
 }
 
 #[tauri::command]
@@ -664,6 +680,7 @@ pub fn clear_keyring_secret() -> Result<(), String> {
 pub fn try_keyring_unlock(app: AppHandle, state: State<'_, AppState>) -> Result<StatusDto, String> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(map_err)?;
     let password = entry.get_password().map_err(map_err)?;
+    // `unlock` zeroizes its owned password String before returning.
     unlock(app, state, password)
 }
 

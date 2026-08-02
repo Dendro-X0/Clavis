@@ -1,5 +1,7 @@
 use std::io::{Read, Write};
 
+use zeroize::Zeroize;
+
 use crate::crypto::{
     KEY_LEN, KdfParams, MAGIC, NONCE_LEN, SALT_LEN, VERSION, VaultKey, decrypt, derive_key,
     encrypt, random_nonce, random_salt,
@@ -19,9 +21,10 @@ pub struct EncodedVault {
 pub fn encode_vault(doc: &VaultDocument, password: &str, params: &KdfParams) -> Result<Vec<u8>> {
     let salt = random_salt();
     let key = derive_key(password, &salt, params)?;
-    let plaintext = serde_json::to_vec(doc)?;
+    let mut plaintext = serde_json::to_vec(doc)?;
     let nonce = random_nonce();
     let ciphertext = encrypt(&key, &plaintext, &nonce)?;
+    plaintext.zeroize();
     write_blob(&EncodedVault {
         salt,
         params: params.clone(),
@@ -36,9 +39,10 @@ pub fn encode_vault_with_key(
     salt: [u8; SALT_LEN],
     params: &KdfParams,
 ) -> Result<Vec<u8>> {
-    let plaintext = serde_json::to_vec(doc)?;
+    let mut plaintext = serde_json::to_vec(doc)?;
     let nonce = random_nonce();
     let ciphertext = encrypt(key, &plaintext, &nonce)?;
+    plaintext.zeroize();
     write_blob(&EncodedVault {
         salt,
         params: params.clone(),
@@ -47,11 +51,21 @@ pub fn encode_vault_with_key(
     })
 }
 
-pub fn decode_vault(bytes: &[u8], password: &str) -> Result<(VaultDocument, VaultKey, [u8; SALT_LEN], KdfParams)> {
+pub fn decode_vault(
+    bytes: &[u8],
+    password: &str,
+) -> Result<(VaultDocument, VaultKey, [u8; SALT_LEN], KdfParams)> {
     let encoded = read_blob(bytes)?;
     let key = derive_key(password, &encoded.salt, &encoded.params)?;
-    let plaintext = decrypt(&key, &encoded.ciphertext, &encoded.nonce)?;
-    let doc: VaultDocument = serde_json::from_slice(&plaintext)?;
+    let mut plaintext = decrypt(&key, &encoded.ciphertext, &encoded.nonce)?;
+    let doc: VaultDocument = match serde_json::from_slice(&plaintext) {
+        Ok(doc) => doc,
+        Err(e) => {
+            plaintext.zeroize();
+            return Err(e.into());
+        }
+    };
+    plaintext.zeroize();
     Ok((doc, key, encoded.salt, encoded.params))
 }
 

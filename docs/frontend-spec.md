@@ -77,6 +77,8 @@ Workspaces are **not** in the sidebar.
 9. **Entry icons**: lettermark from host/title; optional favicon fetch when `fetchFavicons` is on.
 10. **v0.4.0 compact gestures**: swipe right → copy login; swipe left → open entry; long-press → Copy all / User / Pass menu. Granular copy buttons hidden on compact; desktop buttons unchanged.
 11. **Biometric / convenience unlock**: **off by default**. Enable only in Settings (`biometricUnlock` + store master password in OS keyring). Gate never opts the user in. When enabled and OS biometrics are available (mobile), primary “Unlock with biometrics”; otherwise desktop may silent-try keyring. Master password always available.
+12. **Sensitive UI lifecycle (v0.5.0)**: clear Gate/settings password fields after success or IPC error; discard entry editor and cancel pending login-copy timers on lock; list copy paths keep secrets ephemeral (not in React list state).
+13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on).
 
 ### Dialogs
 
@@ -134,4 +136,6 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `pinnedWorkspaceIds`: `string[]` (default `[]`)
 - `fetchFavicons`: `boolean` (default `false`)
 - `biometricUnlock`: `boolean` (default `false`) — convenience unlock via OS keyring; configure only in Settings
-- auto-lock / clipboard as before
+- `autoLockSeconds`: number (default `300`, min effective `30`) — idle lock from app input
+- `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
+- clipboard clear as before

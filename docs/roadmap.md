@@ -46,7 +46,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Priority | Item | Why |
 |----------|------|-----|
 | P0 | Threat-model refresh for mobile + clipboard + screenshots | Expand `docs/threat-model.md` before mobile ships |
-| P0 | Memory hygiene audit (zeroize, lock drops key) | Prove session wipe on lock / crash paths |
+| P0 | Memory hygiene audit (zeroize, lock drops key) | Rust scrub done; frontend + auto-lock Settings remain in v0.5.0 |
 | P1 | Argon2 params / KDF versioning in vault format | Upgrade without breaking old vaults |
 | P1 | Autofill / “copy user then pass” timed sequence | Reduce dwell time of secrets on clipboard |
 | P1 | Optional PIN / biometric over keyring (desktop + mobile) | Ease of unlock without weakening master password |
@@ -170,6 +170,16 @@ apps/web                   ← UI shell (static); platform plugins differ
 | OS biometric unlock + password fallback | Done — mobile plugin + Gate |
 | Version bump 0.4.0 | Done |
 
-**Parked:** desktop tag CI macOS/Windows flake chase (Linux apt conflict fixed in `69ba173`).
+### v0.5.0 — Security & memory hygiene (planned)
 
-Next after 0.4.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+| Item | Status |
+|------|--------|
+| Rust: scrub plaintext buffers + lock/drop audit (`zeroize`) | Done |
+| Frontend: clear Gate/editor secrets on lock / after use | Done |
+| Auto-lock: configurable idle + lock-on-hide policy | Done — Settings `lockOnHide` (default on) |
+| Threat model / frontend-spec update | Planned |
+| Version bump 0.5.0 | Planned |
+
+**Parked:** desktop tag CI flake chase beyond workspace `target/` collect fix (`66edbb8`).
+
+Next after 0.5.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).

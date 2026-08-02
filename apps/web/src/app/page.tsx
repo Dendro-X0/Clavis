@@ -32,19 +32,9 @@ import {
 } from "@/lib/api";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard } from "@/lib/clipboard";
+import { blankEntryForm } from "@/lib/sensitive";
 import { useCompactSurface } from "@/lib/use-compact-surface";
 import { useTheme } from "next-themes";
-
-const emptyForm: UpsertEntryInput = {
-  entryType: "login",
-  title: "",
-  username: "",
-  password: "",
-  url: "",
-  notes: "",
-  tags: [],
-  customFields: [],
-};
 
 function formatImportMessage(result: ImportResult) {
   if (result.replaced) {
@@ -79,6 +69,7 @@ export default function HomePage() {
     pageSize: 25,
     pinnedWorkspaceIds: [],
     fetchFavicons: false,
+    lockOnHide: true,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
@@ -108,6 +99,10 @@ export default function HomePage() {
     if (s.state === "unlocked") {
       await refreshVault();
     } else {
+      if (loginCopyTimer.current) {
+        clearTimeout(loginCopyTimer.current);
+        loginCopyTimer.current = null;
+      }
       setEntries([]);
       setAllEntries([]);
       setWorkspaces([]);
@@ -118,6 +113,21 @@ export default function HomePage() {
     setBoot(false);
     return s;
   }, [refreshVault]);
+
+  /** Close editor and cancel pending secret copy timers (call before/with lock). */
+  const clearSensitiveUi = useCallback(() => {
+    if (loginCopyTimer.current) {
+      clearTimeout(loginCopyTimer.current);
+      loginCopyTimer.current = null;
+    }
+    setForm(null);
+  }, []);
+
+  async function lockVault() {
+    clearSensitiveUi();
+    await api.lock();
+    await refreshStatus();
+  }
 
   useEffect(() => {
     refreshStatus().catch((e) => {
@@ -136,6 +146,7 @@ export default function HomePage() {
           pageSize: normalizePageSize(s.pageSize),
           pinnedWorkspaceIds: s.pinnedWorkspaceIds ?? [],
           fetchFavicons: Boolean(s.fetchFavicons),
+          lockOnHide: s.lockOnHide !== false,
         });
         if (s.theme) setTheme(s.theme);
       })
@@ -166,11 +177,12 @@ export default function HomePage() {
     if (status?.state !== "unlocked") return;
     const ms = Math.max(30, settings.autoLockSeconds) * 1000;
     idleTimer.current = setTimeout(() => {
+      clearSensitiveUi();
       api.lock()
         .then(() => refreshStatus())
         .catch(() => undefined);
     }, ms);
-  }, [status?.state, settings.autoLockSeconds, refreshStatus]);
+  }, [status?.state, settings.autoLockSeconds, refreshStatus, clearSensitiveUi]);
 
   useEffect(() => {
     resetIdle();
@@ -178,7 +190,12 @@ export default function HomePage() {
     window.addEventListener("pointerdown", onActivity);
     window.addEventListener("keydown", onActivity);
     const onVis = () => {
-      if (document.hidden && status?.state === "unlocked") {
+      if (
+        document.hidden &&
+        status?.state === "unlocked" &&
+        settings.lockOnHide !== false
+      ) {
+        clearSensitiveUi();
         api.lock().then(() => refreshStatus());
       }
     };
@@ -189,7 +206,7 @@ export default function HomePage() {
       document.removeEventListener("visibilitychange", onVis);
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
-  }, [resetIdle, status?.state, refreshStatus]);
+  }, [resetIdle, status?.state, refreshStatus, clearSensitiveUi, settings.lockOnHide]);
 
   const activeWorkspace = useMemo(() => workspaces.find((w) => w.active), [workspaces]);
 
@@ -279,13 +296,15 @@ export default function HomePage() {
     }
     const full = normalizeEntry(await api.getEntry(id));
     const user = full.username.trim();
-    const pass = full.password;
+    let pass = full.password;
+    // Drop full entry reference; keep only field locals for the sequence.
     if (!user && !pass) {
       setError("Nothing to copy for that entry.");
       return;
     }
     if (!user) {
       await copyText(`${id}:pass`, pass);
+      pass = "";
       setError("Password copied.");
       return;
     }
@@ -297,8 +316,10 @@ export default function HomePage() {
     }
     const delaySec = Math.min(15, Math.max(5, Math.floor(settings.clipboardClearSeconds / 2) || 8));
     setError(`Username copied. Password copies in ${delaySec}s — paste user, then wait.`);
+    const pendingPass = pass;
+    pass = "";
     loginCopyTimer.current = setTimeout(() => {
-      copyText(`${id}:pass`, pass)
+      copyText(`${id}:pass`, pendingPass)
         .then(() => setError("Password copied — paste it now."))
         .catch((e) => setError(String(e)));
       loginCopyTimer.current = null;
@@ -334,7 +355,7 @@ export default function HomePage() {
 
   async function handleImported(result: ImportResult) {
     setError(formatImportMessage(result));
-    setForm(null);
+    clearSensitiveUi();
     setCategoryFilter(null);
     setNav("all");
     await refreshStatus();
@@ -514,42 +535,36 @@ export default function HomePage() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         setNav("all");
-        setForm({ ...emptyForm });
+        setForm({ ...blankEntryForm() });
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
         e.preventDefault();
-        api
-          .lock()
-          .then(() => refreshStatus())
-          .catch((err) => setError(String(err)));
+        lockVault().catch((err) => setError(String(err)));
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === ",") {
         e.preventDefault();
-        setForm(null);
+        clearSensitiveUi();
         setNav("settings");
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [unlocked, form, refreshStatus, paletteOpen, clipboardClearEndsAt]);
+  }, [unlocked, form, refreshStatus, paletteOpen, clipboardClearEndsAt, clearSensitiveUi]);
 
   function handlePaletteAction(id: PaletteActionId) {
     switch (id) {
       case "new-entry":
         setNav("all");
-        setForm({ ...emptyForm });
+        setForm({ ...blankEntryForm() });
         break;
       case "settings":
-        setForm(null);
+        clearSensitiveUi();
         setNav("settings");
         break;
       case "lock":
-        api
-          .lock()
-          .then(() => refreshStatus())
-          .catch((err) => setError(String(err)));
+        lockVault().catch((err) => setError(String(err)));
         break;
       case "focus-search":
         setNav("all");
@@ -588,12 +603,18 @@ export default function HomePage() {
             } else if (mode === "user") {
               api
                 .getEntry(id)
-                .then((raw) => copyText(`${id}:user`, normalizeEntry(raw).username))
+                .then((raw) => {
+                  const user = normalizeEntry(raw).username;
+                  return copyText(`${id}:user`, user);
+                })
                 .catch((err) => setError(String(err)));
             } else {
               api
                 .getEntry(id)
-                .then((raw) => copyText(`${id}:pass`, normalizeEntry(raw).password))
+                .then((raw) => {
+                  const pass = normalizeEntry(raw).password;
+                  return copyText(`${id}:pass`, pass);
+                })
                 .catch((err) => setError(String(err)));
             }
           }}
@@ -612,16 +633,13 @@ export default function HomePage() {
             }}
             onNavigate={(id) => {
               setNav(id);
-              if (id === "settings") setForm(null);
+              if (id === "settings") clearSensitiveUi();
             }}
             onSearch={() => {
               setNav("all");
               setPaletteOpen(true);
             }}
-            onLock={async () => {
-              await api.lock();
-              await refreshStatus();
-            }}
+            onLock={() => lockVault()}
           />
         )}
 
@@ -758,7 +776,7 @@ export default function HomePage() {
                   onReplace={() => {
                     handleReplace().catch((err) => setError(String(err)));
                   }}
-                  onNewEntry={() => setForm({ ...emptyForm })}
+                  onNewEntry={() => setForm({ ...blankEntryForm() })}
                 />
                 <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto scroll-region">
@@ -783,15 +801,18 @@ export default function HomePage() {
                         await copyText(`${id}:all`, block);
                       }}
                       onCopyUser={async (id) => {
-                        const full = normalizeEntry(await api.getEntry(id));
-                        await copyText(`${id}:user`, full.username);
+                        const user = normalizeEntry(await api.getEntry(id)).username;
+                        await copyText(`${id}:user`, user);
                       }}
                       onCopyPass={async (id) => {
-                        const full = normalizeEntry(await api.getEntry(id));
-                        await copyText(`${id}:pass`, full.password);
+                        const pass = normalizeEntry(await api.getEntry(id)).password;
+                        await copyText(`${id}:pass`, pass);
                       }}
-                      onNewEntry={() => setForm({ ...emptyForm })}
-                      onOpenSettings={() => setNav("settings")}
+                      onNewEntry={() => setForm({ ...blankEntryForm() })}
+                      onOpenSettings={() => {
+                        clearSensitiveUi();
+                        setNav("settings");
+                      }}
                       onReplace={() => {
                         handleReplace().catch((err) => setError(String(err)));
                       }}
@@ -818,19 +839,19 @@ export default function HomePage() {
                   <EntryEditor
                     form={form}
                     onChange={(updater) => setForm((f) => (f ? updater(f) : f))}
-                    onClose={() => setForm(null)}
+                    onClose={() => clearSensitiveUi()}
                     onSave={async () => {
                       setError(null);
                       await api.upsertEntry(form);
                       await refreshStatus();
-                      setForm(null);
+                      clearSensitiveUi();
                     }}
                     onDelete={
                       form.id
                         ? async () => {
                             await api.deleteEntry(form.id!);
                             await refreshStatus();
-                            setForm(null);
+                            clearSensitiveUi();
                           }
                         : undefined
                     }
