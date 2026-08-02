@@ -58,7 +58,15 @@ git push origin main
 git push origin vX.Y.Z
 ```
 
-CI builds **Windows, Linux, and macOS** artifacts on `v*` tags and uploads them with per-platform `SHA256SUMS-*.txt`. Attach those to the GitHub Release (or link the Actions artifacts).
+**CI matrix behavior**
+
+| Trigger | Tests | Desktop builds |
+|---------|-------|----------------|
+| Push / PR on `main` | Yes | **Skipped** (intentional cheap gate) |
+| Tag `v*` | Yes | Yes — collect from workspace `target/release/bundle` |
+| Actions → **Run workflow** (`workflow_dispatch`) | Yes | Yes — re-run full matrix without moving the tag |
+
+A green main push with “Desktop build skipped” does **not** mean release packaging was verified. Fix packaging on `main`, then either move the release tag to that commit or use **Run workflow**.
 
 Create a GitHub Release for `vX.Y.Z` with:
 
