@@ -1,0 +1,81 @@
+Username: Test
+Email: paf437sywst688@gmail.com
+Password: Tuep47s#s@!
+
+Test1
+Email: paf437sywst688+test1@gmail.com
+Password: ds_ut$7wDx#
+
+Test2
+Email: paf437sywst688+test2@gmail.com
+Password: Gsr@(*s99d#X
+
+John Doe
+Email: john@example.com
+Password: S7#s3%8ase
+
+Jane Doe
+Email: jane@example.com
+Password: E7&s32(ase
+
+Test User 1
+Email: Test1@example.com
+Password: B2$s3_5ase
+
+Test User 2
+Email: Test2@example.com
+Password: D2$s3_5ase
+
+Test User 3
+Email: Test3@example.com
+Password: F2$s3_5ase
+
+Test User 4
+Email: Test4@example.com
+Password: F4$s3_5ase
+
+Test User 5
+Email: Test5@example.com
+Password: F5$s3_5ase
+
+Admin
+Email: Admin@example.com
+Password: A5s3w5ase
+
+A:
+
+Username: Tester1
+
+Password: SyI14^ew1E
+
+Public key: npub1uplk0h9c5k848vfl69dw2jwrr7ecz736dncw30tfqwaw8sv3aftq3rtdrg
+
+Private Key: c09832d637eb265d90b29c12eb8dfcfffe165b8fb34094af75236d5be4d97884
+
+Friend Code: OBSCUR-5KMPFN
+
+B:
+
+Username: Tester2
+
+Password: HT512#scE8
+
+Public key: npub18kc9tdr7qk7lhyyralkqk7hv62sytklhmpju7nv4mxyp0k2xsv8ss7n67a
+
+Private Key: nsec1gkv6kg9gyfvrg7h7q60usvaqtjq096dxewaw4vpk9y6krrlcglpqat96ta
+
+Friend Code: OBSCUR-GBKMBC
+
+Demouser:
+
+Username: DemoUser
+
+Password: 7654seADS@Xq
+
+Public key: 87cb2c2063308d194111eea99643697dfa526af07516f09d4722258e94830125
+
+Private Key: 095648f20fc8f90d4a0e8c0f7737fd6e18a5d57e1af2c8100caa6954484c367d
+
+Friend Code: OBSCUR-TJATYL
+
+pnpm cache:clear && pnpm dev:desktop

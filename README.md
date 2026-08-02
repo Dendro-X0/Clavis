@@ -24,6 +24,11 @@ pnpm install
 | `pnpm build:web` | Static export of the web UI |
 | `pnpm test:vault` | Rust `vault-core` tests |
 
+Light/dark theme toggle lives in the custom titlebar and Settings. Theme preference is stored in `data/config.json`.
+
+Credential imports create a **workspace** (named from the file). If that name already exists, Clavis asks whether to **replace** it. Workspaces live in the **dashboard** strip (not the sidebar). Toggle **list / grid** for entries; name and categorize items in the editor.
+
+
 ## Layout
 
 ```

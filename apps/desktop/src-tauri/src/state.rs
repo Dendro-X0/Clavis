@@ -9,6 +9,24 @@ pub struct AppSettings {
     pub auto_lock_seconds: u64,
     pub clipboard_clear_seconds: u64,
     pub biometric_unlock: bool,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    #[serde(default = "default_entry_layout")]
+    pub entry_layout: String,
+    #[serde(default = "default_page_size")]
+    pub page_size: u32,
+}
+
+fn default_theme() -> String {
+    "system".into()
+}
+
+fn default_entry_layout() -> String {
+    "list".into()
+}
+
+fn default_page_size() -> u32 {
+    25
 }
 
 impl Default for AppSettings {
@@ -17,6 +35,9 @@ impl Default for AppSettings {
             auto_lock_seconds: 300,
             clipboard_clear_seconds: 30,
             biometric_unlock: false,
+            theme: default_theme(),
+            entry_layout: default_entry_layout(),
+            page_size: default_page_size(),
         }
     }
 }

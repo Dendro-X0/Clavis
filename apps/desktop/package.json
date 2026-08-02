@@ -1,6 +1,6 @@
 {
   "name": "@clavis/desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "tauri dev",
@@ -8,6 +8,6 @@
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.5.0"
+    "@tauri-apps/cli": "^2.11.4"
   }
 }

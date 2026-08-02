@@ -42,10 +42,11 @@ export type Entry = {
 export type AppSettings = {
   autoLockSeconds: number;
   clipboardClearSeconds: number;
-  biometricUnlock: boolish;
+  biometricUnlock: boolean;
+  theme: "light" | "dark" | "system";
+  entryLayout: "list" | "grid";
+  pageSize: 10 | 25 | 50 | 100;
 };
-
-type boolish = boolean;
 
 export type UpsertEntryInput = {
   id?: string;
@@ -71,6 +72,23 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
   return invoke<T>(cmd, args);
 }
 
+export type ImportResult = {
+  count: number;
+  workspaceId: string;
+  workspaceName: string;
+  replaced: boolean;
+};
+
+export type WorkspaceSummary = {
+  id: string;
+  name: string;
+  entryCount: number;
+  sourceFile?: string | null;
+  active: boolean;
+};
+
+export type ImportMode = "new" | "replace";
+
 export const api = {
   status: () => call<StatusDto>("vault_status").catch(() => browserFallback),
   getDataDir: () => call<string>("get_data_dir"),
@@ -82,6 +100,12 @@ export const api = {
   clearKeyringSecret: () => call<void>("clear_keyring_secret"),
   lock: () => call<void>("lock"),
   listEntries: () => call<EntrySummary[]>("list_entries"),
+  listWorkspaces: () => call<WorkspaceSummary[]>("list_workspaces"),
+  setActiveWorkspace: (id: string) => call<WorkspaceSummary[]>("set_active_workspace", { id }),
+  createWorkspace: (name: string) => call<WorkspaceSummary>("create_workspace", { name }),
+  renameWorkspace: (id: string, name: string) =>
+    call<WorkspaceSummary[]>("rename_workspace", { id, name }),
+  deleteWorkspace: (id: string) => call<WorkspaceSummary[]>("delete_workspace", { id }),
   getEntry: (id: string) => call<Entry>("get_entry", { id }),
   upsertEntry: (input: UpsertEntryInput) =>
     call<Entry>("upsert_entry", {
@@ -101,7 +125,20 @@ export const api = {
   exportVault: (dest: string) => call<void>("export_vault", { dest }),
   importVault: (source: string, password: string) =>
     call<StatusDto>("import_vault", { source, password }),
-  importCsv: (csvText: string) => call<number>("import_csv", { csvText }),
+  importCsv: (csvText: string, mode: ImportMode = "new", workspaceName?: string, workspaceId?: string) =>
+    call<ImportResult>("import_csv", { csvText, mode, workspaceName, workspaceId }),
+  importCredentialsFile: (path: string, mode: ImportMode = "new", workspaceId?: string) =>
+    call<ImportResult>("import_credentials_file", { path, mode, workspaceId }),
+  importCredentialsText: (
+    text: string,
+    mode: ImportMode = "new",
+    workspaceName?: string,
+    workspaceId?: string,
+  ) => call<ImportResult>("import_credentials_text", { text, mode, workspaceName, workspaceId }),
+  pickOpenPath: (kind: "vault" | "csv" | "credentials" | string) =>
+    call<string | null>("pick_open_path", { kind }),
+  pickSavePath: (defaultName?: string) =>
+    call<string | null>("pick_save_path", { defaultName }),
   changeMasterPassword: (current: string, newPassword: string) =>
     call<void>("change_master_password", { current, newPassword }),
   getSettings: () => call<AppSettings>("get_settings"),

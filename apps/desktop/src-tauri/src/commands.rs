@@ -3,8 +3,9 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use vault_core::{
-    Entry, EntryType, create_vault as core_create, export_encrypted, import_csv_logins,
-    import_encrypted, merge_entries, open_vault_file, vault_exists,
+    Entry, EntryType, create_vault as core_create, export_encrypted, import_credentials_auto,
+    import_credentials_from_path, import_csv_logins, import_encrypted, open_vault_file,
+    vault_exists,
 };
 
 use crate::paths::{config_path, ensure_data_dir, vault_path};
@@ -43,6 +44,49 @@ pub struct UpsertEntryInput {
     pub notes: String,
     pub tags: Vec<String>,
     pub custom_fields: Vec<vault_core::CustomField>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSummary {
+    pub id: String,
+    pub name: String,
+    pub entry_count: usize,
+    pub source_file: Option<String>,
+    pub active: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportResult {
+    pub count: usize,
+    pub workspace_id: String,
+    pub workspace_name: String,
+    pub replaced: bool,
+}
+
+fn workspace_name_from_path(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Imported".into())
+}
+
+fn map_workspace(session: &vault_core::VaultSession) -> Vec<WorkspaceSummary> {
+    let active = session.active_workspace_id().to_string();
+    session
+        .list_workspaces()
+        .iter()
+        .map(|w| WorkspaceSummary {
+            id: w.id.clone(),
+            name: w.name.clone(),
+            entry_count: w.entries.len(),
+            source_file: w.source_file.clone(),
+            active: w.id == active,
+        })
+        .collect()
 }
 
 fn map_err(e: impl ToString) -> String {
@@ -145,7 +189,69 @@ pub fn lock(state: State<'_, AppState>) -> Result<(), String> {
 pub fn list_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>, String> {
     let guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
-    Ok(session.list_entries().iter().map(summary).collect())
+    Ok(session
+        .list_entries()
+        .map_err(map_err)?
+        .iter()
+        .map(summary)
+        .collect())
+}
+
+#[tauri::command]
+pub fn list_workspaces(state: State<'_, AppState>) -> Result<Vec<WorkspaceSummary>, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(map_workspace(session))
+}
+
+#[tauri::command]
+pub fn set_active_workspace(state: State<'_, AppState>, id: String) -> Result<Vec<WorkspaceSummary>, String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "vault is locked".to_string())?;
+    session.set_active_workspace(&id).map_err(map_err)?;
+    Ok(map_workspace(session))
+}
+
+#[tauri::command]
+pub fn create_workspace(state: State<'_, AppState>, name: String) -> Result<WorkspaceSummary, String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "vault is locked".to_string())?;
+    let ws = session.create_workspace(&name).map_err(map_err)?;
+    Ok(WorkspaceSummary {
+        id: ws.id,
+        name: ws.name,
+        entry_count: 0,
+        source_file: ws.source_file,
+        active: true,
+    })
+}
+
+#[tauri::command]
+pub fn rename_workspace(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> Result<Vec<WorkspaceSummary>, String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "vault is locked".to_string())?;
+    session.rename_workspace(&id, &name).map_err(map_err)?;
+    Ok(map_workspace(session))
+}
+
+#[tauri::command]
+pub fn delete_workspace(state: State<'_, AppState>, id: String) -> Result<Vec<WorkspaceSummary>, String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard
+        .as_mut()
+        .ok_or_else(|| "vault is locked".to_string())?;
+    session.delete_workspace(&id).map_err(map_err)?;
+    Ok(map_workspace(session))
 }
 
 #[tauri::command]
@@ -237,17 +343,143 @@ pub fn import_vault(
 }
 
 #[tauri::command]
-pub fn import_csv(state: State<'_, AppState>, csv_text: String) -> Result<usize, String> {
+pub fn import_csv(
+    state: State<'_, AppState>,
+    csv_text: String,
+    mode: Option<String>,
+    workspace_name: Option<String>,
+    workspace_id: Option<String>,
+) -> Result<ImportResult, String> {
+    import_entries_into_workspace(
+        state,
+        import_csv_logins(&csv_text).map_err(map_err)?,
+        mode.as_deref().unwrap_or("new"),
+        workspace_name.unwrap_or_else(|| "CSV import".into()),
+        None,
+        workspace_id,
+    )
+}
+
+#[tauri::command]
+pub fn import_credentials_file(
+    state: State<'_, AppState>,
+    path: String,
+    mode: Option<String>,
+    workspace_id: Option<String>,
+) -> Result<ImportResult, String> {
+    let entries = import_credentials_from_path(std::path::Path::new(&path)).map_err(map_err)?;
+    let name = workspace_name_from_path(&path);
+    let source = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string());
+    import_entries_into_workspace(
+        state,
+        entries,
+        mode.as_deref().unwrap_or("new"),
+        name,
+        source,
+        workspace_id,
+    )
+}
+
+#[tauri::command]
+pub fn import_credentials_text(
+    state: State<'_, AppState>,
+    text: String,
+    mode: Option<String>,
+    workspace_name: Option<String>,
+    workspace_id: Option<String>,
+) -> Result<ImportResult, String> {
+    let entries = import_credentials_auto(&text).map_err(map_err)?;
+    import_entries_into_workspace(
+        state,
+        entries,
+        mode.as_deref().unwrap_or("new"),
+        workspace_name.unwrap_or_else(|| "Pasted import".into()),
+        None,
+        workspace_id,
+    )
+}
+
+fn import_entries_into_workspace(
+    state: State<'_, AppState>,
+    entries: Vec<Entry>,
+    mode: &str,
+    name: String,
+    source_file: Option<String>,
+    workspace_id: Option<String>,
+) -> Result<ImportResult, String> {
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
-    let entries = import_csv_logins(&csv_text).map_err(map_err)?;
     let count = entries.len();
-    let mut doc = session.document().clone();
-    merge_entries(&mut doc, entries);
-    session.replace_document(doc).map_err(map_err)?;
-    Ok(count)
+    let replace = mode.eq_ignore_ascii_case("replace");
+    let ws = if replace {
+        let id = workspace_id
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| session.find_workspace_id_by_name(&name))
+            .unwrap_or_else(|| session.active_workspace_id().to_string());
+        session
+            .replace_workspace_entries(&id, entries, source_file)
+            .map_err(map_err)?
+    } else {
+        session
+            .import_as_workspace(&name, source_file, entries)
+            .map_err(map_err)?
+    };
+    Ok(ImportResult {
+        count,
+        workspace_id: ws.id,
+        workspace_name: ws.name,
+        replaced: replace,
+    })
+}
+
+/// Native file open dialog (avoids Next.js JS chunk failures for plugin-dialog).
+#[tauri::command]
+pub fn pick_open_path(app: AppHandle, kind: String) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let dialog = app.dialog().file();
+    let picked = match kind.as_str() {
+        "vault" => dialog
+            .add_filter("Vault backup", &["km"])
+            .blocking_pick_file(),
+        "csv" => dialog
+            .add_filter("CSV / TSV", &["csv", "tsv"])
+            .blocking_pick_file(),
+        "credentials" => dialog
+            .add_filter(
+                "Credentials",
+                &["txt", "md", "csv", "tsv", "xlsx", "xls", "ods"],
+            )
+            .add_filter("Text", &["txt", "md"])
+            .add_filter("Spreadsheet", &["csv", "tsv", "xlsx", "xls", "ods"])
+            .blocking_pick_file(),
+        _ => dialog.blocking_pick_file(),
+    };
+
+    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn pick_save_path(
+    app: AppHandle,
+    default_name: Option<String>,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let mut dialog = app
+        .dialog()
+        .file()
+        .add_filter("Vault backup", &["km"]);
+    if let Some(name) = default_name {
+        dialog = dialog.set_file_name(&name);
+    }
+    let picked = dialog.blocking_save_file();
+    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
 }
 
 #[tauri::command]

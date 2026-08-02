@@ -6,6 +6,7 @@ target/
 out/
 dist/
 *.log
+*.tsbuildinfo
 
 # App data / secrets (portable vault)
 data/

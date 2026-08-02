@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Sora } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { DialogProvider } from "@/components/ui/dialog-provider";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -13,7 +15,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Keys Manager",
+  title: "Clavis",
   description: "Local-first portable credential vault",
 };
 
@@ -23,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${fraunces.variable} ${sora.variable} antialiased`}
         style={
@@ -33,7 +35,9 @@ export default function RootLayout({
           } as React.CSSProperties
         }
       >
-        {children}
+        <ThemeProvider defaultTheme="system">
+          <DialogProvider>{children}</DialogProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

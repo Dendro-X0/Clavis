@@ -1,0 +1,106 @@
+"use client";
+
+import {
+  FileKey2,
+  KeyRound,
+  Lock,
+  NotebookPen,
+  Settings,
+  Shield,
+  StickyNote,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { EntryType } from "@/lib/api";
+
+export type NavId = "all" | EntryType | "settings";
+
+const vaultItems: { id: NavId; label: string; icon: typeof Shield }[] = [
+  { id: "all", label: "All entries", icon: Shield },
+  { id: "login", label: "Logins", icon: KeyRound },
+  { id: "note", label: "Notes", icon: StickyNote },
+  { id: "api", label: "API / tokens", icon: FileKey2 },
+  { id: "custom", label: "Custom", icon: NotebookPen },
+];
+
+export function AppSidebar({
+  active,
+  onNavigate,
+  onLock,
+  collapsed,
+}: {
+  active: NavId;
+  onNavigate: (id: NavId) => void;
+  onLock: () => void;
+  collapsed?: boolean;
+}) {
+  return (
+    <aside
+      className={cn(
+        "flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--sidebar)] py-3 transition-[width]",
+        collapsed ? "w-[64px]" : "w-[220px]",
+      )}
+    >
+      <p
+        className={cn(
+          "px-4 pb-2 text-[10px] tracking-[0.2em] text-[var(--muted)] uppercase",
+          collapsed && "sr-only",
+        )}
+      >
+        Vault
+      </p>
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto scroll-region px-2">
+        {vaultItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              title={item.label}
+              onClick={() => onNavigate(item.id)}
+              className={cn(
+                "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
+                isActive
+                  ? "bg-[var(--accent-wash)] text-[var(--foreground)] shadow-[inset_2px_0_0_0_var(--primary)]"
+                  : "text-[var(--muted)] hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+                collapsed && "justify-center px-0",
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </button>
+          );
+        })}
+      </nav>
+      <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] px-2 pt-2">
+        <button
+          type="button"
+          title="Settings"
+          onClick={() => onNavigate("settings")}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
+            active === "settings"
+              ? "bg-[var(--accent-wash)] text-[var(--foreground)] shadow-[inset_2px_0_0_0_var(--primary)]"
+              : "text-[var(--muted)] hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+            collapsed && "justify-center px-0",
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          {!collapsed && <span>Settings</span>}
+        </button>
+        <button
+          type="button"
+          title="Lock"
+          onClick={onLock}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+            collapsed && "justify-center px-0",
+          )}
+        >
+          <Lock className="h-4 w-4" />
+          {!collapsed && <span>Lock</span>}
+        </button>
+      </div>
+    </aside>
+  );
+}
