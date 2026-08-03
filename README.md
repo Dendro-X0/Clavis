@@ -1,7 +1,7 @@
 # Clavis (Keys Manager)
 
 Local-first portable credential vault. Tauri v2 + Rust core + Next.js UI.  
-**OSS · self-signed / unsigned releases** (see below). Current version: **0.6.0**.
+**OSS · self-signed / unsigned releases** (see below). Current version: **0.7.0**.
 
 ## Prerequisites
 

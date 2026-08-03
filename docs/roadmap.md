@@ -201,7 +201,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 
 Next: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
 
-### v0.7.0 — Offline-first portable security (impl done; version bump pending)
+### v0.7.0 — Offline-first portable security (done)
 
 | Item | Status |
 |------|--------|
@@ -209,4 +209,4 @@ Next: **Phase D** interop & trust (imports, optional file sync, store signing wh
 | `allowNetwork` default off; gate favicon HTTP | Done |
 | Vault SHA-256 fingerprint mismatch warn on unlock | Done |
 | Hold-to-reveal secrets; portable + keyring warn; clipboard default 15s | Done |
-| Version bump 0.7.0 | Planned |
+| Version bump 0.7.0 | Done |
