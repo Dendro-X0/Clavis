@@ -3,10 +3,11 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use zeroize::Zeroize;
 
-use crate::crypto::{KdfParams, VaultKey};
+use crate::crypto::{KdfParams, VaultKey, derive_key, random_salt};
 use crate::error::{Result, VaultError};
 use crate::format::{
-    decode_vault, encode_vault, encode_vault_with_key, read_all, write_all_atomic,
+    VaultCryptoInfo, atomic_backup_path, cleanup_orphan_temps, decode_vault, encode_vault,
+    encode_vault_with_key, read_all, write_all_atomic,
 };
 use crate::model::{Entry, VaultDocument, Workspace};
 
@@ -50,6 +51,31 @@ impl VaultSession {
 
     pub fn document(&self) -> &VaultDocument {
         &self.document
+    }
+
+    pub fn crypto_info(&self) -> VaultCryptoInfo {
+        VaultCryptoInfo::argon2id(crate::crypto::VERSION, &self.params)
+    }
+
+    pub fn kdf_params(&self) -> &KdfParams {
+        &self.params
+    }
+
+    /// Re-wrap the vault with current default Argon2id params (requires master password).
+    pub fn upgrade_kdf_to_defaults(&mut self, password: &str) -> Result<VaultCryptoInfo> {
+        let mut bytes = read_all(&self.path)?;
+        let verified = decode_vault(&bytes, password);
+        bytes.zeroize();
+        let _ = verified?;
+        let params = KdfParams::default();
+        let salt = random_salt();
+        let key = derive_key(password, &salt, &params)?;
+        let encoded = encode_vault_with_key(&self.document, &key, salt, &params)?;
+        write_all_atomic(&self.path, &encoded)?;
+        self.key = key;
+        self.salt = salt;
+        self.params = params;
+        Ok(self.crypto_info())
     }
 
     pub fn entry_count(&self) -> usize {
@@ -371,6 +397,7 @@ pub fn create_vault(path: &Path, name: &str, password: &str) -> Result<VaultSess
             "master password must not be empty".into(),
         ));
     }
+    cleanup_orphan_temps(path);
     let params = KdfParams::default();
     let document = VaultDocument::new(name);
     let encoded = encode_vault(&document, password, &params)?;
@@ -379,6 +406,14 @@ pub fn create_vault(path: &Path, name: &str, password: &str) -> Result<VaultSess
 }
 
 pub fn open_vault_file(path: &Path, password: &str) -> Result<VaultSession> {
+    // Recover from a Windows mid-replace crash before deleting orphans.
+    if !path.is_file() {
+        let bak = atomic_backup_path(path);
+        if bak.is_file() {
+            std::fs::rename(&bak, path)?;
+        }
+    }
+    cleanup_orphan_temps(path);
     if !path.is_file() {
         return Err(VaultError::NotFound);
     }

@@ -79,6 +79,7 @@ Workspaces are **not** in the sidebar.
 11. **Biometric / convenience unlock**: **off by default**. Enable only in Settings (`biometricUnlock` + store master password in OS keyring). Gate never opts the user in. When enabled and OS biometrics are available (mobile), primary “Unlock with biometrics”; otherwise desktop may silent-try keyring. Master password always available.
 12. **Sensitive UI lifecycle (v0.5.0)**: clear Gate/settings password fields after success or IPC error; discard entry editor and cancel pending login-copy timers on lock; list copy paths keep secrets ephemeral (not in React list state).
 13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on).
+14. **Encrypted backup KDF (v0.6.0)**: Settings Import/export shows active vault KDF (Argon2id params + AES-256-GCM). Export confirms with those params. Import peeks the file header (no password), warns if weaker than app defaults, and offers **Upgrade KDF to defaults** (password prompt) after import when the live vault is still weak.
 
 ### Dialogs
 

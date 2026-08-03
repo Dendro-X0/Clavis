@@ -141,6 +141,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                 <input
                   id={inputId}
                   ref={inputRef}
+                  type={promptState.password ? "password" : "text"}
+                  autoComplete={promptState.password ? "current-password" : "off"}
                   className="inset-field mt-1 w-full px-3 py-2"
                   value={promptValue}
                   placeholder={promptState.placeholder}

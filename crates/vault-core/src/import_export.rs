@@ -24,6 +24,7 @@ pub fn import_encrypted(
     password: &str,
 ) -> Result<VaultSession> {
     let (document, key, salt, params) = decode_vault(backup_bytes, password)?;
+    crate::format::cleanup_orphan_temps(vault_path);
     write_all_atomic(vault_path, backup_bytes)?;
     Ok(VaultSession::from_parts(
         vault_path.to_path_buf(),

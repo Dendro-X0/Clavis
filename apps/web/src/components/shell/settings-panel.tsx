@@ -3,9 +3,9 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { FileDropZone } from "@/components/import/file-drop-zone";
-import { api, type AppSettings, type ImportResult, type StatusDto, type WorkspaceSummary } from "@/lib/api";
+import { api, type AppSettings, type ImportResult, type StatusDto, type VaultCryptoInfo, type WorkspaceSummary, formatVaultCryptoInfo, isWeakerThanDefaults } from "@/lib/api";
 import { importCredentialsFileSmart } from "@/lib/import";
-import { appConfirm } from "@/lib/app-dialogs";
+import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import {
   Select,
   SelectContent,
@@ -52,6 +52,9 @@ export function SettingsPanel({
   const [bioPassword, setBioPassword] = useState("");
   /** Last persisted convenience-unlock flag — used so re-saving other prefs does not demand the password again. */
   const [bioPersistedOn, setBioPersistedOn] = useState(settings.biometricUnlock);
+  const [cryptoInfo, setCryptoInfo] = useState<VaultCryptoInfo | null>(null);
+  const [defaultKdf, setDefaultKdf] = useState<VaultCryptoInfo | null>(null);
+  const [importPeek, setImportPeek] = useState<VaultCryptoInfo | null>(null);
   const active = workspaces.find((w) => w.active);
 
   useEffect(() => {
@@ -69,6 +72,17 @@ export function SettingsPanel({
       .then((info) => setDataPortable(info.portable))
       .catch(() => undefined);
   }, [status.dataDir]);
+
+  useEffect(() => {
+    api
+      .vaultCryptoInfo()
+      .then(setCryptoInfo)
+      .catch(() => setCryptoInfo(null));
+    api
+      .defaultVaultKdf()
+      .then(setDefaultKdf)
+      .catch(() => undefined);
+  }, [status.state, status.entryCount]);
 
   return (
     <section className="animate-rise mx-auto grid h-full min-h-0 w-full max-w-2xl gap-5 overflow-y-auto scroll-region p-1 pr-2">
@@ -416,16 +430,45 @@ export function SettingsPanel({
       <div className="panel p-5">
         <h3 className="font-display text-xl">Import / export</h3>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Credential imports create a new workspace (named from the file). Use Replace to
-          overwrite the current workspace list.
+          Encrypted backups use the same format as{" "}
+          <code className="text-[var(--foreground)]">vault.km</code> (Argon2id + AES-256-GCM).
+          Credential imports create a new workspace (named from the file). Use Replace to overwrite
+          the current workspace list.
         </p>
+        {cryptoInfo && (
+          <p className="mt-3 rounded-md border border-[var(--border)] bg-[var(--inset)]/50 px-3 py-2 text-xs text-[var(--muted)]">
+            <span className="font-medium text-[var(--foreground)]">Active vault KDF: </span>
+            {formatVaultCryptoInfo(cryptoInfo)}
+            {defaultKdf && isWeakerThanDefaults(cryptoInfo, defaultKdf) && (
+              <span className="mt-1 block text-[var(--foreground)]">
+                Weaker than current Clavis defaults — use “Upgrade KDF” below after confirming your
+                master password.
+              </span>
+            )}
+          </p>
+        )}
+        {importPeek && (
+          <p className="mt-2 text-xs text-[var(--muted)]">
+            Last peeked backup: {formatVaultCryptoInfo(importPeek)}
+          </p>
+        )}
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             className="rounded-md border border-[var(--border)] px-4 py-2"
             onClick={async () => {
               try {
+                const info = cryptoInfo ?? (await api.vaultCryptoInfo());
+                const ok = await appConfirm({
+                  title: "Export encrypted backup?",
+                  description: `Writes a portable .km file using ${formatVaultCryptoInfo(info)}. Same format as the live vault — keep the master password safe.`,
+                  confirmLabel: "Choose destination",
+                });
+                if (!ok) return;
                 const dest = await api.pickSavePath("clavis-backup.km");
-                if (dest) await api.exportVault(dest);
+                if (dest) {
+                  await api.exportVault(dest);
+                  onError(`Exported encrypted backup to ${dest}`);
+                }
               } catch (e) {
                 onError(String(e));
               }
@@ -439,13 +482,42 @@ export function SettingsPanel({
               try {
                 const source = await api.pickOpenPath("vault");
                 if (!source) return;
+                let peek: VaultCryptoInfo | null = null;
+                try {
+                  peek = await api.peekVaultKdf(source);
+                  setImportPeek(peek);
+                } catch {
+                  setImportPeek(null);
+                }
                 if (!importPw) {
-                  onError("Enter the backup master password below first.");
+                  onError(
+                    peek
+                      ? `Backup KDF: ${formatVaultCryptoInfo(peek)}. Enter the backup master password below, then import again.`
+                      : "Enter the backup master password below first.",
+                  );
                   return;
+                }
+                const defaults = defaultKdf ?? (await api.defaultVaultKdf());
+                if (peek && isWeakerThanDefaults(peek, defaults)) {
+                  const proceed = await appConfirm({
+                    title: "Weaker KDF in backup",
+                    description: `This file uses ${formatVaultCryptoInfo(peek)}. Current Clavis defaults are stronger (${formatVaultCryptoInfo(defaults)}). Import anyway? You can upgrade the live vault afterward.`,
+                    confirmLabel: "Import",
+                    danger: true,
+                  });
+                  if (!proceed) return;
                 }
                 await api.importVault(source, importPw);
                 setImportPw("");
+                setImportPeek(null);
+                const live = await api.vaultCryptoInfo().catch(() => null);
+                setCryptoInfo(live);
                 await onImported();
+                if (live && isWeakerThanDefaults(live, defaults)) {
+                  onError(
+                    `Imported. Vault KDF is weaker than defaults (${formatVaultCryptoInfo(live)}). Use Upgrade KDF when ready.`,
+                  );
+                }
               } catch (e) {
                 setImportPw("");
                 onError(String(e));
@@ -454,6 +526,32 @@ export function SettingsPanel({
           >
             Import encrypted backup
           </button>
+          {cryptoInfo && defaultKdf && isWeakerThanDefaults(cryptoInfo, defaultKdf) && (
+            <button
+              type="button"
+              className="rounded-md border border-[var(--border)] px-4 py-2"
+              onClick={async () => {
+                try {
+                  const password = await appPrompt({
+                    title: "Upgrade vault KDF",
+                    description: `Re-wrap with ${formatVaultCryptoInfo(defaultKdf)}. Enter your master password.`,
+                    inputLabel: "Master password",
+                    placeholder: "Required",
+                    confirmLabel: "Upgrade",
+                    password: true,
+                  });
+                  if (!password) return;
+                  const info = await api.upgradeVaultKdf(password);
+                  setCryptoInfo(info);
+                  onError(`KDF upgraded: ${formatVaultCryptoInfo(info)}`);
+                } catch (e) {
+                  onError(String(e));
+                }
+              }}
+            >
+              Upgrade KDF to defaults
+            </button>
+          )}
           <button
             className="rounded-md border border-[var(--border)] px-4 py-2"
             onClick={async () => {

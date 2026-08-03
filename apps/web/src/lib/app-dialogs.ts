@@ -16,6 +16,8 @@ export type PromptOptions = {
   cancelLabel?: string;
   /** When true (default), empty submit is ignored. */
   required?: boolean;
+  /** Render a password field instead of plain text. */
+  password?: boolean;
 };
 
 type DialogHost = {

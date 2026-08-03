@@ -23,12 +23,13 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Threat | Mitigation | Status |
 |--------|------------|--------|
 | Disk theft / casual browse | Argon2id + AES-256-GCM; portable `data/` not in Documents by default | Done |
+| Tear-write / power loss mid-persist | Atomic tmp + fsync + replace; orphan `.tmp` cleanup; `.bak` recovery on Windows | Done (v0.6.0 audit) |
 | Wrong password | AEAD fail → closed | Done |
 | Accidental cloud sync of plaintext | No Clavis cloud; export is encrypted backup | Done |
 | Clipboard residue | Configurable clear; sequential user→pass reduces multi-secret dwell | Done / improving |
 | Idle / background exposure | Auto-lock idle timer; optional lock-on-hide (`lockOnHide`, default on) | Done (v0.5.0 Settings) |
 | Malware with same-user memory access while unlocked | Out of scope while unlocked; lock/drop scrub shortens window (allocator residual possible) | Explicit / improving (v0.5.0 Rust) |
-| Evil maid + weak master password offline | Out of scope for strong passwords; document KDF cost | Explicit |
+| Evil maid + weak master password offline | Out of scope for strong passwords; document KDF cost; Settings shows params + upgrade-to-defaults | Explicit / improving (v0.6.0 UX) |
 | Compromised OS keyring | Optional feature; disable in Settings | Documented |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |

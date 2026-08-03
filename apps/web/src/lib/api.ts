@@ -54,6 +54,24 @@ export type AppSettings = {
   lockOnHide?: boolean;
 };
 
+export type VaultCryptoInfo = {
+  algorithm: string;
+  aead: string;
+  version: number;
+  mCost: number;
+  tCost: number;
+  pCost: number;
+};
+
+export function formatVaultCryptoInfo(info: VaultCryptoInfo): string {
+  const mib = (info.mCost / 1024).toFixed(info.mCost % 1024 === 0 ? 0 : 1);
+  return `${info.algorithm.toUpperCase()} · ${mib} MiB · t=${info.tCost} · p=${info.pCost} · ${info.aead.toUpperCase()} · format v${info.version}`;
+}
+
+export function isWeakerThanDefaults(info: VaultCryptoInfo, defaults: VaultCryptoInfo): boolean {
+  return info.mCost < defaults.mCost || info.tCost < defaults.tCost || info.pCost < defaults.pCost;
+}
+
 export type UpsertEntryInput = {
   id?: string;
   entryType: EntryType;
@@ -154,6 +172,10 @@ export const api = {
     call<string | null>("pick_save_path", { defaultName }),
   changeMasterPassword: (current: string, newPassword: string) =>
     call<void>("change_master_password", { current, newPassword }),
+  vaultCryptoInfo: () => call<VaultCryptoInfo>("vault_crypto_info"),
+  peekVaultKdf: (path: string) => call<VaultCryptoInfo>("peek_vault_kdf", { path }),
+  defaultVaultKdf: () => call<VaultCryptoInfo>("default_vault_kdf"),
+  upgradeVaultKdf: (password: string) => call<VaultCryptoInfo>("upgrade_vault_kdf", { password }),
   getSettings: () => call<AppSettings>("get_settings"),
   saveSettings: (settings: AppSettings) => call<void>("save_settings", { settings }),
   generatePassword: (length = 20) => call<string>("generate_password", { length }),

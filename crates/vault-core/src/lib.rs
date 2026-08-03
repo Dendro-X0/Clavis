@@ -8,6 +8,9 @@ mod model;
 mod store;
 
 pub use error::{Result, VaultError};
+pub use format::{
+    VaultCryptoInfo, peek_kdf_from_bytes, peek_kdf_from_path, write_all_atomic,
+};
 pub use import_export::{
     export_encrypted, import_credential_text, import_credentials_auto,
     import_credentials_from_path, import_csv_logins, import_encrypted, merge_entries,
@@ -430,5 +433,114 @@ Password: has-pass
         session.into_locked();
         let again = open_vault_file(&path, "master-pw").unwrap();
         assert_eq!(again.list_entries().unwrap()[0].password, "secret-pass");
+    }
+
+    #[test]
+    fn atomic_write_replaces_and_leaves_no_tmp() {
+        use crate::format::{atomic_temp_path, write_all_atomic};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        write_all_atomic(&path, b"first").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+        write_all_atomic(&path, b"second-longer").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"second-longer");
+        assert!(!atomic_temp_path(&path).exists());
+    }
+
+    #[test]
+    fn orphan_tmp_does_not_corrupt_open() {
+        use crate::format::atomic_temp_path;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let mut session = create_vault(&path, "Tmp", "pw").unwrap();
+        let mut e = Entry::new(EntryType::Login, "Keep");
+        e.password = "ok".into();
+        session.upsert_entry(e).unwrap();
+        session.into_locked();
+
+        let tmp = atomic_temp_path(&path);
+        std::fs::write(&tmp, b"not-a-vault").unwrap();
+        assert!(tmp.is_file());
+
+        let again = open_vault_file(&path, "pw").unwrap();
+        assert_eq!(again.list_entries().unwrap()[0].title, "Keep");
+        assert!(!tmp.exists(), "orphan tmp should be cleaned on open");
+    }
+
+    #[test]
+    fn crash_mid_write_leaves_prior_vault_intact() {
+        use crate::format::atomic_temp_path;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        crate::format::write_all_atomic(&path, b"good-vault-bytes").unwrap();
+        let before = std::fs::read(&path).unwrap();
+
+        // Simulate crash after writing temp, before replace.
+        let tmp = atomic_temp_path(&path);
+        std::fs::write(&tmp, b"partial-or-corrupt").unwrap();
+        assert!(tmp.is_file());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+
+        // App restart cleanup + open path for real vaults uses cleanup_orphan_temps.
+        crate::format::cleanup_orphan_temps(&path);
+        assert!(!tmp.exists());
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    #[test]
+    fn bak_recovered_when_primary_missing() {
+        use crate::format::{atomic_backup_path, write_all_atomic};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let encoded = encode_vault(&VaultDocument::new("bak"), "pw", &fast_params()).unwrap();
+        write_all_atomic(&path, &encoded).unwrap();
+        let bak = atomic_backup_path(&path);
+        std::fs::rename(&path, &bak).unwrap();
+        assert!(!path.exists());
+        let session = open_vault_file(&path, "pw").unwrap();
+        assert_eq!(session.document().meta.name, "bak");
+        assert!(path.is_file());
+        assert!(!bak.exists());
+    }
+
+    #[test]
+    fn peek_kdf_reads_header_without_password() {
+        use crate::format::{peek_kdf_from_bytes, write_all_atomic};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let weak = KdfParams {
+            m_cost: 8,
+            t_cost: 1,
+            p_cost: 1,
+        };
+        let bytes = encode_vault(&VaultDocument::new("peek"), "pw", &weak).unwrap();
+        write_all_atomic(&path, &bytes).unwrap();
+        let info = peek_kdf_from_bytes(&bytes).unwrap();
+        assert_eq!(info.algorithm, "argon2id");
+        assert_eq!(info.aead, "aes-256-gcm");
+        assert_eq!(info.m_cost, 8);
+        assert!(info.is_weaker_than_defaults());
+        let from_path = crate::format::peek_kdf_from_path(&path).unwrap();
+        assert_eq!(from_path, info);
+    }
+
+    #[test]
+    fn upgrade_kdf_to_defaults_strengthens_header() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let weak = KdfParams {
+            m_cost: 8,
+            t_cost: 1,
+            p_cost: 1,
+        };
+        let encoded = encode_vault(&VaultDocument::new("up"), "secret", &weak).unwrap();
+        crate::format::write_all_atomic(&path, &encoded).unwrap();
+        let mut session = open_vault_file(&path, "secret").unwrap();
+        assert!(session.crypto_info().is_weaker_than_defaults());
+        let info = session.upgrade_kdf_to_defaults("secret").unwrap();
+        assert!(!info.is_weaker_than_defaults());
+        session.into_locked();
+        let again = open_vault_file(&path, "secret").unwrap();
+        assert!(!again.crypto_info().is_weaker_than_defaults());
     }
 }

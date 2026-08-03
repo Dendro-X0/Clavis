@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 use vault_core::{
-    Entry, EntryType, create_vault as core_create, export_encrypted, import_credentials_auto,
-    import_credentials_from_path, import_csv_logins, import_encrypted, open_vault_file,
-    vault_exists,
+    Entry, EntryType, VaultCryptoInfo, create_vault as core_create, export_encrypted,
+    import_credentials_auto, import_credentials_from_path, import_csv_logins, import_encrypted,
+    open_vault_file, peek_kdf_from_path, vault_exists,
 };
 
 use crate::paths::{
@@ -603,6 +603,39 @@ pub fn change_master_password(
     })();
     current.zeroize();
     new_password.zeroize();
+    result
+}
+
+#[tauri::command]
+pub fn vault_crypto_info(state: State<'_, AppState>) -> Result<VaultCryptoInfo, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(session.crypto_info())
+}
+
+#[tauri::command]
+pub fn peek_vault_kdf(path: String) -> Result<VaultCryptoInfo, String> {
+    peek_kdf_from_path(std::path::Path::new(&path)).map_err(map_err)
+}
+
+#[tauri::command]
+pub fn default_vault_kdf() -> VaultCryptoInfo {
+    VaultCryptoInfo::defaults()
+}
+
+#[tauri::command]
+pub fn upgrade_vault_kdf(
+    state: State<'_, AppState>,
+    mut password: String,
+) -> Result<VaultCryptoInfo, String> {
+    let result = (|| {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session.upgrade_kdf_to_defaults(&password).map_err(map_err)
+    })();
+    password.zeroize();
     result
 }
 

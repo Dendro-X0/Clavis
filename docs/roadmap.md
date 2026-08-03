@@ -47,7 +47,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 |----------|------|-----|
 | P0 | Threat-model refresh for mobile + clipboard + screenshots | Expand `docs/threat-model.md` before mobile ships |
 | P0 | Memory hygiene audit (zeroize, lock drops key) | Done (v0.5.0) |
-| P1 | Argon2 params / KDF versioning in vault format | Upgrade without breaking old vaults |
+| P1 | Argon2 params / KDF versioning in vault format | Done (v0.6.0) — peek + Settings transparency + upgrade-to-defaults |
 | P1 | Autofill / “copy user then pass” timed sequence | Reduce dwell time of secrets on clipboard |
 | P1 | Optional PIN / biometric over keyring (desktop + mobile) | Ease of unlock without weakening master password |
 | P2 | Secure field reveal (hold-to-show), screen capture flags where OS allows | Shoulder-surfing / casual capture |
@@ -180,6 +180,15 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Threat model / frontend-spec update | Done |
 | Version bump 0.5.0 | Done |
 
-**Parked:** desktop tag CI flake chase beyond workspace `target/` collect fix (`66edbb8`).
+### v0.6.0 — Backup portability & vault durability (in progress)
 
-Next after 0.5.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+| Item | Status |
+|------|--------|
+| KDF transparency on encrypted export/import (Argon2id params visible) | Done — Settings shows active KDF; export confirm includes params |
+| Header peek + warn/upgrade when backup KDF weaker than defaults | Done — `peek_vault_kdf` + Upgrade KDF IPC |
+| Atomic `vault.km` write audit (tmp + rename); orphan `.tmp` cleanup | Done |
+| Version bump 0.6.0 | Planned |
+
+**Parked:** desktop tag CI flake chase beyond workspace `target/` collect fix + release asset attach (`16e6a9e`).
+
+Next after 0.6.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
