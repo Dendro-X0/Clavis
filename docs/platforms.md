@@ -53,8 +53,15 @@ File dialogs via Tauri dialog plugin when available. Share-sheet / Files intent 
 | **Portable (default)** | `{executable_directory}/data/` | No pointer file |
 | **Custom** | User-chosen folder | Settings → Change data folder… writes `{exe}/data-location.json` |
 
-- Changing the folder **locks** the vault; copy `vault.km` / `config.json` yourself if migrating.
-- Reset with **Use portable default** (removes `data-location.json`).
+### USB / plug-and-play kit
+
+1. Prefer **portable default** (no `data-location.json`).
+2. Copy the **entire install folder** (binary + `data/` containing encrypted `vault.km`) to a USB drive or another PC.
+3. Absolute custom data paths break when drive letters change — Settings warns and offers **Make portable** (copies vault + config into `{exe}/data/` and removes the override).
+4. Disable convenience unlock (OS keyring) on shared/USB kits — keyring is machine-local.
+
+- Changing the folder **locks** the vault; use Make portable or copy files yourself when migrating.
+- Reset with **Use portable default** (removes `data-location.json` without copying).
 - Env/profile OS folders are never the default dump location.
 
 ## Keyring / “Remember unlock”

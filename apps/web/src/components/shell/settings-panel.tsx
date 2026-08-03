@@ -94,57 +94,112 @@ export function SettingsPanel({
           {compact && " (app sandbox)"}
         </p>
         {!compact && (
-        <div className="mt-3 flex flex-wrap gap-2" data-desktop-only>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-            onClick={async () => {
-              const ok = await appConfirm({
-                title: "Change data directory?",
-                description:
-                  "The vault will lock. Choose a folder for vault.km and config.json. Existing data is not moved automatically — copy files yourself if needed.",
-                confirmLabel: "Choose folder",
-              });
-              if (!ok) return;
-              try {
-                const folder = await api.pickDataDir();
-                if (!folder) return;
-                const info = await api.setDataDir(folder);
-                setDataPortable(info.portable);
-                onError(`Data directory set to ${info.path}. Unlock again to continue.`);
-                await onDataDirChanged?.();
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
+          <div
+            className="mt-3 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3 text-sm"
+            data-desktop-only
           >
-            Change data folder…
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-            disabled={dataPortable}
-            onClick={async () => {
-              const ok = await appConfirm({
-                title: "Reset to portable data folder?",
-                description:
-                  "Uses {app}/data next to the executable again. The vault will lock. Custom-folder files are left in place.",
-                confirmLabel: "Reset",
-              });
-              if (!ok) return;
-              try {
-                const info = await api.setDataDir(null);
-                setDataPortable(info.portable);
-                onError(`Data directory reset to ${info.path}. Unlock again to continue.`);
-                await onDataDirChanged?.();
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Use portable default
-          </button>
-        </div>
+            <p className="font-medium text-[var(--foreground)]">Portable kit (USB / folder copy)</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Copy this entire install folder (app + <code className="text-[var(--foreground)]">data/</code>
+              ) to another PC or USB. The encrypted vault moves with the app. Prefer the portable
+              default. Clavis does not stop malware on a compromised machine while unlocked — keep
+              the vault locked when idle.
+            </p>
+            {!dataPortable && (
+              <p className="mt-2 text-xs text-[var(--foreground)]">
+                Custom absolute data path — plug-and-play breaks if the drive letter changes. Use{" "}
+                <strong>Make portable</strong> to relocate vault files next to the executable.
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+                onClick={async () => {
+                  const ok = await appConfirm({
+                    title: "Change data directory?",
+                    description:
+                      "The vault will lock. Choose a folder for vault.km and config.json. Existing data is not moved automatically — copy files yourself if needed.",
+                    confirmLabel: "Choose folder",
+                  });
+                  if (!ok) return;
+                  try {
+                    const folder = await api.pickDataDir();
+                    if (!folder) return;
+                    const info = await api.setDataDir(folder);
+                    setDataPortable(info.portable);
+                    onError(`Data directory set to ${info.path}. Unlock again to continue.`);
+                    await onDataDirChanged?.();
+                  } catch (e) {
+                    onError(String(e));
+                  }
+                }}
+              >
+                Change data folder…
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+                disabled={dataPortable}
+                onClick={async () => {
+                  const ok = await appConfirm({
+                    title: "Reset to portable data folder?",
+                    description:
+                      "Uses {app}/data next to the executable again. The vault will lock. Custom-folder files are left in place (not copied).",
+                    confirmLabel: "Reset",
+                  });
+                  if (!ok) return;
+                  try {
+                    const info = await api.setDataDir(null);
+                    setDataPortable(info.portable);
+                    onError(`Data directory reset to ${info.path}. Unlock again to continue.`);
+                    await onDataDirChanged?.();
+                  } catch (e) {
+                    onError(String(e));
+                  }
+                }}
+              >
+                Use portable default
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+                disabled={dataPortable}
+                onClick={async () => {
+                  const ok = await appConfirm({
+                    title: "Make portable?",
+                    description:
+                      "Copies vault.km, config.json, and icons into {app}/data next to the executable, then clears the custom path. The vault will lock.",
+                    confirmLabel: "Make portable",
+                  });
+                  if (!ok) return;
+                  try {
+                    let info = await api.makeDataDirPortable(false).catch(async (e) => {
+                      const msg = String(e);
+                      if (!msg.includes("overwrite")) throw e;
+                      const force = await appConfirm({
+                        title: "Overwrite portable vault?",
+                        description:
+                          "A different vault.km already exists in {app}/data. Replace it with the current vault?",
+                        confirmLabel: "Overwrite",
+                        danger: true,
+                      });
+                      if (!force) return null;
+                      return api.makeDataDirPortable(true);
+                    });
+                    if (!info) return;
+                    setDataPortable(info.portable);
+                    onError(`Portable data at ${info.path}. Unlock again to continue.`);
+                    await onDataDirChanged?.();
+                  } catch (e) {
+                    onError(String(e));
+                  }
+                }}
+              >
+                Make portable
+              </button>
+            </div>
+          </div>
         )}
 
         <label className="mt-5 block text-sm">
@@ -217,11 +272,61 @@ export function SettingsPanel({
             onChange={(e) =>
               setSettings({
                 ...settings,
-                clipboardClearSeconds: Number(e.target.value) || 30,
+                clipboardClearSeconds: Number(e.target.value) || 15,
               })
             }
           />
+          <span className="mt-1 block text-xs text-[var(--muted)]">
+            New installs default to 15 seconds.
+          </span>
         </label>
+        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
+          <p className="text-sm font-medium text-[var(--foreground)]">Network (offline-first)</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Outbound HTTP is off by default. Enabling network only unlocks optional features such as
+            favicon fetch — never required to use your vault.
+          </p>
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={Boolean(settings.allowNetwork)}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  allowNetwork: e.target.checked,
+                  fetchFavicons: e.target.checked ? settings.fetchFavicons : false,
+                })
+              }
+            />
+            <span>
+              Allow network
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                Master gate for outbound requests from Clavis.
+              </span>
+            </span>
+          </label>
+          <label
+            className={`mt-3 flex items-start gap-2 text-sm ${
+              !settings.allowNetwork ? "opacity-50" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              disabled={!settings.allowNetwork}
+              checked={Boolean(settings.fetchFavicons) && Boolean(settings.allowNetwork)}
+              onChange={(e) => setSettings({ ...settings, fetchFavicons: e.target.checked })}
+            />
+            <span>
+              Fetch site icons for login URLs
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                Cached under data/icons. Requires Allow network. Reveals hostnames to remote servers
+                when fetching.
+              </span>
+            </span>
+          </label>
+        </div>
         <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
           <label className="flex items-start gap-2 text-sm">
             <input
@@ -243,6 +348,12 @@ export function SettingsPanel({
               </span>
             </span>
           </label>
+          {dataPortable && settings.biometricUnlock && (
+            <p className="mt-2 text-xs text-[var(--foreground)]">
+              Portable / USB kits: OS keyring is machine-local and does not travel with the folder.
+              Prefer master password unlock on shared drives.
+            </p>
+          )}
           {settings.biometricUnlock && (
             <label className="mt-3 block text-sm">
               Master password to store in keyring
@@ -261,14 +372,6 @@ export function SettingsPanel({
             </label>
           )}
         </div>
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Boolean(settings.fetchFavicons)}
-            onChange={(e) => setSettings({ ...settings, fetchFavicons: e.target.checked })}
-          />
-          Fetch site icons for login URLs (cached under data/icons; off by default)
-        </label>
         <button
           className="mt-4 rounded-md bg-[var(--primary)] px-4 py-2 text-[var(--primary-fg)]"
           onClick={() => {

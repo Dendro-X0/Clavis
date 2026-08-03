@@ -469,6 +469,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-dialog",

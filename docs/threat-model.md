@@ -26,11 +26,13 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Tear-write / power loss mid-persist | Atomic tmp + fsync + replace; orphan `.tmp` cleanup; `.bak` recovery on Windows | Done (v0.6.0 audit) |
 | Wrong password | AEAD fail → closed | Done |
 | Accidental cloud sync of plaintext | No Clavis cloud; export is encrypted backup | Done |
-| Clipboard residue | Configurable clear; sequential user→pass reduces multi-secret dwell | Done / improving |
+| Clipboard residue | Configurable clear (default 15s new installs); sequential user→pass | Done / improving (v0.7.0) |
 | Idle / background exposure | Auto-lock idle timer; optional lock-on-hide (`lockOnHide`, default on) | Done (v0.5.0 Settings) |
-| Malware with same-user memory access while unlocked | Out of scope while unlocked; lock/drop scrub shortens window (allocator residual possible) | Explicit / improving (v0.5.0 Rust) |
-| Evil maid + weak master password offline | Out of scope for strong passwords; document KDF cost; Settings shows params + upgrade-to-defaults | Explicit / improving (v0.6.0 UX) |
-| Compromised OS keyring | Optional feature; disable in Settings | Documented |
+| Malware with same-user memory access while unlocked | Out of scope while unlocked; lock/drop scrub shortens window (allocator residual possible) — **not antivirus** | Explicit |
+| Evil maid + weak master password offline | Strong password + KDF cost; vault SHA-256 fingerprint warns if `vault.km` changed since last unlock | Explicit / improving (v0.7.0) |
+| Network exfil / host intent leak | Offline-first: `allowNetwork` default off; favicon fetch gated | Done (v0.7.0) |
+| Non-portable data path on USB | Warn + one-click Make portable into `{exe}/data/` | Done (v0.7.0) |
+| Compromised OS keyring | Optional feature; disable in Settings; warn when portable + keyring on | Documented / improving (v0.7.0) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 
@@ -45,7 +47,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Shared / lost phone | Auto-lock settings; remote wipe is OS-level only | Done (auto-lock) / Explicit (wipe) |
 | Sideload / APK integrity | Checksums + build-from-tag (same OSS model as desktop) | Process |
 | Clipboard on mobile | Sequential copy + clear timers still apply in WebView | Done / improving |
-| Optional favicon fetch | Off by default; one-shot cache under `data/icons/`; reveals host intent to remote when enabled | Documented |
+| Optional favicon fetch | Off by default; requires `allowNetwork`; one-shot cache under `data/icons/` | Documented / gated (v0.7.0) |
 
 ## Self-signed distribution
 
@@ -60,6 +62,7 @@ Self-signed or unsigned binaries are a **trust-on-first-use** model:
 - Clavis-operated sync or accounts
 - Protecting secrets from a fully compromised OS while the vault is unlocked
 - Guaranteeing safety of weak master passwords against unbounded offline attack
+- Antivirus / malware scanning / claiming immunity to same-user attacks while unlocked
 
 ## Review triggers
 

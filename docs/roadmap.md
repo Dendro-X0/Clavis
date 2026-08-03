@@ -191,4 +191,22 @@ apps/web                   ← UI shell (static); platform plugins differ
 
 **Parked:** desktop tag CI flake chase beyond workspace `target/` collect fix + release asset attach (`16e6a9e`).
 
-Next after 0.6.0: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+### Post-0.6.0 — Custom fields UI & Next.js 16
+
+| Item | Status |
+|------|--------|
+| Entry editor custom fields (Email / Phone / freeform) | Done — `specs/backend/v0.6.1-custom-fields-ui-design.md` |
+| Search includes custom field labels/values | Done |
+| Next.js 15 → 16.2.x (static export) | Done — `next@16.2.12` |
+
+Next: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+
+### v0.7.0 — Offline-first portable security (impl done; version bump pending)
+
+| Item | Status |
+|------|--------|
+| Make portable / USB kit UX + non-portable path warning | Done |
+| `allowNetwork` default off; gate favicon HTTP | Done |
+| Vault SHA-256 fingerprint mismatch warn on unlock | Done |
+| Hold-to-reveal secrets; portable + keyring warn; clipboard default 15s | Done |
+| Version bump 0.7.0 | Planned |

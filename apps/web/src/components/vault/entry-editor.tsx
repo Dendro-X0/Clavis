@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { EntryType, UpsertEntryInput } from "@/lib/api";
 import { CopyIconButton } from "@/components/ui/copy-button";
 import {
@@ -116,20 +117,21 @@ export function EntryEditor({
           onError={onError}
         />
         <CopyableField
-          label="Username"
+          label="Username / email"
           value={form.username}
           onChange={(v) => setForm((f) => ({ ...f, username: v }))}
           onCopy={onCopy}
           onError={onError}
         />
+        <p className="-mt-2 text-xs text-[var(--muted)]">
+          Primary login id — use email or username here. Add extra emails or a phone below.
+        </p>
         <label className="block text-sm">
           Password / secret
           <div className="mt-1 flex gap-2">
-            <input
-              type="text"
-              className="inset-field w-full px-3 py-2 font-mono text-sm"
+            <HoldToRevealPassword
               value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              onChange={(v) => setForm((f) => ({ ...f, password: v }))}
             />
             <CopyIconButton
               value={form.password}
@@ -145,6 +147,9 @@ export function EntryEditor({
               Generate
             </button>
           </div>
+          <span className="mt-1 block text-xs text-[var(--muted)]">
+            Hold Reveal to show the secret.
+          </span>
         </label>
         <CopyableField
           label="URL"
@@ -180,6 +185,107 @@ export function EntryEditor({
         <p className="text-xs text-[var(--muted)]">
           Comma-separated labels (e.g. work, banking). Filter them from the dashboard.
         </p>
+
+        <div className="space-y-2 border-t border-[var(--border)] pt-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium">Custom fields</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {(["Email", "Phone"] as const).map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      customFields: [...(f.customFields ?? []), { label: preset, value: "" }],
+                    }))
+                  }
+                >
+                  + {preset}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    customFields: [...(f.customFields ?? []), { label: "", value: "" }],
+                  }))
+                }
+              >
+                + Field
+              </button>
+            </div>
+          </div>
+          {(form.customFields ?? []).length === 0 ? (
+            <p className="text-xs text-[var(--muted)]">
+              Optional extras (second email, mobile, recovery codes, …).
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {(form.customFields ?? []).map((field, index) => (
+                <li key={index} className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+                  <label className="block min-w-[7rem] flex-1 text-sm">
+                    Label
+                    <input
+                      className="inset-field mt-1 w-full px-3 py-2"
+                      value={field.label}
+                      placeholder="e.g. Phone"
+                      onChange={(e) => {
+                        const label = e.target.value;
+                        setForm((f) => {
+                          const next = [...(f.customFields ?? [])];
+                          next[index] = { ...next[index], label };
+                          return { ...f, customFields: next };
+                        });
+                      }}
+                    />
+                  </label>
+                  <label className="block min-w-0 flex-[2] text-sm">
+                    Value
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        className="inset-field w-full px-3 py-2"
+                        value={field.value}
+                        placeholder="Value"
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setForm((f) => {
+                            const next = [...(f.customFields ?? [])];
+                            next[index] = { ...next[index], value };
+                            return { ...f, customFields: next };
+                          });
+                        }}
+                      />
+                      <CopyIconButton
+                        value={field.value}
+                        label={field.label.trim() || "custom field"}
+                        onCopied={() => onCopy?.()}
+                        onError={onError}
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-md border border-[var(--border)] px-2 text-sm text-[var(--muted)] hover:border-[var(--danger)]/50 hover:text-[var(--danger)]"
+                        title="Remove field"
+                        aria-label="Remove field"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            customFields: (f.customFields ?? []).filter((_, i) => i !== index),
+                          }))
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap gap-2 border-t border-[var(--border)] px-4 py-3 shrink-0">
         <button
@@ -208,6 +314,56 @@ export function EntryEditor({
         )}
       </div>
     </section>
+  );
+}
+
+function HoldToRevealPassword({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <div className="flex min-w-0 flex-1 gap-2">
+      <input
+        type={revealed ? "text" : "password"}
+        autoComplete="off"
+        className="inset-field w-full px-3 py-2 font-mono text-sm"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        className="shrink-0 rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--accent-wash)]"
+        title="Hold to reveal"
+        onMouseDown={() => setRevealed(true)}
+        onMouseUp={() => setRevealed(false)}
+        onMouseLeave={() => setRevealed(false)}
+        onTouchStart={(e) => {
+          e.preventDefault();
+          setRevealed(true);
+        }}
+        onTouchEnd={() => setRevealed(false)}
+        onTouchCancel={() => setRevealed(false)}
+        onKeyDown={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            setRevealed(true);
+          }
+        }}
+        onKeyUp={(e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            setRevealed(false);
+          }
+        }}
+        onBlur={() => setRevealed(false)}
+      >
+        Reveal
+      </button>
+    </div>
   );
 }
 

@@ -62,13 +62,14 @@ export default function HomePage() {
   const [form, setForm] = useState<UpsertEntryInput | null>(null);
   const [settings, setSettings] = useState<AppSettings>({
     autoLockSeconds: 300,
-    clipboardClearSeconds: 30,
+    clipboardClearSeconds: 15,
     biometricUnlock: false,
     theme: "system",
     entryLayout: "list",
     pageSize: 25,
     pinnedWorkspaceIds: [],
     fetchFavicons: false,
+    allowNetwork: false,
     lockOnHide: true,
   });
   const [page, setPage] = useState(1);
@@ -146,7 +147,9 @@ export default function HomePage() {
           pageSize: normalizePageSize(s.pageSize),
           pinnedWorkspaceIds: s.pinnedWorkspaceIds ?? [],
           fetchFavicons: Boolean(s.fetchFavicons),
+          allowNetwork: Boolean(s.allowNetwork),
           lockOnHide: s.lockOnHide !== false,
+          clipboardClearSeconds: s.clipboardClearSeconds ?? 15,
         });
         if (s.theme) setTheme(s.theme);
       })
@@ -238,6 +241,9 @@ export default function HomePage() {
         e.username.toLowerCase().includes(q) ||
         e.url.toLowerCase().includes(q) ||
         e.tags.some((t) => t.toLowerCase().includes(q)) ||
+        (e.customFields ?? []).some(
+          (f) => f.label.toLowerCase().includes(q) || f.value.toLowerCase().includes(q),
+        ) ||
         (e.workspaceName?.toLowerCase().includes(q) ?? false),
     );
   }, [entries, allEntries, query, nav, categoryFilter]);
@@ -788,7 +794,9 @@ export default function HomePage() {
                       emptyWorkspace={!query.trim() && entries.length === 0}
                       activeWorkspaceId={activeWorkspace?.id}
                       workspaceName={activeWorkspace?.name}
-                      fetchFavicons={Boolean(settings.fetchFavicons)}
+                      fetchFavicons={
+                        Boolean(settings.fetchFavicons) && Boolean(settings.allowNetwork)
+                      }
                       onSelect={(id, workspaceId) =>
                         openEntry(id, workspaceId).catch((err) => setError(String(err)))
                       }

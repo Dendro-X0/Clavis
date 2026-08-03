@@ -21,3 +21,4 @@ keyring = "3"
 zeroize = { workspace = true }
 base64 = { workspace = true }
 ureq = "2"
+sha2 = { workspace = true }

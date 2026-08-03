@@ -7,6 +7,8 @@ export type StatusDto = {
   entryCount?: number | null;
   name?: string | null;
   dataDir: string;
+  /** True when vault.km hash differs from last trusted unlock. */
+  vaultFingerprintChanged?: boolean;
 };
 
 export type EntryType = "login" | "note" | "api" | "custom";
@@ -18,6 +20,7 @@ export type EntrySummary = {
   username: string;
   url: string;
   tags: string[];
+  customFields?: CustomField[];
   updatedAt: string;
   workspaceId?: string;
   workspaceName?: string;
@@ -50,8 +53,12 @@ export type AppSettings = {
   pageSize: 10 | 25 | 50 | 100;
   pinnedWorkspaceIds?: string[];
   fetchFavicons?: boolean;
+  /** Master outbound HTTP gate. Default false. */
+  allowNetwork?: boolean;
   /** Lock when the window/tab is hidden. Default true. */
   lockOnHide?: boolean;
+  /** Encrypted vault fingerprint (integrity signal). */
+  lastVaultSha256?: string | null;
 };
 
 export type VaultCryptoInfo = {
@@ -113,12 +120,19 @@ export type WorkspaceSummary = {
 
 export type ImportMode = "new" | "replace";
 
+export type DataDirInfo = {
+  path: string;
+  portable: boolean;
+  appRoot?: string;
+};
+
 export const api = {
   status: () => call<StatusDto>("vault_status").catch(() => browserFallback),
   getDataDir: () => call<string>("get_data_dir"),
-  getDataDirInfo: () => call<{ path: string; portable: boolean }>("get_data_dir_info"),
-  setDataDir: (path: string | null) =>
-    call<{ path: string; portable: boolean }>("set_data_dir", { path }),
+  getDataDirInfo: () => call<DataDirInfo>("get_data_dir_info"),
+  setDataDir: (path: string | null) => call<DataDirInfo>("set_data_dir", { path }),
+  makeDataDirPortable: (overwrite: boolean) =>
+    call<DataDirInfo>("make_data_dir_portable", { overwrite }),
   pickDataDir: () => call<string | null>("pick_data_dir"),
   createVault: (name: string, password: string) =>
     call<StatusDto>("create_vault", { name, password }),

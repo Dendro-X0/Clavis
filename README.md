@@ -68,6 +68,8 @@ scripts/                          Release checksum helper
 
 ## Data location
 
-Desktop: `{executable_directory}/data/` (portable) or a custom folder from Settings. Mobile preview: OS app sandbox. Encrypted file: `vault.km`.
+Desktop: `{executable_directory}/data/` (**portable default**). Encrypted vault file: `vault.km`. For USB plug-and-play, copy the **entire install folder** (app + `data/`). Prefer portable default over a custom absolute path; Settings → **Make portable** relocates the vault next to the binary. Mobile preview: OS app sandbox.
+
+Offline-first: outbound network is off by default (`allowNetwork`); optional favicon fetch requires an explicit opt-in.
 
 See [docs/START-HERE.md](docs/START-HERE.md). Platforms & keyring: [docs/platforms.md](docs/platforms.md). Future work: [docs/roadmap.md](docs/roadmap.md).

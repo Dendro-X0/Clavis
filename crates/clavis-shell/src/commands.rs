@@ -11,7 +11,8 @@ use vault_core::{
 };
 
 use crate::paths::{
-    config_path, ensure_data_dir, icons_dir, is_portable_data_dir, set_data_dir_override, vault_path,
+    app_root, config_path, ensure_data_dir, icons_dir, is_portable_data_dir, portable_data_dir,
+    set_data_dir_override, vault_path,
 };
 use crate::state::{AppSettings, AppState};
 
@@ -22,6 +23,9 @@ pub struct StatusDto {
     pub entry_count: Option<usize>,
     pub name: Option<String>,
     pub data_dir: String,
+    /// True when encrypted vault bytes differ from `lastVaultSha256` stored previously.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub vault_fingerprint_changed: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -33,6 +37,8 @@ pub struct EntrySummary {
     pub username: String,
     pub url: String,
     pub tags: Vec<String>,
+    /// Included so dashboard search can match emails/phones without opening each entry.
+    pub custom_fields: Vec<vault_core::CustomField>,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
@@ -116,6 +122,7 @@ fn summary(e: &Entry) -> EntrySummary {
         username: e.username.clone(),
         url: e.url.clone(),
         tags: e.tags.clone(),
+        custom_fields: e.custom_fields.clone(),
         updated_at: e.updated_at.to_rfc3339(),
         workspace_id: None,
         workspace_name: None,
@@ -130,6 +137,7 @@ fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> 
         username: e.username.clone(),
         url: e.url.clone(),
         tags: e.tags.clone(),
+        custom_fields: e.custom_fields.clone(),
         updated_at: e.updated_at.to_rfc3339(),
         workspace_id: Some(workspace_id.to_string()),
         workspace_name: Some(workspace_name.to_string()),
@@ -141,6 +149,90 @@ fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> 
 pub struct DataDirInfo {
     pub path: String,
     pub portable: bool,
+    pub app_root: String,
+}
+
+fn data_dir_info(app: &AppHandle) -> Result<DataDirInfo, String> {
+    let dir = ensure_data_dir(app)?;
+    Ok(DataDirInfo {
+        path: dir.display().to_string(),
+        portable: is_portable_data_dir(app)?,
+        app_root: app_root(app)?.display().to_string(),
+    })
+}
+
+fn sha256_hex_file(path: &std::path::Path) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    let bytes = fs::read(path).map_err(map_err)?;
+    let hash = Sha256::digest(&bytes);
+    Ok(format!("{hash:x}"))
+}
+
+fn load_settings_disk(app: &AppHandle) -> Result<AppSettings, String> {
+    let path = config_path(app)?;
+    if path.is_file() {
+        let text = fs::read_to_string(&path).map_err(map_err)?;
+        return serde_json::from_str(&text).map_err(map_err);
+    }
+    Ok(AppSettings::default())
+}
+
+fn persist_settings(app: &AppHandle, settings: &AppSettings) -> Result<(), String> {
+    ensure_data_dir(app)?;
+    let path = config_path(app)?;
+    let text = serde_json::to_string_pretty(settings).map_err(map_err)?;
+    fs::write(&path, text).map_err(map_err)?;
+    Ok(())
+}
+
+/// Compare vault file hash to stored fingerprint; update stored hash after unlock.
+fn check_and_update_vault_fingerprint(
+    app: &AppHandle,
+    state: &State<'_, AppState>,
+) -> Result<bool, String> {
+    let path = vault_path(app)?;
+    if !path.is_file() {
+        return Ok(false);
+    }
+    let current = sha256_hex_file(&path)?;
+    let mut settings = load_settings_disk(app)?;
+    let changed = match settings.last_vault_sha256.as_deref() {
+        Some(prev) if prev != current => true,
+        _ => false,
+    };
+    settings.last_vault_sha256 = Some(current);
+    persist_settings(app, &settings)?;
+    *state.settings.lock().map_err(|e| e.to_string())? = settings;
+    Ok(changed)
+}
+
+/// Update stored vault fingerprint after a successful persist (no change warning).
+fn record_vault_fingerprint(app: &AppHandle, state: &State<'_, AppState>) -> Result<(), String> {
+    let path = vault_path(app)?;
+    if !path.is_file() {
+        return Ok(());
+    }
+    let current = sha256_hex_file(&path)?;
+    let mut settings = load_settings_disk(app)?;
+    settings.last_vault_sha256 = Some(current);
+    persist_settings(app, &settings)?;
+    *state.settings.lock().map_err(|e| e.to_string())? = settings;
+    Ok(())
+}
+
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(map_err)?;
+    for entry in fs::read_dir(src).map_err(map_err)? {
+        let entry = entry.map_err(map_err)?;
+        let ty = entry.file_type().map_err(map_err)?;
+        let to = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&entry.path(), &to)?;
+        } else {
+            fs::copy(entry.path(), &to).map_err(map_err)?;
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -152,11 +244,7 @@ pub fn get_data_dir(app: AppHandle, state: State<'_, AppState>) -> Result<String
 
 #[tauri::command]
 pub fn get_data_dir_info(app: AppHandle) -> Result<DataDirInfo, String> {
-    let dir = ensure_data_dir(&app)?;
-    Ok(DataDirInfo {
-        path: dir.display().to_string(),
-        portable: is_portable_data_dir(&app)?,
-    })
+    data_dir_info(&app)
 }
 
 /// `path = None` restores portable `{exe}/data`. Locks the session if open.
@@ -176,7 +264,53 @@ pub fn set_data_dir(
         .filter(|s| !s.is_empty())
         .map(std::path::Path::new);
     set_data_dir_override(&app, custom)?;
-    get_data_dir_info(app)
+    data_dir_info(&app)
+}
+
+/// Copy current vault/config/icons into `{exe}/data/` and clear `data-location.json`.
+#[tauri::command]
+pub fn make_data_dir_portable(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    overwrite: bool,
+) -> Result<DataDirInfo, String> {
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        *guard = None;
+    }
+    if is_portable_data_dir(&app)? {
+        return data_dir_info(&app);
+    }
+
+    let src_dir = ensure_data_dir(&app)?;
+    let dest_dir = portable_data_dir(&app)?;
+    let src_vault = src_dir.join("vault.km");
+    let dest_vault = dest_dir.join("vault.km");
+
+    if dest_vault.is_file() && src_vault.is_file() {
+        let same = fs::read(&src_vault).ok() == fs::read(&dest_vault).ok();
+        if !same && !overwrite {
+            return Err(
+                "portable data/vault.km already exists; pass overwrite to replace".into(),
+            );
+        }
+    }
+
+    fs::create_dir_all(&dest_dir).map_err(map_err)?;
+    if src_vault.is_file() {
+        fs::copy(&src_vault, &dest_vault).map_err(map_err)?;
+    }
+    let src_cfg = src_dir.join("config.json");
+    if src_cfg.is_file() {
+        fs::copy(&src_cfg, dest_dir.join("config.json")).map_err(map_err)?;
+    }
+    let src_icons = src_dir.join("icons");
+    if src_icons.is_dir() {
+        copy_dir_recursive(&src_icons, &dest_dir.join("icons"))?;
+    }
+
+    set_data_dir_override(&app, None)?;
+    data_dir_info(&app)
 }
 
 #[tauri::command]
@@ -197,6 +331,7 @@ pub fn vault_status(app: AppHandle, state: State<'_, AppState>) -> Result<Status
             entry_count: Some(session.entry_count()),
             name: Some(session.document().meta.name.clone()),
             data_dir: data.display().to_string(),
+            vault_fingerprint_changed: false,
         });
     }
     let state_str = if vault_exists(&path) {
@@ -209,6 +344,7 @@ pub fn vault_status(app: AppHandle, state: State<'_, AppState>) -> Result<Status
         entry_count: None,
         name: None,
         data_dir: data.display().to_string(),
+        vault_fingerprint_changed: false,
     })
 }
 
@@ -224,11 +360,13 @@ pub fn create_vault(
     let session = core_create(&path, &name, &password).map_err(map_err);
     password.zeroize();
     let session = session?;
+    let _ = check_and_update_vault_fingerprint(&app, &state)?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
         name: Some(session.document().meta.name.clone()),
         data_dir: ensure_data_dir(&app)?.display().to_string(),
+        vault_fingerprint_changed: false,
     };
     *state.session.lock().map_err(|e| e.to_string())? = Some(session);
     Ok(dto)
@@ -244,11 +382,13 @@ pub fn unlock(
     let session = open_vault_file(&path, &password).map_err(map_err);
     password.zeroize();
     let session = session?;
+    let changed = check_and_update_vault_fingerprint(&app, &state)?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
         name: Some(session.document().meta.name.clone()),
         data_dir: ensure_data_dir(&app)?.display().to_string(),
+        vault_fingerprint_changed: changed,
     };
     *state.session.lock().map_err(|e| e.to_string())? = Some(session);
     Ok(dto)
@@ -365,6 +505,7 @@ pub fn get_entry(state: State<'_, AppState>, id: String) -> Result<Entry, String
 
 #[tauri::command]
 pub fn upsert_entry(
+    app: AppHandle,
     state: State<'_, AppState>,
     input: UpsertEntryInput,
 ) -> Result<Entry, String> {
@@ -395,16 +536,23 @@ pub fn upsert_entry(
         e
     };
 
-    session.upsert_entry(entry).map_err(map_err)
+    let saved = session.upsert_entry(entry).map_err(map_err)?;
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(saved)
 }
 
 #[tauri::command]
-pub fn delete_entry(state: State<'_, AppState>, id: String) -> Result<(), String> {
-    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
-    let session = guard
-        .as_mut()
-        .ok_or_else(|| "vault is locked".to_string())?;
-    session.delete_entry(&id).map_err(map_err)
+pub fn delete_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session.delete_entry(&id).map_err(map_err)?;
+    }
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -436,11 +584,13 @@ pub fn import_vault(
     let session = import_encrypted(&path, &bytes, &password).map_err(map_err);
     password.zeroize();
     let session = session?;
+    let _ = check_and_update_vault_fingerprint(&app, &state)?;
     let dto = StatusDto {
         state: "unlocked".into(),
         entry_count: Some(session.entry_count()),
         name: Some(session.document().meta.name.clone()),
         data_dir: ensure_data_dir(&app)?.display().to_string(),
+        vault_fingerprint_changed: false,
     };
     *state.session.lock().map_err(|e| e.to_string())? = Some(session);
     Ok(dto)
@@ -588,6 +738,7 @@ pub fn pick_save_path(
 
 #[tauri::command]
 pub fn change_master_password(
+    app: AppHandle,
     state: State<'_, AppState>,
     mut current: String,
     mut new_password: String,
@@ -603,7 +754,9 @@ pub fn change_master_password(
     })();
     current.zeroize();
     new_password.zeroize();
-    result
+    result?;
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -625,6 +778,7 @@ pub fn default_vault_kdf() -> VaultCryptoInfo {
 
 #[tauri::command]
 pub fn upgrade_vault_kdf(
+    app: AppHandle,
     state: State<'_, AppState>,
     mut password: String,
 ) -> Result<VaultCryptoInfo, String> {
@@ -636,31 +790,31 @@ pub fn upgrade_vault_kdf(
         session.upgrade_kdf_to_defaults(&password).map_err(map_err)
     })();
     password.zeroize();
-    result
+    let info = result?;
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(info)
 }
 
 #[tauri::command]
 pub fn get_settings(app: AppHandle, state: State<'_, AppState>) -> Result<AppSettings, String> {
-    let path = config_path(&app)?;
-    if path.is_file() {
-        let text = fs::read_to_string(&path).map_err(map_err)?;
-        let settings: AppSettings = serde_json::from_str(&text).map_err(map_err)?;
-        *state.settings.lock().map_err(|e| e.to_string())? = settings.clone();
-        return Ok(settings);
-    }
-    Ok(state.settings.lock().map_err(|e| e.to_string())?.clone())
+    let settings = load_settings_disk(&app)?;
+    *state.settings.lock().map_err(|e| e.to_string())? = settings.clone();
+    Ok(settings)
 }
 
 #[tauri::command]
 pub fn save_settings(
     app: AppHandle,
     state: State<'_, AppState>,
-    settings: AppSettings,
+    mut settings: AppSettings,
 ) -> Result<(), String> {
-    ensure_data_dir(&app)?;
-    let path = config_path(&app)?;
-    let text = serde_json::to_string_pretty(&settings).map_err(map_err)?;
-    fs::write(&path, text).map_err(map_err)?;
+    // Preserve vault fingerprint if the UI omitted it.
+    if settings.last_vault_sha256.is_none() {
+        if let Ok(existing) = load_settings_disk(&app) {
+            settings.last_vault_sha256 = existing.last_vault_sha256;
+        }
+    }
+    persist_settings(&app, &settings)?;
     *state.settings.lock().map_err(|e| e.to_string())? = settings;
     Ok(())
 }
@@ -779,7 +933,9 @@ pub fn read_entry_icon(app: AppHandle, host: String) -> Result<Option<String>, S
 }
 
 #[tauri::command]
-pub fn fetch_entry_icon(app: AppHandle, host: String) -> Result<Option<String>, String> {
+pub fn fetch_entry_icon(app: AppHandle, state: State<'_, AppState>, host: String) -> Result<Option<String>, String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    // Always allow reading a previously cached icon from disk.
     let key = sanitize_icon_host(&host);
     if key.is_empty() {
         return Ok(None);
@@ -792,13 +948,17 @@ pub fn fetch_entry_icon(app: AppHandle, host: String) -> Result<Option<String>, 
         }
     }
 
+    if !(settings.allow_network && settings.fetch_favicons) {
+        return Ok(None);
+    }
+
     let urls = [
         format!("https://{key}/favicon.ico"),
         format!("https://www.google.com/s2/favicons?domain={key}&sz=64"),
     ];
     for url in urls {
         let resp = ureq::get(&url)
-            .set("User-Agent", "Clavis/0.3")
+            .set("User-Agent", "Clavis/0.7")
             .timeout(std::time::Duration::from_secs(8))
             .call();
         let Ok(resp) = resp else { continue };

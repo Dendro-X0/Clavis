@@ -19,6 +19,7 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::get_data_dir,
             commands::get_data_dir_info,
             commands::set_data_dir,
+            commands::make_data_dir_portable,
             commands::pick_data_dir,
             commands::create_vault,
             commands::unlock,

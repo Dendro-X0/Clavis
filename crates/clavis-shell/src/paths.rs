@@ -63,6 +63,11 @@ pub fn data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     if let Some(custom) = read_override(app)? {
         return Ok(custom);
     }
+    portable_data_dir(app)
+}
+
+/// Always `{exe}/data` (ignores custom override).
+pub fn portable_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     Ok(app_root(app)?.join("data"))
 }
 

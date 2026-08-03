@@ -5,7 +5,7 @@
 - **Product:** Clavis (Keys Manager)
 - **Audience:** Solo users managing local credentials
 - **Reference tier:** Obscur dual-theme + Aperio dashboard shell
-- **Stack:** Next.js static export, Tailwind 4, light shadcn-style primitives, lucide-react, next-themes, Tauri v2
+- **Stack:** Next.js 16 static export, Tailwind 4, light shadcn-style primitives, lucide-react, next-themes, Tauri v2
 - **Spec status:** approved (implementation target)
 - **API dependency:** Tauri vault/workspace commands + `AppSettings.theme` + `AppSettings.entryLayout`
 
@@ -80,6 +80,7 @@ Workspaces are **not** in the sidebar.
 12. **Sensitive UI lifecycle (v0.5.0)**: clear Gate/settings password fields after success or IPC error; discard entry editor and cancel pending login-copy timers on lock; list copy paths keep secrets ephemeral (not in React list state).
 13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on).
 14. **Encrypted backup KDF (v0.6.0)**: Settings Import/export shows active vault KDF (Argon2id params + AES-256-GCM). Export confirms with those params. Import peeks the file header (no password), warns if weaker than app defaults, and offers **Upgrade KDF to defaults** (password prompt) after import when the live vault is still weak.
+15. **Offline-first portable (v0.7.0)**: Settings portable kit; **Make portable** copies vault into `{exe}/data/`; `allowNetwork` (default off) gates outbound HTTP; hold-to-reveal password fields; unlock may warn if `vault.km` SHA-256 changed since last session.
 
 ### Dialogs
 
@@ -91,7 +92,11 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 |------------|--------|------|
 | Name | `title` | Required display name |
 | Type | `entryType` | login / note / api / custom (primary category) |
+| Username | `username` | Primary login id — email **or** username (same field) |
 | Categories | `tags` | Freeform labels, comma-separated in editor; shown on list/grid |
+| Custom fields | `customFields` | Extra labeled values (e.g. Email, Phone); add/remove in editor; searchable |
+
+**Custom fields (v0.6.1):** Below Categories, a **Custom fields** section lists `{ label, value }` rows with copy and remove. **Add field** appends a blank row; quick actions prefill label **Email** or **Phone**. Values persist via existing upsert IPC; cleared on lock scrub like other secrets.
 
 ### Layout modes
 
@@ -136,7 +141,9 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `pageSize`: `10 | 25 | 50 | 100` (default `25`)
 - `pinnedWorkspaceIds`: `string[]` (default `[]`)
 - `fetchFavicons`: `boolean` (default `false`)
+- `allowNetwork`: `boolean` (default `false`) — master outbound HTTP gate; favicon fetch requires both this and `fetchFavicons`
+- `lastVaultSha256`: optional hex string — fingerprint of encrypted `vault.km` (integrity signal, not a signature)
 - `biometricUnlock`: `boolean` (default `false`) — convenience unlock via OS keyring; configure only in Settings
 - `autoLockSeconds`: number (default `300`, min effective `30`) — idle lock from app input
 - `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
-- clipboard clear as before
+- `clipboardClearSeconds`: number (default `15` for new installs)

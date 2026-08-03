@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api, type StatusDto } from "@/lib/api";
 import { biometricAuthenticate, biometricStatus } from "@/lib/biometric";
+import { appConfirm } from "@/lib/app-dialogs";
 
 function clearGateSecrets(
   setPassword: (v: string) => void,
@@ -10,6 +11,17 @@ function clearGateSecrets(
 ) {
   setPassword("");
   setConfirm("");
+}
+
+async function warnIfVaultChanged(status: StatusDto) {
+  if (!status.vaultFingerprintChanged) return;
+  await appConfirm({
+    title: "Vault file changed",
+    description:
+      "vault.km differs from the fingerprint stored at the last unlock. Expected after migrate, USB move, or backup restore. Unexpected if you did not change the file — treat with caution.",
+    confirmLabel: "Continue",
+    cancelLabel: "OK",
+  });
 }
 
 export function Gate({
@@ -60,8 +72,11 @@ export function Gate({
       if (bio.available) return;
 
       try {
-        await api.tryKeyringUnlock();
-        if (!cancelled) await onDone();
+        const unlocked = await api.tryKeyringUnlock();
+        if (!cancelled) {
+          await warnIfVaultChanged(unlocked);
+          await onDone();
+        }
       } catch {
         /* password fallback */
       }
@@ -77,8 +92,9 @@ export function Gate({
     onError("");
     try {
       await biometricAuthenticate("Unlock your Clavis vault");
-      await api.tryKeyringUnlock();
+      const unlocked = await api.tryKeyringUnlock();
       clearGateSecrets(setPassword, setConfirm);
+      await warnIfVaultChanged(unlocked);
       await onDone();
     } catch (e) {
       clearGateSecrets(setPassword, setConfirm);
@@ -183,7 +199,8 @@ export function Gate({
                 /* ignore */
               }
             } else {
-              await api.unlock(password);
+              const unlocked = await api.unlock(password);
+              await warnIfVaultChanged(unlocked);
             }
             clearGateSecrets(setPassword, setConfirm);
             await onDone();
