@@ -180,14 +180,14 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Threat model / frontend-spec update | Done |
 | Version bump 0.5.0 | Done |
 
-### v0.6.0 — Backup portability & vault durability (in progress)
+### v0.6.0 — Backup portability & vault durability (done)
 
 | Item | Status |
 |------|--------|
 | KDF transparency on encrypted export/import (Argon2id params visible) | Done — Settings shows active KDF; export confirm includes params |
 | Header peek + warn/upgrade when backup KDF weaker than defaults | Done — `peek_vault_kdf` + Upgrade KDF IPC |
 | Atomic `vault.km` write audit (tmp + rename); orphan `.tmp` cleanup | Done |
-| Version bump 0.6.0 | Planned |
+| Version bump 0.6.0 | Done |
 
 **Parked:** desktop tag CI flake chase beyond workspace `target/` collect fix + release asset attach (`16e6a9e`).
 

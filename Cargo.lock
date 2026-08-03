@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "clavis-mobile"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "clavis-shell",
  "tauri",
@@ -461,7 +461,7 @@ dependencies = [
 
 [[package]]
 name = "clavis-shell"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -1939,7 +1939,7 @@ dependencies = [
 
 [[package]]
 name = "keys-manager"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "clavis-shell",
  "tauri",
@@ -4368,7 +4368,7 @@ dependencies = [
 
 [[package]]
 name = "vault-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "aes-gcm",
  "argon2",
