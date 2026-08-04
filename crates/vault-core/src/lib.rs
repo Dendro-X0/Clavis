@@ -6,6 +6,7 @@ mod format;
 mod import_export;
 mod model;
 mod store;
+mod totp;
 
 pub use error::{Result, VaultError};
 pub use format::{
@@ -17,6 +18,7 @@ pub use import_export::{
 };
 pub use model::{CustomField, Entry, EntryType, VaultDocument, VaultMeta, Workspace};
 pub use store::{VaultSession, VaultStatus, create_vault, open_vault_file, vault_exists};
+pub use totp::{TotpCode, generate_totp_at, generate_totp_now, normalize_otp_secret, parse_otpauth_uri};
 
 #[cfg(test)]
 mod tests {
@@ -82,6 +84,23 @@ mod tests {
         assert_eq!(entries[0].title, "Mail");
         assert_eq!(entries[0].username, "bob");
         assert_eq!(entries[0].password, "pass");
+    }
+
+    #[test]
+    fn csv_import_bitwarden_totp_column() {
+        let csv = "name,login_username,login_password,login_uri,login_totp\n\
+GitHub,alice,s3cret,https://github.com,otpauth://totp/GitHub:alice?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\n";
+        let entries = import_csv_logins(csv).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].otp_secret, "JBSWY3DPEHPK3PXP");
+        assert!(entries[0].has_otp());
+    }
+
+    #[test]
+    fn csv_import_keepass_totp_header() {
+        let csv = "Title,Username,Password,URL,TOTP\nBank,bob,pw,https://bank.test,JBSWY3DPEHPK3PXP\n";
+        let entries = import_csv_logins(csv).unwrap();
+        assert_eq!(entries[0].otp_secret, "JBSWY3DPEHPK3PXP");
     }
 
     #[test]
@@ -414,9 +433,11 @@ Password: has-pass
             label: "pin".into(),
             value: "1234".into(),
         });
+        entry.otp_secret = "JBSWY3DPEHPK3PXP".into();
         entry.scrub_secrets();
         assert!(entry.password.is_empty());
         assert!(entry.notes.is_empty());
+        assert!(entry.otp_secret.is_empty());
         assert!(entry.custom_fields.iter().all(|f| f.value.is_empty()));
         assert_eq!(entry.title, "Bank");
     }

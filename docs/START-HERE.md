@@ -21,6 +21,7 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `specs/backend/v0.6.0-backup-portability-design.md` | v0.6.0 KDF transparency + atomic vault writes |
 | `specs/backend/v0.6.1-custom-fields-ui-design.md` | Custom fields editor UI + Next.js 16 |
 | `specs/backend/v0.7.0-offline-portable-security-design.md` | Offline-first + USB portable + integrity warn |
+| `specs/backend/v0.8.0-totp-interop-design.md` | TOTP (otpauth) + CSV interop |
 | `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |

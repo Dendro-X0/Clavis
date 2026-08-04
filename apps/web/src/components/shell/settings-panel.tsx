@@ -535,8 +535,11 @@ export function SettingsPanel({
         <p className="mt-1 text-sm text-[var(--muted)]">
           Encrypted backups use the same format as{" "}
           <code className="text-[var(--foreground)]">vault.km</code> (Argon2id + AES-256-GCM).
-          Credential imports create a new workspace (named from the file). Use Replace to overwrite
-          the current workspace list.
+          Credential imports create a new workspace (named from the file). CSV/TSV maps
+          Bitwarden <code className="text-[var(--foreground)]">login_totp</code>, KeePass{" "}
+          <code className="text-[var(--foreground)]">TOTP</code>, and generic{" "}
+          <code className="text-[var(--foreground)]">totp</code> columns into authenticator seeds.
+          Use Replace to overwrite the current workspace list.
         </p>
         {cryptoInfo && (
           <p className="mt-3 rounded-md border border-[var(--border)] bg-[var(--inset)]/50 px-3 py-2 text-xs text-[var(--muted)]">

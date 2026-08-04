@@ -294,7 +294,7 @@ export default function HomePage() {
     }
   }
 
-  /** Username now; password replaces clipboard after a short delay (login paste flow). */
+  /** Username now; password then optional TOTP after short delays (login paste flow). */
   async function copyLoginSequence(id: string) {
     if (loginCopyTimer.current) {
       clearTimeout(loginCopyTimer.current);
@@ -303,33 +303,64 @@ export default function HomePage() {
     const full = normalizeEntry(await api.getEntry(id));
     const user = full.username.trim();
     let pass = full.password;
-    // Drop full entry reference; keep only field locals for the sequence.
-    if (!user && !pass) {
+    const hasOtp = Boolean(full.otpSecret.trim());
+    if (!user && !pass && !hasOtp) {
       setError("Nothing to copy for that entry.");
       return;
     }
     if (!user) {
-      await copyText(`${id}:pass`, pass);
-      pass = "";
-      setError("Password copied.");
+      if (pass) {
+        await copyText(`${id}:pass`, pass);
+        pass = "";
+        setError(hasOtp ? "Password copied. Use Copy code for TOTP." : "Password copied.");
+        return;
+      }
+      await copyTotpCode(id);
       return;
     }
-    // Don't clear yet — password stage still needs the clipboard.
     await copyText(`${id}:login`, user, { scheduleClear: false });
-    if (!pass) {
+    if (!pass && !hasOtp) {
       setError("Username copied (no password on this entry).");
       return;
     }
     const delaySec = Math.min(15, Math.max(5, Math.floor(settings.clipboardClearSeconds / 2) || 8));
-    setError(`Username copied. Password copies in ${delaySec}s — paste user, then wait.`);
+    if (!pass) {
+      setError(`Username copied. TOTP copies in ${delaySec}s.`);
+      loginCopyTimer.current = setTimeout(() => {
+        copyTotpCode(id).catch((e) => setError(String(e)));
+        loginCopyTimer.current = null;
+      }, delaySec * 1000);
+      return;
+    }
+    setError(
+      hasOtp
+        ? `Username copied. Password in ${delaySec}s, then TOTP — paste each when ready.`
+        : `Username copied. Password copies in ${delaySec}s — paste user, then wait.`,
+    );
     const pendingPass = pass;
     pass = "";
     loginCopyTimer.current = setTimeout(() => {
-      copyText(`${id}:pass`, pendingPass)
-        .then(() => setError("Password copied — paste it now."))
+      copyText(`${id}:pass`, pendingPass, { scheduleClear: !hasOtp })
+        .then(() => {
+          if (!hasOtp) {
+            setError("Password copied — paste it now.");
+            return;
+          }
+          setError(`Password copied. TOTP copies in ${delaySec}s.`);
+          loginCopyTimer.current = setTimeout(() => {
+            copyTotpCode(id).catch((e) => setError(String(e)));
+            loginCopyTimer.current = null;
+          }, delaySec * 1000);
+        })
         .catch((e) => setError(String(e)));
-      loginCopyTimer.current = null;
+      if (!hasOtp) loginCopyTimer.current = null;
     }, delaySec * 1000);
+  }
+
+  async function copyTotpCode(id: string) {
+    const { code } = await api.entryTotpCode(id);
+    await copyText(`${id}:otp`, code);
+    setError("TOTP code copied — paste it now.");
   }
 
   async function openEntry(id: string, workspaceId?: string) {
@@ -356,6 +387,7 @@ export default function HomePage() {
       notes: e.notes,
       tags: e.tags,
       customFields: e.customFields,
+      otpSecret: e.otpSecret,
     });
   }
 
@@ -614,6 +646,8 @@ export default function HomePage() {
                   return copyText(`${id}:user`, user);
                 })
                 .catch((err) => setError(String(err)));
+            } else if (mode === "otp") {
+              copyTotpCode(id).catch((err) => setError(String(err)));
             } else {
               api
                 .getEntry(id)
@@ -815,6 +849,9 @@ export default function HomePage() {
                       onCopyPass={async (id) => {
                         const pass = normalizeEntry(await api.getEntry(id)).password;
                         await copyText(`${id}:pass`, pass);
+                      }}
+                      onCopyOtp={(id) => {
+                        copyTotpCode(id).catch((err) => setError(String(err)));
                       }}
                       onNewEntry={() => setForm({ ...blankEntryForm() })}
                       onOpenSettings={() => {

@@ -33,6 +33,7 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::delete_workspace,
             commands::merge_duplicate_workspaces,
             commands::get_entry,
+            commands::entry_totp_code,
             commands::upsert_entry,
             commands::delete_entry,
             commands::export_vault,

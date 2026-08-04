@@ -11,6 +11,7 @@ export function blankEntryForm(): UpsertEntryInput {
     notes: "",
     tags: [],
     customFields: [],
+    otpSecret: "",
   };
 }
 
@@ -23,6 +24,7 @@ export function scrubEntryForm(form: UpsertEntryInput): UpsertEntryInput {
     ...form,
     password: "",
     notes: "",
+    otpSecret: "",
     customFields: (form.customFields ?? []).map((f) => ({
       label: f.label,
       value: "",

@@ -278,6 +278,7 @@ impl Draft {
             self.url,
             self.extras.join("\n"),
             self.tags,
+            String::new(),
         )
     }
 }
@@ -290,6 +291,7 @@ fn entry_from_fields(
     url: String,
     extra_notes: String,
     tags: Vec<String>,
+    otp_raw: String,
 ) -> Option<Entry> {
     if password.is_empty() {
         return None;
@@ -329,6 +331,11 @@ fn entry_from_fields(
     entry.url = url;
     entry.notes = notes;
     entry.tags = tags;
+    if !otp_raw.trim().is_empty() {
+        if let Ok(secret) = crate::totp::normalize_otp_secret(&otp_raw) {
+            entry.otp_secret = secret;
+        }
+    }
     entry.updated_at = Utc::now();
     Some(entry)
 }
@@ -453,11 +460,36 @@ pub fn import_csv_logins(csv_data: &str) -> Result<Vec<Entry>> {
         .clone();
 
     let title_i = header_index(&headers, &["title", "name", "account", "label"]);
-    let user_i = header_index(&headers, &["username", "user", "login", "account name"]);
+    let user_i = header_index(
+        &headers,
+        &[
+            "username",
+            "user",
+            "login",
+            "account name",
+            "login_username",
+            "login_user",
+        ],
+    );
     let email_i = header_index(&headers, &["email", "e-mail", "mail"]);
-    let pass_i = header_index(&headers, &["password", "pass", "pwd", "secret"]);
-    let url_i = header_index(&headers, &["url", "website", "site", "link"]);
+    let pass_i = header_index(
+        &headers,
+        &["password", "pass", "pwd", "secret", "login_password"],
+    );
+    let url_i = header_index(&headers, &["url", "website", "site", "link", "login_uri"]);
     let notes_i = header_index(&headers, &["notes", "note", "comment"]);
+    // Bitwarden `login_totp`, KeePassXC `TOTP` / `otp`, generic `totp` / `otpauth`
+    let totp_i = header_index(
+        &headers,
+        &[
+            "login_totp",
+            "totp",
+            "otp",
+            "otpauth",
+            "twofactorsecret",
+            "2fa",
+        ],
+    );
 
     // Headerless fallback: assume username/email, password [, title]
     let headerless = title_i.is_none()
@@ -512,6 +544,7 @@ pub fn import_csv_logins(csv_data: &str) -> Result<Vec<Entry>> {
                 String::new(),
                 String::new(),
                 Vec::new(),
+                String::new(),
             ) {
                 entries.push(e);
             }
@@ -528,8 +561,9 @@ pub fn import_csv_logins(csv_data: &str) -> Result<Vec<Entry>> {
             let password = get(pass_i);
             let url = get(url_i);
             let notes = get(notes_i);
+            let totp = get(totp_i);
             if let Some(e) =
-                entry_from_fields(title, username, email, password, url, notes, Vec::new())
+                entry_from_fields(title, username, email, password, url, notes, Vec::new(), totp)
             {
                 entries.push(e);
             }

@@ -37,6 +37,9 @@ pub struct Entry {
     pub url: String,
     #[serde(default)]
     pub notes: String,
+    /// Base32 TOTP seed (empty = none). Scrubbed like password.
+    #[serde(default)]
+    pub otp_secret: String,
     #[serde(default)]
     pub custom_fields: Vec<CustomField>,
     #[serde(default)]
@@ -56,6 +59,7 @@ impl Entry {
             password: String::new(),
             url: String::new(),
             notes: String::new(),
+            otp_secret: String::new(),
             custom_fields: Vec::new(),
             tags: Vec::new(),
             created_at: now,
@@ -67,9 +71,14 @@ impl Entry {
     pub fn scrub_secrets(&mut self) {
         self.password.zeroize();
         self.notes.zeroize();
+        self.otp_secret.zeroize();
         for field in &mut self.custom_fields {
             field.value.zeroize();
         }
+    }
+
+    pub fn has_otp(&self) -> bool {
+        !self.otp_secret.trim().is_empty()
     }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { EntryType, UpsertEntryInput } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { api, type EntryType, type UpsertEntryInput } from "@/lib/api";
 import { CopyIconButton } from "@/components/ui/copy-button";
 import {
   hasParsedCredentialFields,
@@ -187,6 +187,31 @@ export function EntryEditor({
         </p>
 
         <div className="space-y-2 border-t border-[var(--border)] pt-3">
+          <h3 className="text-sm font-medium">Authenticator (TOTP)</h3>
+          <p className="text-xs text-[var(--muted)]">
+            Paste an otpauth:// URI or Base32 seed. Codes use SHA-1 · 6 digits · 30s (offline).
+          </p>
+          <label className="block text-sm">
+            TOTP secret
+            <div className="mt-1 flex gap-2">
+              <HoldToRevealPassword
+                value={form.otpSecret ?? ""}
+                onChange={(v) => setForm((f) => ({ ...f, otpSecret: v }))}
+              />
+              <CopyIconButton
+                value={form.otpSecret ?? ""}
+                label="totp secret"
+                onCopied={() => onCopy?.()}
+                onError={onError}
+              />
+            </div>
+          </label>
+          {form.id && (form.otpSecret ?? "").trim() && (
+            <TotpLivePreview entryId={form.id} onError={onError} onCopy={onCopy} />
+          )}
+        </div>
+
+        <div className="space-y-2 border-t border-[var(--border)] pt-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-sm font-medium">Custom fields</h3>
             <div className="flex flex-wrap gap-1.5">
@@ -314,6 +339,52 @@ export function EntryEditor({
         )}
       </div>
     </section>
+  );
+}
+
+function TotpLivePreview({
+  entryId,
+  onError,
+  onCopy,
+}: {
+  entryId: string;
+  onError: (e: string) => void;
+  onCopy?: () => void | Promise<void>;
+}) {
+  const [code, setCode] = useState<string>("······");
+  const [secs, setSecs] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tick() {
+      try {
+        const dto = await api.entryTotpCode(entryId);
+        if (cancelled) return;
+        setCode(dto.code);
+        setSecs(dto.secondsRemaining);
+      } catch {
+        if (!cancelled) setCode("—");
+      }
+    }
+    void tick();
+    const id = setInterval(() => void tick(), 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [entryId]);
+
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span className="font-mono text-lg tracking-widest">{code}</span>
+      <span className="text-xs text-[var(--muted)]">{secs}s</span>
+      <CopyIconButton
+        value={code === "—" || code === "······" ? "" : code}
+        label="totp code"
+        onCopied={() => onCopy?.()}
+        onError={onError}
+      />
+    </div>
   );
 }
 

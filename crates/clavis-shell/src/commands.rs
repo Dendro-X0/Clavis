@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 use vault_core::{
-    Entry, EntryType, VaultCryptoInfo, create_vault as core_create, export_encrypted,
-    import_credentials_auto, import_credentials_from_path, import_csv_logins, import_encrypted,
-    open_vault_file, peek_kdf_from_path, vault_exists,
+    Entry, EntryType, TotpCode, VaultCryptoInfo, create_vault as core_create, export_encrypted,
+    generate_totp_now, import_credentials_auto, import_credentials_from_path, import_csv_logins,
+    import_encrypted, normalize_otp_secret, open_vault_file, peek_kdf_from_path, vault_exists,
 };
 
 use crate::paths::{
@@ -39,6 +39,8 @@ pub struct EntrySummary {
     pub tags: Vec<String>,
     /// Included so dashboard search can match emails/phones without opening each entry.
     pub custom_fields: Vec<vault_core::CustomField>,
+    /// True when entry has a TOTP seed (secret never listed).
+    pub has_otp: bool,
     pub updated_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
@@ -58,6 +60,15 @@ pub struct UpsertEntryInput {
     pub notes: String,
     pub tags: Vec<String>,
     pub custom_fields: Vec<vault_core::CustomField>,
+    #[serde(default)]
+    pub otp_secret: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TotpCodeDto {
+    pub code: String,
+    pub seconds_remaining: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -123,6 +134,7 @@ fn summary(e: &Entry) -> EntrySummary {
         url: e.url.clone(),
         tags: e.tags.clone(),
         custom_fields: e.custom_fields.clone(),
+        has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
         workspace_id: None,
         workspace_name: None,
@@ -138,6 +150,7 @@ fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> 
         url: e.url.clone(),
         tags: e.tags.clone(),
         custom_fields: e.custom_fields.clone(),
+        has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
         workspace_id: Some(workspace_id.to_string()),
         workspace_name: Some(workspace_name.to_string()),
@@ -504,6 +517,24 @@ pub fn get_entry(state: State<'_, AppState>, id: String) -> Result<Entry, String
 }
 
 #[tauri::command]
+pub fn entry_totp_code(state: State<'_, AppState>, id: String) -> Result<TotpCodeDto, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    let entry = session.get_entry(&id).map_err(map_err)?;
+    if !entry.has_otp() {
+        return Err("entry has no TOTP secret".into());
+    }
+    let TotpCode {
+        code,
+        seconds_remaining,
+    } = generate_totp_now(&entry.otp_secret).map_err(map_err)?;
+    Ok(TotpCodeDto {
+        code,
+        seconds_remaining,
+    })
+}
+
+#[tauri::command]
 pub fn upsert_entry(
     app: AppHandle,
     state: State<'_, AppState>,
@@ -524,6 +555,7 @@ pub fn upsert_entry(
         existing.notes = input.notes;
         existing.tags = input.tags;
         existing.custom_fields = input.custom_fields;
+        existing.otp_secret = normalize_otp_secret(&input.otp_secret).map_err(map_err)?;
         existing
     } else {
         let mut e = Entry::new(input.entry_type, input.title);
@@ -533,6 +565,7 @@ pub fn upsert_entry(
         e.notes = input.notes;
         e.tags = input.tags;
         e.custom_fields = input.custom_fields;
+        e.otp_secret = normalize_otp_secret(&input.otp_secret).map_err(map_err)?;
         e
     };
 

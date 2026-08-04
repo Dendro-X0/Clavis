@@ -12,7 +12,7 @@ export type PaletteActionId =
   | "focus-search"
   | "toggle-layout";
 
-export type PaletteCopyMode = "login" | "user" | "pass";
+export type PaletteCopyMode = "login" | "user" | "pass" | "otp";
 
 type PaletteItem =
   | { kind: "action"; id: PaletteActionId; label: string; hint: string }
@@ -137,6 +137,16 @@ export function CommandPalette({
             hint: "Password",
           },
         );
+        if (e.hasOtp) {
+          entryItems.push({
+            kind: "copy",
+            id: `${e.id}:otp`,
+            entryId: e.id,
+            mode: "otp",
+            label: `Copy TOTP — ${e.title}`,
+            hint: "Authenticator code",
+          });
+        }
       }
     }
 

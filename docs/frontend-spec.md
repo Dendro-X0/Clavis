@@ -81,6 +81,7 @@ Workspaces are **not** in the sidebar.
 13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on).
 14. **Encrypted backup KDF (v0.6.0)**: Settings Import/export shows active vault KDF (Argon2id params + AES-256-GCM). Export confirms with those params. Import peeks the file header (no password), warns if weaker than app defaults, and offers **Upgrade KDF to defaults** (password prompt) after import when the live vault is still weak.
 15. **Offline-first portable (v0.7.0)**: Settings portable kit; **Make portable** copies vault into `{exe}/data/`; `allowNetwork` (default off) gates outbound HTTP; hold-to-reveal password fields; unlock may warn if `vault.km` SHA-256 changed since last session.
+16. **TOTP (v0.8.0)**: Optional `otpSecret` on entries; live code + Copy code; Copy login sequences user → password → TOTP when set. CSV imports map Bitwarden/KeePass `totp` columns.
 
 ### Dialogs
 
@@ -93,6 +94,7 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 | Name | `title` | Required display name |
 | Type | `entryType` | login / note / api / custom (primary category) |
 | Username | `username` | Primary login id — email **or** username (same field) |
+| TOTP seed | `otpSecret` | Optional Base32 / otpauth URI; codes are SHA-1 · 6 digits · 30s |
 | Categories | `tags` | Freeform labels, comma-separated in editor; shown on list/grid |
 | Custom fields | `customFields` | Extra labeled values (e.g. Email, Phone); add/remove in editor; searchable |
 

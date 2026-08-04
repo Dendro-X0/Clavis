@@ -27,3 +27,4 @@ zeroize = { version = "1", features = ["derive"] }
 base64 = "0.22"
 sha2 = "0.10"
 csv = "1"
+totp-rs = { version = "5.7", default-features = false, features = ["otpauth"] }

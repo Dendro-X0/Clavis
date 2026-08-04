@@ -5,7 +5,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 ## Assets
 
 - Master password and derived vault key material (in-memory while unlocked)
-- Entry secrets (passwords, tokens, notes, TOTP seeds when added)
+- Entry secrets (passwords, tokens, notes, TOTP seeds)
 - Encrypted vault blob on disk (`vault.km`) and encrypted backups
 - Optional OS keyring secret used only to unlock (not a substitute for the master password recovery)
 
@@ -32,7 +32,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Evil maid + weak master password offline | Strong password + KDF cost; vault SHA-256 fingerprint warns if `vault.km` changed since last unlock | Explicit / improving (v0.7.0) |
 | Network exfil / host intent leak | Offline-first: `allowNetwork` default off; favicon fetch gated | Done (v0.7.0) |
 | Non-portable data path on USB | Warn + one-click Make portable into `{exe}/data/` | Done (v0.7.0) |
-| Compromised OS keyring | Optional feature; disable in Settings; warn when portable + keyring on | Documented / improving (v0.7.0) |
+| TOTP seed exposure | Same lock/scrub as passwords; list shows `hasOtp` only; codes via IPC while unlocked | Done (v0.8.0) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 

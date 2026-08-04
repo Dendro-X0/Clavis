@@ -21,6 +21,7 @@ export type EntrySummary = {
   url: string;
   tags: string[];
   customFields?: CustomField[];
+  hasOtp?: boolean;
   updatedAt: string;
   workspaceId?: string;
   workspaceName?: string;
@@ -37,6 +38,8 @@ export type Entry = {
   password: string;
   url: string;
   notes: string;
+  otp_secret?: string;
+  otpSecret?: string;
   custom_fields?: CustomField[];
   customFields?: CustomField[];
   tags: string[];
@@ -89,6 +92,12 @@ export type UpsertEntryInput = {
   notes: string;
   tags: string[];
   customFields: CustomField[];
+  otpSecret: string;
+};
+
+export type TotpCodeDto = {
+  code: string;
+  secondsRemaining: number;
 };
 
 const browserFallback: StatusDto = {
@@ -152,6 +161,7 @@ export const api = {
   mergeDuplicateWorkspaces: () =>
     call<{ removed: number; workspaces: WorkspaceSummary[] }>("merge_duplicate_workspaces"),
   getEntry: (id: string) => call<Entry>("get_entry", { id }),
+  entryTotpCode: (id: string) => call<TotpCodeDto>("entry_totp_code", { id }),
   upsertEntry: (input: UpsertEntryInput) =>
     call<Entry>("upsert_entry", {
       input: {
@@ -164,6 +174,7 @@ export const api = {
         notes: input.notes,
         tags: input.tags,
         customFields: input.customFields,
+        otpSecret: input.otpSecret,
       },
     }),
   deleteEntry: (id: string) => call<void>("delete_entry", { id }),
@@ -209,5 +220,6 @@ export function normalizeEntry(e: Entry) {
     notes: e.notes ?? "",
     tags: e.tags ?? [],
     customFields: e.customFields ?? e.custom_fields ?? [],
+    otpSecret: e.otpSecret ?? e.otp_secret ?? "",
   };
 }

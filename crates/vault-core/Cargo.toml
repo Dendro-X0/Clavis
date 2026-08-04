@@ -18,6 +18,7 @@ zeroize = { workspace = true }
 base64 = { workspace = true }
 calamine = "0.26"
 csv = { workspace = true }
+totp-rs = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

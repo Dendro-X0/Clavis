@@ -38,26 +38,30 @@ function CategoryChips({ tags }: { tags: string[] }) {
 
 function CopyButtons({
   id,
+  hasOtp,
   copyFlash,
   onCopyLogin,
   onCopyAll,
   onCopyUser,
   onCopyPass,
+  onCopyOtp,
   compact,
 }: {
   id: string;
+  hasOtp?: boolean;
   copyFlash: string | null;
   onCopyLogin: (id: string) => void;
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
   onCopyPass: (id: string) => void;
+  onCopyOtp?: (id: string) => void;
   compact?: boolean;
 }) {
   return (
     <div className={cn("flex flex-wrap gap-1.5", compact && "mt-auto pt-2")}>
       <button
         type="button"
-        title="Copy username now, then password shortly (login flow)"
+        title="Copy username now, then password (and TOTP if set)"
         aria-label="Copy login (username then password)"
         className={cn(
           "rounded-md border border-[var(--border)] bg-[var(--primary)]/10 px-2 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/20",
@@ -116,6 +120,23 @@ function CopyButtons({
       >
         Pass
       </button>
+      {hasOtp && onCopyOtp && (
+        <button
+          type="button"
+          title="Copy current TOTP code"
+          aria-label="Copy TOTP code"
+          className={cn(
+            "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
+            copyFlash === `${id}:otp` && "animate-copy border-[var(--primary)]",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopyOtp(id);
+          }}
+        >
+          Code
+        </button>
+      )}
     </div>
   );
 }
@@ -127,6 +148,7 @@ function CompactCopyMenu({
   onCopyAll,
   onCopyUser,
   onCopyPass,
+  onCopyOtp,
 }: {
   entry: EntrySummary;
   onClose: () => void;
@@ -134,7 +156,17 @@ function CompactCopyMenu({
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
   onCopyPass: (id: string) => void;
+  onCopyOtp?: (id: string) => void;
 }) {
+  const actions: [string, string, (id: string) => void][] = [
+    ["login", "Copy login (user → pass → TOTP)", onCopyLogin],
+    ["all", "Copy all fields", onCopyAll],
+    ["user", "Copy username", onCopyUser],
+    ["pass", "Copy password", onCopyPass],
+  ];
+  if (entry.hasOtp && onCopyOtp) {
+    actions.push(["otp", "Copy TOTP code", onCopyOtp]);
+  }
   return (
     <div
       className="fixed inset-0 z-[70] flex items-end justify-center bg-[rgba(15,28,28,0.45)] p-4 sm:items-center"
@@ -151,14 +183,7 @@ function CompactCopyMenu({
           Swipe right to copy login · swipe left to open · long-press for this menu
         </p>
         <div className="mt-4 flex flex-col gap-2">
-          {(
-            [
-              ["login", "Copy login (user → pass)", onCopyLogin],
-              ["all", "Copy all fields", onCopyAll],
-              ["user", "Copy username", onCopyUser],
-              ["pass", "Copy password", onCopyPass],
-            ] as const
-          ).map(([key, label, fn]) => (
+          {actions.map(([key, label, fn]) => (
             <button
               key={key}
               type="button"
@@ -195,6 +220,7 @@ export function EntryList({
   onCopyAll,
   onCopyUser,
   onCopyPass,
+  onCopyOtp,
   onNewEntry,
   onImported,
   onError,
@@ -214,6 +240,7 @@ export function EntryList({
   onCopyAll: (id: string) => void;
   onCopyUser: (id: string) => void;
   onCopyPass: (id: string) => void;
+  onCopyOtp?: (id: string) => void;
   onNewEntry: () => void;
   onImported: (result: ImportResult) => void | Promise<void>;
   onError: (message: string) => void;
@@ -261,6 +288,7 @@ export function EntryList({
       onCopyAll={onCopyAll}
       onCopyUser={onCopyUser}
       onCopyPass={onCopyPass}
+      onCopyOtp={onCopyOtp}
     />
   ) : null;
 
@@ -309,11 +337,13 @@ export function EntryList({
                 {!compact && (
                   <CopyButtons
                     id={e.id}
+                    hasOtp={e.hasOtp}
                     copyFlash={copyFlash}
                     onCopyLogin={onCopyLogin}
                     onCopyAll={onCopyAll}
                     onCopyUser={onCopyUser}
                     onCopyPass={onCopyPass}
+                    onCopyOtp={onCopyOtp}
                     compact
                   />
                 )}
@@ -387,11 +417,13 @@ export function EntryList({
               {!compact && (
                 <CopyButtons
                   id={e.id}
+                  hasOtp={e.hasOtp}
                   copyFlash={copyFlash}
                   onCopyLogin={onCopyLogin}
                   onCopyAll={onCopyAll}
                   onCopyUser={onCopyUser}
                   onCopyPass={onCopyPass}
+                  onCopyOtp={onCopyOtp}
                 />
               )}
             </div>
