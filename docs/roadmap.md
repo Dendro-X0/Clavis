@@ -211,13 +211,13 @@ Next: **Phase D** interop & trust (imports, optional file sync, store signing wh
 | Hold-to-reveal secrets; portable + keyring warn; clipboard default 15s | Done |
 | Version bump 0.7.0 | Done |
 
-### v0.8.0 — TOTP & import interop (impl done; version bump pending)
+### v0.8.0 — TOTP & import interop (done)
 
 | Item | Status |
 |------|--------|
 | First-class `otp_secret` + offline TOTP (SHA-1 / 6 / 30s) | Done |
 | Editor + Copy code; Copy login → user → pass → TOTP | Done |
 | Bitwarden / KeePass / browser CSV totp column maps | Done |
-| Version bump 0.8.0 | Planned |
+| Version bump 0.8.0 | Done |
 
 Next after 0.8.0: **Phase D** remainder (folder sync, store signing when ready).
