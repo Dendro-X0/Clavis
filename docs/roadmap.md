@@ -241,7 +241,7 @@ Next: **v0.9.0** mobile installers, then **Phase E** friction & hygiene; **Phase
 | Bitwarden / KeePass / browser CSV totp column maps | Done |
 | Version bump 0.8.0 | Done |
 
-### v0.9.0 — Mobile installers (Android + iOS) — planned
+### v0.9.0 — Mobile installers (Android + iOS) — done
 
 Design: `specs/backend/v0.9.0-mobile-installers-design.md`  
 **Signing:** [Signet](https://github.com/Dendro-X0/Signet) self path first (`ship.path = "self"`) — local keystore / IPA package / `SHA256SUMS` + `TRUST.md`. Not Play/App Store; graduate path later.
@@ -254,9 +254,11 @@ Design: `specs/backend/v0.9.0-mobile-installers-design.md`
 | Android: Tauri APK → `signet android keystore|sign` → Release + cert in `TRUST.md` | Done (slice 3) — local proof; CI attach in slice 5 |
 | iOS: Tauri `.app` → `signet ios package` → IPA on Release (honest free/ad-hoc notes) | Done (slice 4) — scripts + fixture package L3; full Tauri build on macOS CI (slice 5) |
 | `signet ship --ci` / collect / release gate (or merge into existing tag CI) | Done (slice 5) — `signet-ship.yml` + `docs/signet-ship.md`; desktop stays `ci.yml` |
-| Platforms + release-checklist + README (Signet verify / sideload) | Done (slice 5) — platforms + release-checklist; README pointer optional at bump |
-| Secure-window / FLAG_SECURE (or iOS snapshot hide) best-effort | Planned |
-| Version bump 0.9.0 | Planned |
+| Platforms + release-checklist + README (Signet verify / sideload) | Done (slice 5) |
+| Secure-window / FLAG_SECURE (or iOS snapshot hide) best-effort | Deferred — follow-up |
+| Version bump 0.9.0 | Done |
+
+**Out of band for 0.9.0:** Play Store / App Store listing, Signet graduate (OV/notarize), auto-update, share-sheet import.
 
 **Out of band for 0.9.0:** Play Store / App Store listing, Signet graduate (OV/notarize), auto-update, share-sheet import.
 
