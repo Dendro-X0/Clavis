@@ -15,7 +15,16 @@ data/
 .env
 .env.*
 
-# Tauri generated
+# Signet — private identity / keystore / minisign (see docs in Signet repo)
+.signet/
+
+# Signet local build outputs (release attaches copies; do not commit working sums)
+SHA256SUMS
+SHA256SUMS.minisig
+SHA256SUMS.asc
+SHA256SUMS-*.txt
+
+# Tauri generated (regenerate per machine / CI — do not commit)
 apps/desktop/src-tauri/gen/
 apps/mobile/src-tauri/gen/
 apps/web/out/

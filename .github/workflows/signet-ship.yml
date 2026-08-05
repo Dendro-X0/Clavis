@@ -1,0 +1,195 @@
+# Clavis mobile ship workflow (Signet self path).
+# Scaffolded from `signet ship --ci`, then customized for this monorepo.
+# Desktop installers remain on `.github/workflows/ci.yml` (softprops attach).
+# After mobile jobs: download artifacts -> `signet ship --collect DIR` -> optional `signet release`.
+#
+# Required secrets for a signed Android APK:
+#   SIGNET_ANDROID_STORE_PASS
+#   SIGNET_ANDROID_KEYSTORE_BASE64  (base64 of .signet/android/release.jks)
+# Optional: SIGNET_ANDROID_KEY_PASS (defaults to store pass)
+#
+# iOS device IPA needs Apple signing on the macOS runner (certificates in the
+# keychain / Tauri iOS signing setup). Without them the iOS job fails loudly -
+# do not treat a desktop-only tag as "mobile shipped."
+#
+# Honesty: Android keystore != Play App Signing; IPA packaging != App Store.
+
+name: signet-ship
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: signet-ship-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  ship-android:
+    name: Android APK (Signet)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+          link-to-sdk: true
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Signet
+        run: |
+          set -euo pipefail
+          cargo install --git https://github.com/Dendro-X0/Signet.git --locked signet
+          signet --version
+
+      - name: Restore Android keystore
+        env:
+          SIGNET_ANDROID_KEYSTORE_BASE64: ${{ secrets.SIGNET_ANDROID_KEYSTORE_BASE64 }}
+          SIGNET_ANDROID_STORE_PASS: ${{ secrets.SIGNET_ANDROID_STORE_PASS }}
+          SIGNET_ANDROID_KEY_PASS: ${{ secrets.SIGNET_ANDROID_KEY_PASS }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SIGNET_ANDROID_KEYSTORE_BASE64:-}" || -z "${SIGNET_ANDROID_STORE_PASS:-}" ]]; then
+            echo "error: set repo secrets SIGNET_ANDROID_KEYSTORE_BASE64 and SIGNET_ANDROID_STORE_PASS" >&2
+            exit 1
+          fi
+          mkdir -p .signet/android
+          echo "$SIGNET_ANDROID_KEYSTORE_BASE64" | base64 -d > .signet/android/release.jks
+          printf '%s\n' \
+            'alias = "signet"' \
+            'store_type = "JKS"' \
+            'note = "Local upload/sideload keystore - not the Play App Signing key."' \
+            > .signet/android/meta.toml
+          export SIGNET_ANDROID_KEY_PASS="${SIGNET_ANDROID_KEY_PASS:-$SIGNET_ANDROID_STORE_PASS}"
+          signet android keystore show
+
+      - name: Init + build + Signet-sign Android
+        env:
+          SIGNET_ANDROID_STORE_PASS: ${{ secrets.SIGNET_ANDROID_STORE_PASS }}
+          SIGNET_ANDROID_KEY_PASS: ${{ secrets.SIGNET_ANDROID_KEY_PASS }}
+        run: |
+          set -euo pipefail
+          export SIGNET_ANDROID_KEY_PASS="${SIGNET_ANDROID_KEY_PASS:-$SIGNET_ANDROID_STORE_PASS}"
+          pnpm mobile:android:init
+          bash scripts/signet-android-release.sh
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signet-android-${{ github.ref_name }}
+          path: |
+            dist/android/**
+            SHA256SUMS
+            SHA256SUMS.minisig
+            TRUST.md
+          if-no-files-found: error
+
+      - name: Attach Android to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/android/*
+            SHA256SUMS
+            SHA256SUMS.minisig
+            TRUST.md
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ship-ios:
+    name: iOS IPA (Signet package)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,x86_64-apple-ios
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Signet
+        run: |
+          set -euo pipefail
+          cargo install --git https://github.com/Dendro-X0/Signet.git --locked signet
+          signet --version
+          signet ios notes || true
+
+      - name: Init + build + package IPA
+        env:
+          # Set to "1" only for dry runs that must not fail the tag (not default).
+          CLAVIS_IOS_ALLOW_SKIP: ${{ vars.CLAVIS_IOS_ALLOW_SKIP }}
+        run: |
+          set -euo pipefail
+          pnpm mobile:ios:init
+          if bash scripts/signet-ios-release.sh; then
+            echo "ios_ship_ok"
+          else
+            if [[ "${CLAVIS_IOS_ALLOW_SKIP:-}" == "1" ]]; then
+              echo "warning: iOS build/package failed; CLAVIS_IOS_ALLOW_SKIP=1 - uploading nothing"
+              exit 0
+            fi
+            echo "error: iOS IPA missing. Configure Apple signing on the runner, or set repo variable CLAVIS_IOS_ALLOW_SKIP=1 for an explicit partial release." >&2
+            exit 1
+          fi
+
+      - name: Upload iOS artifacts
+        if: hashFiles('dist/ios/*.ipa') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: signet-ios-${{ github.ref_name }}
+          path: |
+            dist/ios/**
+            SHA256SUMS
+            SHA256SUMS.minisig
+            TRUST.md
+          if-no-files-found: error
+
+      - name: Attach iOS to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && hashFiles('dist/ios/*.ipa') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/ios/*
+            SHA256SUMS
+            SHA256SUMS.minisig
+            TRUST.md
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

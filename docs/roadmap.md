@@ -48,10 +48,11 @@ apps/web                   ← UI shell (static); platform plugins differ
 | P0 | Threat-model refresh for mobile + clipboard + screenshots | Expand `docs/threat-model.md` before mobile ships |
 | P0 | Memory hygiene audit (zeroize, lock drops key) | Done (v0.5.0) |
 | P1 | Argon2 params / KDF versioning in vault format | Done (v0.6.0) — peek + Settings transparency + upgrade-to-defaults |
-| P1 | Autofill / “copy user then pass” timed sequence | Reduce dwell time of secrets on clipboard |
+| P1 | Autofill / “copy user then pass” timed sequence | Done — sequential copy; **autotype** → v0.12 |
 | P1 | Optional PIN / biometric over keyring (desktop + mobile) | Ease of unlock without weakening master password |
-| P2 | Secure field reveal (hold-to-show), screen capture flags where OS allows | Shoulder-surfing / casual capture |
-| P2 | Integrity: signed vault metadata / tamper detection UX | Clear “vault file changed” messaging |
+| P2 | Secure field reveal (hold-to-show), screen capture flags where OS allows | Hold-to-reveal done (v0.7.0); FLAG_SECURE → v0.9.0 |
+| P2 | Integrity: signed vault metadata / tamper detection UX | Fingerprint warn done (v0.7.0); deepen later |
+| P2 | Password health (local only) + optional breach pack | Planned — v0.11 |
 | P3 | Audit logging (local, optional) | Power users / shared machines |
 | Later | Hardware key / passkey unlock of vault key wrap | Advanced users; keep master password recovery |
 
@@ -65,12 +66,15 @@ apps/web                   ← UI shell (static); platform plugins differ
 |----------|------|-----|
 | P0 | Onboarding: create vault → import → first copy | Empty-state education |
 | P0 | Search + keyboard shortcuts (lock, new, search focus) | Done — global search + Ctrl/Cmd+K palette |
-| P1 | Autotype / fill helper (desktop) where safe | Faster logins than copy-paste |
-| P1 | TOTP / otpauth fields | Common password-manager expectation |
+| P1 | Autotype / fill helper (desktop) where safe | Planned — v0.12 |
+| P1 | TOTP / otpauth fields | Done (v0.8.0) |
 | P1 | Favicons / site icons (optional, offline-safe) | v0.3.0 — lettermark + optional cache |
 | P1 | Duplicate workspace merge / cleanup | Users already hit duplicate names |
 | P1 | Workspace sidebar pins + clipboard clear toast | v0.3.0 |
-| P2 | Password health (length, reuse warnings — local only) | Guidance without phoning home |
+| P1 | Password generator + clipboard quick-add + soft-delete | Planned — v0.10 |
+| P1 | URL / app match (opt-in, offline heuristics) | Planned — v0.12 |
+| P2 | Password health (length, reuse warnings — local only) | Planned — v0.11 |
+| P2 | Attachments / snapshots / structured notes | Planned — v0.13 |
 | P2 | Accessible density modes; larger touch targets for mobile | Mobile readiness |
 | P3 | Plugins / custom field templates | Stretch |
 
@@ -98,11 +102,28 @@ apps/web                   ← UI shell (static); platform plugins differ
 - Touch-first entry list; fewer chrome controls
 - Update threat model (device backup, screenshots, notifications)
 
+### Phase C.1 — Mobile installers (v0.9.0)
+
+- Sideloadable **Android APK** and **iOS IPA** on GitHub Releases via **Signet** self-sign first
+- `signet` keystore / `ios package` / ship CI collect + `TRUST.md` (not Play/App Store)
+- Install docs + checksums; stay honest (sideload / developer install)
+- Best-effort secure-window / screenshot mitigations where APIs exist
+
 ### Phase D — Interop & trust
 
-- Import from Bitwarden / KeePass / browser CSV (documented mapping)
+- Import from Bitwarden / KeePass / browser CSV (documented mapping) — CSV + TOTP done in v0.8.0; folder sync remains
 - Optional user-folder sync of `vault.km` (conflict = last-write or explicit merge)
-- Store signing / notarization when project is ready (not blocking OSS users)
+- Store signing / notarization / Play + App Store listing when project is ready (not blocking OSS sideload)
+
+### Phase E — Friction & vault hygiene (post-0.9.0)
+
+- **v0.10** — Generator, clipboard quick-add, soft-delete  
+- **v0.11** — Local password health; optional HIBP offline / gated network  
+- **v0.12** — Desktop autotype + URL/app match (threat-model first)  
+- **v0.13** — Attachments, snapshots, structured notes  
+
+Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`  
+Keep Phase D folder-sync **after** trash/snapshot owners exist (or with an explicit compat section).
 
 ---
 
@@ -199,7 +220,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | Search includes custom field labels/values | Done |
 | Next.js 15 → 16.2.x (static export) | Done — `next@16.2.12` |
 
-Next: **Phase D** interop & trust (imports, optional file sync, store signing when ready).
+Next: **v0.9.0** mobile installers, then **Phase E** friction & hygiene; **Phase D** folder sync when ready.
 
 ### v0.7.0 — Offline-first portable security (done)
 
@@ -220,4 +241,71 @@ Next: **Phase D** interop & trust (imports, optional file sync, store signing wh
 | Bitwarden / KeePass / browser CSV totp column maps | Done |
 | Version bump 0.8.0 | Done |
 
-Next after 0.8.0: **Phase D** remainder (folder sync, store signing when ready).
+### v0.9.0 — Mobile installers (Android + iOS) — planned
+
+Design: `specs/backend/v0.9.0-mobile-installers-design.md`  
+**Signing:** [Signet](https://github.com/Dendro-X0/Signet) self path first (`ship.path = "self"`) — local keystore / IPA package / `SHA256SUMS` + `TRUST.md`. Not Play/App Store; graduate path later.
+
+| Item | Status |
+|------|--------|
+| Root `signet.toml` multi-target (desktop + android + ios) + `.signet/` secrets layout | Done (slice 2–3) — `TRUST.md` present |
+| Native project strategy (commit `gen/` vs CI `tauri android/ios init`) | Done — regenerate per machine/CI; `gen/` gitignored |
+| `@clavis/mobile` scripts: `ios:init` / `ios:dev` / `ios:build` (+ Android release path) | Done (slice 2) |
+| Android: Tauri APK → `signet android keystore|sign` → Release + cert in `TRUST.md` | Done (slice 3) — local proof; CI attach in slice 5 |
+| iOS: Tauri `.app` → `signet ios package` → IPA on Release (honest free/ad-hoc notes) | Done (slice 4) — scripts + fixture package L3; full Tauri build on macOS CI (slice 5) |
+| `signet ship --ci` / collect / release gate (or merge into existing tag CI) | Done (slice 5) — `signet-ship.yml` + `docs/signet-ship.md`; desktop stays `ci.yml` |
+| Platforms + release-checklist + README (Signet verify / sideload) | Done (slice 5) — platforms + release-checklist; README pointer optional at bump |
+| Secure-window / FLAG_SECURE (or iOS snapshot hide) best-effort | Planned |
+| Version bump 0.9.0 | Planned |
+
+**Out of band for 0.9.0:** Play Store / App Store listing, Signet graduate (OV/notarize), auto-update, share-sheet import.
+
+Next after 0.9.0: **Phase E** friction & hygiene (below), then **Phase D** folder sync / store signing.
+
+### Post-0.9.0 — Phase E overview
+
+Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`
+
+| Version | Theme | Status |
+|---------|--------|--------|
+| v0.10 | Generate, quick-add, soft-delete | Planned — design ready |
+| v0.11 | Password health + optional breach pack | Planned — stub in umbrella |
+| v0.12 | Desktop autotype + URL/app match | Planned — stub; design+threat-model before code |
+| v0.13 | Attachments, snapshots, structured notes | Planned — stub in umbrella |
+
+### v0.10.0 — Generate, capture & soft-delete — planned
+
+Design: `specs/backend/v0.10.0-generate-capture-design.md`
+
+| Item | Status |
+|------|--------|
+| Password generator (presets + apply-to-editor; session-only history; scrub) | Planned |
+| Quick-add from clipboard (password / otpauth / labeled paste → draft only) | Planned |
+| Soft-delete + Recycle bin + retain-N-days purge (`vault-core` owner) | Planned |
+| Frontend-spec / threat-model touch + version bump 0.10.0 | Planned |
+
+### v0.11.0 — Password health — planned
+
+| Item | Status |
+|------|--------|
+| Local health report (reuse, short/weak; workspace-scoped) | Planned |
+| Optional breach pack (offline file or gated k-anonymity; default off) | Planned |
+| Version bump 0.11.0 | Planned |
+
+### v0.12.0 — Desktop fill & match — planned
+
+| Item | Status |
+|------|--------|
+| Threat-model + design for autotype / window match | Planned (gate) |
+| Autotype into focused window (confirm; Windows first) | Planned |
+| Opt-in URL / app-title entry suggestions | Planned |
+| Version bump 0.12.0 | Planned |
+
+### v0.13.0 — Vault richness — planned
+
+| Item | Status |
+|------|--------|
+| Encrypted attachments (size cap; trash-aligned) | Planned |
+| Dated encrypted snapshots + one-click restore | Planned |
+| Structured notes (markdown/tags; searchable) | Planned |
+| Version bump 0.13.0 | Planned |

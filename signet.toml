@@ -1,0 +1,53 @@
+# Signet project config (safe to commit)
+# Private keys live under secrets_dir — never commit .signet/
+# Tool: https://github.com/Dendro-X0/Signet — see specs/backend/v0.9.0-mobile-installers-design.md
+
+secrets_dir = ".signet"
+
+[project]
+name = "Clavis"
+framework = "tauri"
+app_root = "apps/desktop/src-tauri"
+
+[[targets]]
+id = "desktop"
+framework = "tauri"
+app_root = "apps/desktop/src-tauri"
+build_command = "pnpm build:desktop"
+
+[[targets]]
+id = "android"
+framework = "android"
+app_root = "apps/mobile/src-tauri"
+# Init: pnpm mobile:android:init — then pnpm signet:android (build+sign+sums)
+build_command = "pnpm build:mobile:android"
+
+[[targets]]
+id = "ios"
+framework = "ios"
+app_root = "apps/mobile/src-tauri"
+# Requires macOS + Xcode. Init: pnpm mobile:ios:init — then pnpm signet:ios
+build_command = "pnpm build:mobile:ios"
+
+[platforms]
+windows = true
+macos = true
+linux = true
+android = true
+ios = true
+
+[ship]
+path = "self"
+
+[release]
+github = true
+repo = "Dendro-X0/Clavis"
+attach_trust = true
+
+[trust]
+declared_tier = "self_signed_host"
+notes = [
+  "Desktop: self-signed / unsigned OSS sideload — expect SmartScreen / Gatekeeper.",
+  "Android: Signet project keystore is sideload-only — not Google Play App Signing.",
+  "iOS: IPA via signet ios package — not App Store / TestFlight; free provisioning ~7 days.",
+]

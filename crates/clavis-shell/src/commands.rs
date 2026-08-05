@@ -328,9 +328,19 @@ pub fn make_data_dir_portable(
 
 #[tauri::command]
 pub fn pick_data_dir(app: AppHandle) -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
-    let picked = app.dialog().file().blocking_pick_folder();
-    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = app;
+        return Err("custom data folder is desktop-only; mobile uses the OS app sandbox".into());
+    }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        use tauri_plugin_dialog::DialogExt;
+        let picked = app.dialog().file().blocking_pick_folder();
+        Ok(picked
+            .and_then(|p| p.into_path().ok())
+            .map(|p| p.display().to_string()))
+    }
 }
 
 #[tauri::command]

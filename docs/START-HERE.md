@@ -22,10 +22,15 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `specs/backend/v0.6.1-custom-fields-ui-design.md` | Custom fields editor UI + Next.js 16 |
 | `specs/backend/v0.7.0-offline-portable-security-design.md` | Offline-first + USB portable + integrity warn |
 | `specs/backend/v0.8.0-totp-interop-design.md` | TOTP (otpauth) + CSV interop |
+| `specs/backend/v0.9.0-mobile-installers-design.md` | v0.9.0 Android/iOS sideload installers + CI |
+| `specs/backend/post-0.9.0-friction-hygiene-umbrella.md` | Phase E bands v0.10–v0.13 |
+| `specs/backend/v0.10.0-generate-capture-design.md` | v0.10 generator / quick-add / soft-delete |
 | `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |
 | `docs/platforms.md` | Desktop + mobile matrix, data dir, keyring |
+| `docs/signet-ship.md` | Signet CI secrets + ship collect for mobile releases |
+| `signet.toml` | Signet multi-target ship config (self path) |
 
 ## Dev loop
 
@@ -36,6 +41,11 @@ pnpm dev:web          # UI only
 pnpm test:vault       # Rust vault-core tests
 pnpm --filter @clavis/mobile android:init   # once (Android SDK)
 pnpm --filter @clavis/mobile android:dev
+pnpm mobile:ios:init                        # once (macOS + Xcode)
+pnpm --filter @clavis/mobile ios:dev
+pnpm signet:android                         # APK + Signet sign (needs SDK + keystore)
+pnpm signet:ios                             # IPA (macOS); or signet:ios:fixture for package smoke
+# Signet: install CLI, run from repo root → `signet doctor`
 ```
 
 1. Change vault logic → `pnpm test:vault`

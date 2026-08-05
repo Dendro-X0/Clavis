@@ -43,16 +43,18 @@ GitHub Releases may include installers that are **not** signed by Microsoft/Appl
 | Windows | SmartScreen “Windows protected your PC” | More info → **Run anyway** (after verifying the SHA-256 on the release) |
 | macOS | “App can’t be opened because it is from an unidentified developer” | System Settings → Privacy & Security → **Open Anyway** |
 | Linux | Depends on package | Prefer checksum match + build from the release tag |
+| Android | “Unknown apps” / Play Protect | Sideload APK after checksum + `TRUST.md` cert match — **not** Play Store signed |
+| iOS | Developer / free provisioning | IPA from Releases is **not** App Store; free Apple ID builds expire ~7 days |
 
-**Always verify checksums** against `SHA256SUMS.txt` (or hashes listed on the release) before running a downloaded binary. Prefer building from source if you do not trust a binary:
+**Always verify checksums** against `SHA256SUMS` / `SHA256SUMS-*.txt` (or hashes listed on the release) before running a downloaded binary. Compare publisher fingerprints with [`TRUST.md`](TRUST.md) when present. Prefer building from source if you do not trust a binary:
 
 ```bash
-git checkout v0.5.0   # or the release tag
+git checkout v0.8.0   # or the release tag
 pnpm install
 pnpm build
 ```
 
-Maintainer release steps: [docs/release-checklist.md](docs/release-checklist.md).
+Maintainer release steps: [docs/release-checklist.md](docs/release-checklist.md). Mobile Signet CI secrets: [docs/signet-ship.md](docs/signet-ship.md).
 
 ## Layout
 

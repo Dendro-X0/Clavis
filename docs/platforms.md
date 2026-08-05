@@ -26,11 +26,18 @@ Tag builds: push `vX.Y.Z` → CI runs `test` then matrix desktop builds and uplo
 | Android | `apps/mobile` + `tauri android` | Requires Android SDK/NDK; vault in app sandbox |
 | iOS | `apps/mobile` + `tauri ios` | macOS + Xcode only; not built on Windows CI yet |
 
+Native projects under `apps/mobile/src-tauri/gen/` are **not committed**. Init once per machine (or in CI before build):
+
 ```bash
 pnpm install
-pnpm --filter @clavis/mobile android:init   # once per machine
-pnpm --filter @clavis/mobile android:dev    # emulator / device
+pnpm mobile:android:init   # once (Android SDK)
+pnpm --filter @clavis/mobile android:dev
+# macOS + Xcode:
+pnpm mobile:ios:init
+pnpm --filter @clavis/mobile ios:dev
 ```
+
+Release builds: `pnpm build:mobile:android` / `pnpm build:mobile:ios`. Signing/packaging for GitHub Releases uses root `signet.toml` + [Signet](https://github.com/Dendro-X0/Signet) (`ship.path = "self"`).
 
 Shared stack: `crates/vault-core` + `crates/clavis-shell` + `apps/web` (compact UI under 768px).
 
@@ -91,3 +98,42 @@ See README [Installing self-signed builds](../README.md#installing-self-signed-b
 - Apple notarization / Windows EV Authenticode
 - Auto-update channel
 - Full share-sheet import
+
+## Next — v0.9.0 mobile installers
+
+Sideloadable Android/iOS artifacts on GitHub Releases, signed/packaged with **[Signet](https://github.com/Dendro-X0/Signet)** (`ship.path = "self"`): Android keystore sideload signing, `signet ios package` for IPA, `SHA256SUMS` + `TRUST.md`. Still **not** store listings. See `specs/backend/v0.9.0-mobile-installers-design.md` and Signet docs (`signing.md`, `android.md`, `ios.md`, `ship.md`).
+
+### Android sideload (local / CI)
+
+```bash
+pnpm mobile:android:init          # once (gen/ gitignored)
+# create keystore once (gitignored .signet/):
+#   export SIGNET_ANDROID_STORE_PASS='…'
+#   signet android keystore create --dname "CN=Clavis Android,O=Clavis,C=US"
+#   signet trust                  # refreshes committed TRUST.md
+pnpm signet:android               # build aarch64 APK → Signet-sign → SHA256SUMS
+```
+
+Requires JDK (`keytool` on `PATH` / `JAVA_HOME`), `ANDROID_HOME`, and Signet on `PATH`. On Windows, if Cargo’s registry is on another drive than the repo, the release script disables Kotlin incremental compile in `gen/android/gradle.properties` (cross-drive bug). Sideload cert ≠ Play App Signing — see `TRUST.md`.
+
+### iOS sideload (macOS + Xcode)
+
+```bash
+pnpm mobile:ios:init              # once (gen/ gitignored; macOS only)
+pnpm signet:ios                   # tauri ios build → signet ios package → SHA256SUMS
+# or package an existing .app:
+#   SKIP_IOS_BUILD=1 IOS_APP=/path/to/Clavis.app pnpm signet:ios
+```
+
+Signet **packages** IPA (`Payload/*.app` zip) — it does **not** App Store–sign. Free Apple ID development provisioning lasts ~7 days (`signet ios notes`). Device IPA in CI needs Apple signing secrets; without them, ship a documented simulator/dev build only.
+
+Package-path smoke (any OS, not installable): `pnpm signet:ios:fixture`.
+
+### CI (v0.9.0+)
+
+| Workflow | Role |
+|----------|------|
+| `.github/workflows/ci.yml` | Tests + desktop matrix on `v*` tags; attaches desktop installers |
+| `.github/workflows/signet-ship.yml` | Android APK (Signet-signed) + iOS IPA package on `v*` / `workflow_dispatch` |
+
+Secrets and collect flow: [docs/signet-ship.md](signet-ship.md). Root config: `signet.toml` (`ship.path = "self"`).

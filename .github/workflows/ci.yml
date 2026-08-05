@@ -1,5 +1,7 @@
 name: CI
 
+# Desktop + tests. Mobile Signet ship (APK/IPA) is `.github/workflows/signet-ship.yml`.
+
 on:
   push:
     branches: [main]
