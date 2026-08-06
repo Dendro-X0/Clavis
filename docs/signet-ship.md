@@ -10,6 +10,8 @@ Private material stays out of git (`.signet/` is gitignored). Tag / `workflow_di
 
 Optional **variable** (not secret): `CLAVIS_IOS_ALLOW_SKIP=1` — lets the iOS job exit 0 without an IPA (explicit partial release). Default is **fail** if IPA missing.
 
+CI recreates `.signet/android/meta.toml` (gitignored with the keystore). Signet ≥0.5.x requires at least `alias`, `store_type`, and **`created_at`** in that file — see the restore step in `signet-ship.yml`.
+
 ## One-time local keystore (maintainer)
 
 ```bash

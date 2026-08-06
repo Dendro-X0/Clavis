@@ -82,11 +82,14 @@ jobs:
           fi
           mkdir -p .signet/android
           echo "$SIGNET_ANDROID_KEYSTORE_BASE64" | base64 -d > .signet/android/release.jks
-          printf '%s\n' \
-            'alias = "signet"' \
-            'store_type = "JKS"' \
-            'note = "Local upload/sideload keystore - not the Play App Signing key."' \
-            > .signet/android/meta.toml
+          # Signet 0.5.x meta.toml requires created_at (+ cert digest for TRUST alignment).
+          cat > .signet/android/meta.toml <<'EOF'
+alias = "signet"
+store_type = "JKS"
+created_at = "2026-08-04T15:14:07.4290843Z"
+cert_sha256 = "FE:CC:88:E4:FA:A1:0B:A1:A3:09:8B:4D:B3:BB:3D:A0:22:95:B7:0A:31:6C:22:00:E2:2D:D7:79:F0:EC:A8:5D"
+note = "Local upload/sideload keystore - not the Play App Signing key."
+EOF
           export SIGNET_ANDROID_KEY_PASS="${SIGNET_ANDROID_KEY_PASS:-$SIGNET_ANDROID_STORE_PASS}"
           signet android keystore show
 
