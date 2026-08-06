@@ -53,8 +53,12 @@ fi
 OUT="dist/ios/Clavis-${VERSION}.ipa"
 signet ios package --app "$APP" --out "$OUT"
 signet build --target ios --skip-build --artifact "$OUT"
-signet trust
+if [[ -d .signet/identity ]]; then
+  signet trust
+else
+  echo "note: no .signet/identity — skipping signet trust (committed TRUST.md is authoritative for CI)"
+fi
 
 echo "ok: $OUT"
-echo "    SHA256SUMS (+ .minisig) updated; TRUST.md refreshed"
-echo "    honesty: packaging ≠ App Store / TestFlight — $(signet ios notes 2>/dev/null | head -1)"
+echo "    SHA256SUMS updated; TRUST.md refreshed only when identity present"
+echo "    honesty: packaging != App Store / TestFlight — $(signet ios notes 2>/dev/null | head -1)"

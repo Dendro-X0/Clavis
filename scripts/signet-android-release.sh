@@ -74,8 +74,12 @@ OUT="dist/android/Clavis-${VERSION}-aarch64.apk"
 cp -f "$APK" "$OUT"
 signet android sign --apk "$OUT"
 signet build --target android --skip-build --artifact "$OUT"
-signet trust
+if [[ -d .signet/identity ]]; then
+  signet trust
+else
+  echo "note: no .signet/identity — skipping signet trust (committed TRUST.md is authoritative for CI)"
+fi
 
 echo "ok: $OUT"
-echo "    SHA256SUMS (+ .minisig) updated; TRUST.md refreshed"
+echo "    SHA256SUMS updated; TRUST.md refreshed only when identity present"
 echo "    cert digest: $(signet android keystore show | grep -i 'SHA-256' | head -1)"
