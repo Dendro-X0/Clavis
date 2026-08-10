@@ -300,40 +300,41 @@ export function EntryList({
             const wsLabel = foreignWorkspace(e);
             const card = (
               <div
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  onSelect(e.id, e.workspaceId);
-                }}
-                onKeyDown={(ev) => {
-                  if (ev.key === "Enter" || ev.key === " ") {
-                    ev.preventDefault();
-                    onSelect(e.id, e.workspaceId);
-                  }
-                }}
                 className={cn(
-                  "entry-card-virtual flex h-full w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition",
+                  "entry-card-virtual flex h-full w-full flex-col gap-2 rounded-lg border p-4 text-left transition",
                   selectedId === e.id
                     ? "border-[var(--primary)]/45 bg-[var(--accent-wash)]"
                     : "border-[var(--border)] bg-[var(--card)]/50 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex min-w-0 items-start gap-2">
-                    <EntryIcon title={e.title} url={e.url} fetchEnabled={fetchFavicons} />
-                    <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 flex-col gap-2 text-left"
+                  aria-label={`Open ${e.title || "entry"}`}
+                  onClick={() => onSelect(e.id, e.workspaceId)}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-start gap-2">
+                      <EntryIcon title={e.title} url={e.url} fetchEnabled={fetchFavicons} />
+                      <span className="line-clamp-2 font-medium leading-snug">{e.title}</span>
+                    </div>
+                    <TypePill type={e.entryType} />
                   </div>
-                  <TypePill type={e.entryType} />
-                </div>
-                {wsLabel && (
-                  <p className="truncate text-[10px] tracking-wide text-[var(--muted)] uppercase">
-                    {wsLabel}
+                  {wsLabel && (
+                    <p className="truncate text-[10px] tracking-wide text-[var(--muted)] uppercase">
+                      {wsLabel}
+                    </p>
+                  )}
+                  <p className="truncate text-sm text-[var(--muted)]">
+                    {e.username || e.url || "—"}
                   </p>
-                )}
-                <p className="truncate text-sm text-[var(--muted)]">
-                  {e.username || e.url || "—"}
-                </p>
-                <CategoryChips tags={e.tags} />
+                  <CategoryChips tags={e.tags} />
+                  {compact && (
+                    <p className="mt-auto pt-2 text-[10px] text-[var(--muted)]">
+                      Swipe → copy · ← open · hold for more
+                    </p>
+                  )}
+                </button>
                 {!compact && (
                   <CopyButtons
                     id={e.id}
@@ -346,11 +347,6 @@ export function EntryList({
                     onCopyOtp={onCopyOtp}
                     compact
                   />
-                )}
-                {compact && (
-                  <p className="mt-auto pt-2 text-[10px] text-[var(--muted)]">
-                    Swipe → copy · ← open · hold for more
-                  </p>
                 )}
               </div>
             );
@@ -392,6 +388,7 @@ export function EntryList({
               <button
                 type="button"
                 className="min-h-11 min-w-0 flex-1 touch-target text-left"
+                aria-label={`Open ${e.title || "entry"}`}
                 onClick={() => onSelect(e.id, e.workspaceId)}
               >
                 <div className="flex flex-wrap items-center gap-2">

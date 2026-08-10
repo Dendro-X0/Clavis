@@ -95,13 +95,14 @@ export function AppSidebar({
           <button
             type="button"
             title={`Search (${modHint})`}
+            aria-label={`Search (${modHint})`}
             onClick={onSearch}
             className={cn(
               "mb-1 flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
               collapsed && "justify-center px-0",
             )}
           >
-            <Search className="h-4 w-4 shrink-0" />
+            <Search className="h-4 w-4 shrink-0" aria-hidden />
             {!collapsed && (
               <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <span>Search</span>
@@ -120,6 +121,8 @@ export function AppSidebar({
               key={item.id}
               type="button"
               title={item.label}
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
               onClick={() => onNavigate(item.id)}
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
@@ -129,7 +132,7 @@ export function AppSidebar({
                 collapsed && "justify-center px-0",
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-4 w-4 shrink-0" aria-hidden />
               {!collapsed && <span>{item.label}</span>}
             </button>
           );
@@ -150,6 +153,8 @@ export function AppSidebar({
                 key={ws.id}
                 type="button"
                 title={ws.name}
+                aria-label={`${ws.name}${ws.active ? ", active workspace" : ""}`}
+                aria-current={ws.active ? "true" : undefined}
                 onClick={() => onSelectWorkspace(ws.id)}
                 className={cn(
                   "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
@@ -160,9 +165,9 @@ export function AppSidebar({
                 )}
               >
                 {ws.active || (pinnedWorkspaceIds ?? []).includes(ws.id) ? (
-                  <Pin className="h-4 w-4 shrink-0" />
+                  <Pin className="h-4 w-4 shrink-0" aria-hidden />
                 ) : (
-                  <Folder className="h-4 w-4 shrink-0" />
+                  <Folder className="h-4 w-4 shrink-0" aria-hidden />
                 )}
                 {!collapsed && <span className="truncate">{ws.name}</span>}
               </button>
@@ -175,13 +180,14 @@ export function AppSidebar({
           <button
             type="button"
             title="Password health"
+            aria-label="Password health"
             onClick={onOpenHealth}
             className={cn(
               "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
               collapsed && "justify-center px-0",
             )}
           >
-            <HeartPulse className="h-4 w-4" />
+            <HeartPulse className="h-4 w-4" aria-hidden />
             {!collapsed && <span>Password health</span>}
           </button>
         )}
@@ -189,13 +195,18 @@ export function AppSidebar({
           <button
             type="button"
             title="Recycle bin"
+            aria-label={
+              trashCount != null && trashCount > 0
+                ? `Recycle bin, ${trashCount} items`
+                : "Recycle bin"
+            }
             onClick={onOpenTrash}
             className={cn(
               "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
               collapsed && "justify-center px-0",
             )}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden />
             {!collapsed && (
               <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <span>Recycle bin</span>
@@ -211,6 +222,8 @@ export function AppSidebar({
         <button
           type="button"
           title="Settings"
+          aria-label="Settings"
+          aria-current={active === "settings" ? "page" : undefined}
           onClick={() => onNavigate("settings")}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition",
@@ -220,19 +233,20 @@ export function AppSidebar({
             collapsed && "justify-center px-0",
           )}
         >
-          <Settings className="h-4 w-4" />
+          <Settings className="h-4 w-4" aria-hidden />
           {!collapsed && <span>Settings</span>}
         </button>
         <button
           type="button"
           title="Lock"
+          aria-label="Lock vault"
           onClick={onLock}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
             collapsed && "justify-center px-0",
           )}
         >
-          <Lock className="h-4 w-4" />
+          <Lock className="h-4 w-4" aria-hidden />
           {!collapsed && <span>Lock</span>}
         </button>
       </div>

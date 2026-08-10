@@ -152,6 +152,25 @@ body::-webkit-scrollbar {
   font-family: var(--font-display);
 }
 
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0.75rem;
+  z-index: 100;
+  border-radius: 8px;
+  background: var(--primary);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--primary-fg);
+}
+
+.skip-link:focus {
+  left: 0.75rem;
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 .app-shell {
   height: 100%;
   max-height: 100dvh;

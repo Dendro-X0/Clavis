@@ -17,6 +17,8 @@ export function SettingsPanel({
   onWorkspacesChanged,
   onDataDirChanged,
   compact = false,
+  activeSection,
+  onActiveSectionChange,
 }: {
   status: StatusDto;
   settings: AppSettings;
@@ -27,9 +29,14 @@ export function SettingsPanel({
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
   onDataDirChanged?: () => void | Promise<void>;
   compact?: boolean;
+  /** Controlled settings section (URL / parent sync). */
+  activeSection?: SettingsSectionId;
+  onActiveSectionChange?: (id: SettingsSectionId) => void;
 }) {
   const { theme, setTheme } = useTheme();
-  const [active, setActive] = useState<SettingsSectionId>("appearance");
+  const [internalActive, setInternalActive] = useState<SettingsSectionId>("appearance");
+  const active = activeSection ?? internalActive;
+  const setActive = onActiveSectionChange ?? setInternalActive;
   const [searchQuery, setSearchQuery] = useState("");
   const [saveBusy, setSaveBusy] = useState(false);
   const [currentPw, setCurrentPw] = useState("");

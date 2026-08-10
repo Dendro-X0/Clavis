@@ -307,7 +307,7 @@ Design: `specs/backend/v0.12.0-desktop-fill-match-design.md`
 | Opt-in URL / app-title entry suggestions | Done |
 | Version bump 0.12.0 | Done |
 
-Next: Phase D when unblocked.
+Next: Phase D when unblocked. Post-0.13 UX remediation (calm home, modal a11y, feedback, button kit, list paint, URL hash state) is implemented on `main` ahead of the next release tag.
 
 ### v0.13.0 — Vault richness — done
 
@@ -320,4 +320,4 @@ Design: `specs/backend/v0.13.0-vault-richness-design.md`
 | Structured notes (markdown; searchable) | Done |
 | Version bump 0.13.0 | Done |
 
-Next: Phase D when unblocked.
+Next: Phase D when unblocked. Post-0.13 UX remediation (calm home, modal a11y, feedback, button kit, list paint, URL hash state) is implemented on `main` ahead of the next release tag.

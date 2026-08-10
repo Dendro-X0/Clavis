@@ -13,6 +13,7 @@ import { ClipboardClearToast } from "@/components/shell/clipboard-clear-toast";
 import { StatusBanners, isSuccessTone } from "@/components/shell/status-banners";
 import { AppSidebar, type NavId } from "@/components/shell/sidebar";
 import { SettingsPanel } from "@/components/shell/settings-panel";
+import type { SettingsSectionId } from "@/components/shell/settings/types";
 import { Titlebar } from "@/components/titlebar/titlebar";
 import { EntryEditor } from "@/components/vault/entry-editor";
 import { EntryList } from "@/components/vault/entry-list";
@@ -43,6 +44,10 @@ import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/lib/clipboard";
 import { blankEntryForm } from "@/lib/sensitive";
 import { useCompactSurface } from "@/lib/use-compact-surface";
+import {
+  readVaultUrlFromLocation,
+  writeVaultUrlToLocation,
+} from "@/lib/vault-url-state";
 import { useTheme } from "next-themes";
 
 function formatImportMessage(result: ImportResult) {
@@ -69,6 +74,8 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [nav, setNav] = useState<NavId>("all");
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>("appearance");
+  const [urlHydrated, setUrlHydrated] = useState(false);
   const [form, setForm] = useState<UpsertEntryInput | null>(null);
   const [formAttachments, setFormAttachments] = useState<AttachmentMeta[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
@@ -102,6 +109,7 @@ export default function HomePage() {
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipPageResetFromUrl = useRef(false);
 
   const setError = useCallback((msg: string | null) => {
     if (msg == null || msg === "") {
@@ -118,6 +126,23 @@ export default function HomePage() {
   }, []);
 
   const dismissNotice = useCallback(() => setNotice(null), []);
+
+  useEffect(() => {
+    const apply = () => {
+      const s = readVaultUrlFromLocation();
+      skipPageResetFromUrl.current = true;
+      setNav(s.nav);
+      setQuery(s.query);
+      setCategoryFilter(s.tag);
+      setPage(s.page);
+      setSettingsSection(s.section);
+      setUrlHydrated(true);
+    };
+    apply();
+    const onHash = () => apply();
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   const refreshVault = useCallback(async () => {
     const [list, all, ws, trash] = await Promise.all([
@@ -147,8 +172,11 @@ export default function HomePage() {
       setAllEntries([]);
       setWorkspaces([]);
       setForm(null);
+      setQuery("");
       setNav("all");
       setCategoryFilter(null);
+      setPage(1);
+      setSettingsSection("appearance");
       setGeneratorOpen(false);
       setTrashOpen(false);
       setHealthOpen(false);
@@ -384,12 +412,31 @@ export default function HomePage() {
   }, [filtered, safePage, pageSize]);
 
   useEffect(() => {
+    if (skipPageResetFromUrl.current) {
+      skipPageResetFromUrl.current = false;
+      return;
+    }
     setPage(1);
   }, [query, nav, categoryFilter, activeWorkspace?.id, pageSize]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  useEffect(() => {
+    if (!urlHydrated) return;
+    const delay = query.trim() ? 200 : 0;
+    const handle = window.setTimeout(() => {
+      writeVaultUrlToLocation({
+        nav,
+        query,
+        tag: categoryFilter,
+        page: safePage,
+        section: settingsSection,
+      });
+    }, delay);
+    return () => window.clearTimeout(handle);
+  }, [urlHydrated, nav, query, categoryFilter, safePage, settingsSection]);
 
   async function copyText(label: string, text: string, opts?: { scheduleClear?: boolean }) {
     if (!text) {
@@ -756,6 +803,9 @@ export default function HomePage() {
 
   return (
     <div className="app-shell" data-compact={compact ? "true" : "false"}>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       <Titlebar compact={compact} />
       <ClipboardClearToast
         endsAt={clipboardClearEndsAt}
@@ -829,6 +879,8 @@ export default function HomePage() {
         )}
 
         <main
+          id="main-content"
+          tabIndex={-1}
           className={
             compact
               ? "flex min-w-0 flex-1 flex-col overflow-hidden p-2.5 sm:p-3"
@@ -871,6 +923,8 @@ export default function HomePage() {
                 setSettings={setSettings}
                 workspaces={workspaces}
                 compact={compact}
+                activeSection={settingsSection}
+                onActiveSectionChange={setSettingsSection}
                 onError={(msg) => setError(msg || null)}
                 onImported={async (result) => {
                   if (result) {

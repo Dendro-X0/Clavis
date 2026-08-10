@@ -86,7 +86,7 @@ Workspaces are **not** in the sidebar.
 18. **Password health (v0.11)**: Local report (reuse / short / weak / common denylist); trash excluded. Optional HIBP k-anonymity behind `allowNetwork` + `checkBreaches` (one-shot from Health panel).
 19. **Desktop fill (v0.12)**: Opt-in Windows autotype (confirm shows foreground title; SendInput). Optional title-based suggestions. Defaults off.
 20. **Vault richness (v0.13)**: Settings snapshots (create / restore / retain); entry notes plain|markdown + preview; encrypted attachments (≤256 KiB, 5/entry) with purge-aligned sidecars. Encrypted export is still `vault.km` only.
-21. **UX remediation (post-0.13)**: Calm unlocked home (compact workspace strip); simplified empty state (1 primary + secondary actions); hardened `ModalShell` (focus trap); success toast vs error banner with `aria-live`; a11y labels + `prefers-reduced-motion`; shared `btn-*` kit; list/grid `content-visibility` for large vaults.
+21. **UX remediation (post-0.13)**: Calm unlocked home (compact workspace strip); simplified empty state (1 primary + secondary actions); hardened `ModalShell` (focus trap); success toast vs error banner with `aria-live`; a11y labels + `prefers-reduced-motion`; shared `btn-*` kit; list/grid `content-visibility` for large vaults; optional hash URL state for nav/search/tag/page/settings section; skip link to main; grid/list open targets are real `<button>`s (no `div[role=button]`); sidebar icon actions have `aria-label`.
 
 ### Dialogs
 
@@ -102,6 +102,8 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 | Search | Visible label or `aria-label` on `#vault-search` |
 | Controls | Shared CSS kit: `btn-primary` / `btn-ghost` / `btn-danger` (+ `-sm` / `btn-icon`) |
 | Large lists | `entry-row-virtual` / `entry-card-virtual` (`content-visibility: auto`) — no virtualizer dep yet |
+| Deep links | Hash query (`#nav=…&q=…&tag=…&page=…&section=…`); no secrets; cleared toward defaults on lock |
+| Keyboard | Skip link → `#main-content` |
 
 ### Entries: name & categorize
 
