@@ -1,25 +1,11 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
-import { FileDropZone } from "@/components/import/file-drop-zone";
-import { api, type AppSettings, type ImportResult, type SnapshotInfo, type StatusDto, type VaultCryptoInfo, type WorkspaceSummary, formatVaultCryptoInfo, isWeakerThanDefaults } from "@/lib/api";
-import { importCredentialsFileSmart } from "@/lib/import";
-import { appConfirm, appPrompt } from "@/lib/app-dialogs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-function formatImportMessage(result: ImportResult) {
-  if (result.replaced) {
-    return `Replaced “${result.workspaceName}” with ${result.count} login(s).`;
-  }
-  return `Imported ${result.count} login(s) into workspace “${result.workspaceName}”.`;
-}
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, type AppSettings, type ImportResult, type StatusDto, type VaultCryptoInfo, type WorkspaceSummary } from "@/lib/api";
+import { SettingsSectionContent, SETTINGS_PERSIST_SECTIONS } from "./settings/settings-sections";
+import { SettingsSidebar } from "./settings/settings-sidebar";
+import { SETTINGS_NAV, type SettingsSectionId } from "./settings/types";
 
 export function SettingsPanel({
   status,
@@ -40,22 +26,39 @@ export function SettingsPanel({
   onImported: (result?: ImportResult) => Promise<void>;
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
   onDataDirChanged?: () => void | Promise<void>;
-  /** Phone-width / mobile — hide desktop portable data-folder controls. */
   compact?: boolean;
 }) {
   const { theme, setTheme } = useTheme();
+  const [active, setActive] = useState<SettingsSectionId>("appearance");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [saveBusy, setSaveBusy] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [importPw, setImportPw] = useState("");
   const [renameValue, setRenameValue] = useState("");
   const [dataPortable, setDataPortable] = useState(true);
   const [bioPassword, setBioPassword] = useState("");
-  /** Last persisted convenience-unlock flag — used so re-saving other prefs does not demand the password again. */
   const [bioPersistedOn, setBioPersistedOn] = useState(settings.biometricUnlock);
   const [cryptoInfo, setCryptoInfo] = useState<VaultCryptoInfo | null>(null);
   const [defaultKdf, setDefaultKdf] = useState<VaultCryptoInfo | null>(null);
   const [importPeek, setImportPeek] = useState<VaultCryptoInfo | null>(null);
-  const active = workspaces.find((w) => w.active);
+  const activeWorkspace = workspaces.find((w) => w.active);
+
+  const visibleIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return SETTINGS_NAV.filter((item) => {
+      if (compact && item.desktopOnly) return false;
+      if (!q) return true;
+      if (item.label.toLowerCase().includes(q)) return true;
+      return item.keywords.some((k) => k.toLowerCase().includes(q));
+    }).map((item) => item.id);
+  }, [compact, searchQuery]);
+
+  useEffect(() => {
+    if (visibleIds.length > 0 && !visibleIds.includes(active)) {
+      setActive(visibleIds[0]!);
+    }
+  }, [visibleIds, active]);
 
   useEffect(() => {
     return () => {
@@ -84,931 +87,128 @@ export function SettingsPanel({
       .catch(() => undefined);
   }, [status.state, status.entryCount]);
 
-  return (
-    <section className="animate-rise mx-auto grid h-full min-h-0 w-full max-w-2xl gap-5 overflow-y-auto scroll-region p-1 pr-2">
-      <div className="panel p-5">
-        <h2 className="font-display text-2xl">Settings</h2>
-        <p className="mt-2 break-all text-xs text-[var(--muted)]">
-          Data directory: {status.dataDir}
-          {!compact && (dataPortable ? " (portable default)" : " (custom)")}
-          {compact && " (app sandbox)"}
-        </p>
-        {!compact && (
-          <div
-            className="mt-3 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3 text-sm"
-            data-desktop-only
-          >
-            <p className="font-medium text-[var(--foreground)]">Portable kit (USB / folder copy)</p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              Copy this entire install folder (app + <code className="text-[var(--foreground)]">data/</code>
-              ) to another PC or USB. The encrypted vault moves with the app. Prefer the portable
-              default. Clavis does not stop malware on a compromised machine while unlocked — keep
-              the vault locked when idle.
-            </p>
-            {!dataPortable && (
-              <p className="mt-2 text-xs text-[var(--foreground)]">
-                Custom absolute data path — plug-and-play breaks if the drive letter changes. Use{" "}
-                <strong>Make portable</strong> to relocate vault files next to the executable.
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-                onClick={async () => {
-                  const ok = await appConfirm({
-                    title: "Change data directory?",
-                    description:
-                      "The vault will lock. Choose a folder for vault.km and config.json. Existing data is not moved automatically — copy files yourself if needed.",
-                    confirmLabel: "Choose folder",
-                  });
-                  if (!ok) return;
-                  try {
-                    const folder = await api.pickDataDir();
-                    if (!folder) return;
-                    const info = await api.setDataDir(folder);
-                    setDataPortable(info.portable);
-                    onError(`Data directory set to ${info.path}. Unlock again to continue.`);
-                    await onDataDirChanged?.();
-                  } catch (e) {
-                    onError(String(e));
-                  }
-                }}
-              >
-                Change data folder…
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-                disabled={dataPortable}
-                onClick={async () => {
-                  const ok = await appConfirm({
-                    title: "Reset to portable data folder?",
-                    description:
-                      "Uses {app}/data next to the executable again. The vault will lock. Custom-folder files are left in place (not copied).",
-                    confirmLabel: "Reset",
-                  });
-                  if (!ok) return;
-                  try {
-                    const info = await api.setDataDir(null);
-                    setDataPortable(info.portable);
-                    onError(`Data directory reset to ${info.path}. Unlock again to continue.`);
-                    await onDataDirChanged?.();
-                  } catch (e) {
-                    onError(String(e));
-                  }
-                }}
-              >
-                Use portable default
-              </button>
-              <button
-                type="button"
-                className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-                disabled={dataPortable}
-                onClick={async () => {
-                  const ok = await appConfirm({
-                    title: "Make portable?",
-                    description:
-                      "Copies vault.km, config.json, and icons into {app}/data next to the executable, then clears the custom path. The vault will lock.",
-                    confirmLabel: "Make portable",
-                  });
-                  if (!ok) return;
-                  try {
-                    let info = await api.makeDataDirPortable(false).catch(async (e) => {
-                      const msg = String(e);
-                      if (!msg.includes("overwrite")) throw e;
-                      const force = await appConfirm({
-                        title: "Overwrite portable vault?",
-                        description:
-                          "A different vault.km already exists in {app}/data. Replace it with the current vault?",
-                        confirmLabel: "Overwrite",
-                        danger: true,
-                      });
-                      if (!force) return null;
-                      return api.makeDataDirPortable(true);
-                    });
-                    if (!info) return;
-                    setDataPortable(info.portable);
-                    onError(`Portable data at ${info.path}. Unlock again to continue.`);
-                    await onDataDirChanged?.();
-                  } catch (e) {
-                    onError(String(e));
-                  }
-                }}
-              >
-                Make portable
-              </button>
-            </div>
-          </div>
-        )}
-
-        <label className="mt-5 block text-sm">
-          Theme
-          <Select
-            value={settings.theme ?? theme ?? "system"}
-            onValueChange={(value) => {
-              const next = value as AppSettings["theme"];
-              setTheme(next);
-              setSettings({ ...settings, theme: next });
-            }}
-          >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Theme" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="system">System</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-
-        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
-          <p className="text-sm font-medium text-[var(--foreground)]">Auto-lock</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Idle timer uses app input (pointer/key), not OS system-idle. Lock-on-hide covers tab
-            switch, minimize, and backgrounding the WebView.
-          </p>
-          <label className="mt-3 block text-sm">
-            Idle lock (seconds)
-            <input
-              type="number"
-              min={30}
-              className="inset-field mt-1 w-full px-3 py-2"
-              value={settings.autoLockSeconds}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  autoLockSeconds: Number(e.target.value) || 300,
-                })
-              }
-            />
-          </label>
-          <label className="mt-3 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={settings.lockOnHide !== false}
-              onChange={(e) =>
-                setSettings({ ...settings, lockOnHide: e.target.checked })
-              }
-            />
-            <span>
-              Lock when window is hidden
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                On by default. Turn off to keep the vault unlocked while switching apps (idle
-                timer still applies).
-              </span>
-            </span>
-          </label>
-        </div>
-        <label className="mt-4 block text-sm">
-          Clipboard clear (seconds)
-          <input
-            type="number"
-            min={5}
-            className="inset-field mt-1 w-full px-3 py-2"
-            value={settings.clipboardClearSeconds}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                clipboardClearSeconds: Number(e.target.value) || 15,
-              })
-            }
-          />
-          <span className="mt-1 block text-xs text-[var(--muted)]">
-            New installs default to 15 seconds.
-          </span>
-        </label>
-        <label className="mt-4 block text-sm">
-          Recycle bin retain (days)
-          <input
-            type="number"
-            min={1}
-            max={365}
-            className="inset-field mt-1 w-full px-3 py-2"
-            value={settings.trashRetainDays ?? 30}
-            onChange={(e) =>
-              setSettings({
-                ...settings,
-                trashRetainDays: Math.max(1, Number(e.target.value) || 30),
-              })
-            }
-          />
-          <span className="mt-1 block text-xs text-[var(--muted)]">
-            Soft-deleted entries older than this are purged on unlock. Empty the bin anytime from
-            the recycle bin panel.
-          </span>
-        </label>
-        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
-          <p className="text-sm font-medium text-[var(--foreground)]">Network (offline-first)</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Outbound HTTP is off by default. Enabling network only unlocks optional features such as
-            favicon fetch — never required to use your vault.
-          </p>
-          <label className="mt-3 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={Boolean(settings.allowNetwork)}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  allowNetwork: e.target.checked,
-                  fetchFavicons: e.target.checked ? settings.fetchFavicons : false,
-                  checkBreaches: e.target.checked ? settings.checkBreaches : false,
-                })
-              }
-            />
-            <span>
-              Allow network
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                Master gate for outbound requests from Clavis.
-              </span>
-            </span>
-          </label>
-          <label
-            className={`mt-3 flex items-start gap-2 text-sm ${
-              !settings.allowNetwork ? "opacity-50" : ""
-            }`}
-          >
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              disabled={!settings.allowNetwork}
-              checked={Boolean(settings.fetchFavicons) && Boolean(settings.allowNetwork)}
-              onChange={(e) => setSettings({ ...settings, fetchFavicons: e.target.checked })}
-            />
-            <span>
-              Fetch site icons for login URLs
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                Cached under data/icons. Requires Allow network. Reveals hostnames to remote servers
-                when fetching.
-              </span>
-            </span>
-          </label>
-          <label
-            className={`mt-3 flex items-start gap-2 text-sm ${
-              !settings.allowNetwork ? "opacity-50" : ""
-            }`}
-          >
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              disabled={!settings.allowNetwork}
-              checked={Boolean(settings.checkBreaches) && Boolean(settings.allowNetwork)}
-              onChange={(e) => setSettings({ ...settings, checkBreaches: e.target.checked })}
-            />
-            <span>
-              Check breaches (HIBP)
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                Opt-in one-shot k-anonymity checks from Password health. Sends a 5-character SHA-1
-                prefix to Have I Been Pwned — never your vault. Not continuous monitoring.
-              </span>
-            </span>
-          </label>
-        </div>
-        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
-          <p className="text-sm font-medium text-[var(--foreground)]">Desktop fill (Windows)</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Opt-in SendInput into the focused window after a confirm step. Off by default. Not
-            available on mobile / non-Windows builds.
-          </p>
-          <label className="mt-3 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={Boolean(settings.autotypeEnabled)}
-              onChange={(e) =>
-                setSettings({ ...settings, autotypeEnabled: e.target.checked })
-              }
-            />
-            <span>
-              Enable autotype
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                Palette / entry actions type into the foreground app after you confirm the window
-                title.
-              </span>
-            </span>
-          </label>
-          <label className="mt-3 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={Boolean(settings.suggestFromForeground)}
-              onChange={(e) =>
-                setSettings({ ...settings, suggestFromForeground: e.target.checked })
-              }
-            />
-            <span>
-              Suggest from window title
-              <span className="mt-0.5 block text-xs text-[var(--muted)]">
-                Heuristic match against entry URL/title — not a real browser URL without an
-                extension.
-              </span>
-            </span>
-          </label>
-          <label className="mt-3 block text-sm">
-            Key delay (ms)
-            <input
-              type="number"
-              min={0}
-              max={200}
-              className="inset-field mt-1 w-full px-3 py-2"
-              value={settings.autotypeKeyDelayMs ?? 25}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  autotypeKeyDelayMs: Math.max(0, Number(e.target.value) || 25),
-                })
-              }
-            />
-          </label>
-        </div>
-        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
-          <p className="text-sm font-medium text-[var(--foreground)]">Local snapshots</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Dated copies of encrypted <code className="font-mono text-[0.7rem]">vault.km</code> under
-            the data folder. Restore replaces the live vault and re-unlocks. Attachment sidecars are
-            not inside the snapshot blob.
-          </p>
-          <label className="mt-3 block text-sm">
-            Keep last N snapshots
-            <input
-              type="number"
-              min={1}
-              max={50}
-              className="inset-field mt-1 w-full px-3 py-2"
-              value={settings.snapshotRetain ?? 10}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  snapshotRetain: Math.max(1, Math.min(50, Number(e.target.value) || 10)),
-                })
-              }
-            />
-          </label>
-          <SnapshotsControls
-            unlocked={status.state === "unlocked"}
-            onError={onError}
-            onRestored={async () => {
-              await onImported();
-            }}
-          />
-        </div>
-        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={settings.biometricUnlock}
-              onChange={(e) =>
-                setSettings({ ...settings, biometricUnlock: e.target.checked })
-              }
-            />
-            <span>
-              <span className="font-medium text-[var(--foreground)]">
-                Convenience unlock (off by default)
-              </span>
-              <span className="mt-1 block text-xs text-[var(--muted)]">
-                Stores your master password in the OS keyring. On mobile, Gate asks for OS
-                biometrics before unlocking. Master password always works. Enable only on devices
-                you trust.
-              </span>
-            </span>
-          </label>
-          {dataPortable && settings.biometricUnlock && (
-            <p className="mt-2 text-xs text-[var(--foreground)]">
-              Portable / USB kits: OS keyring is machine-local and does not travel with the folder.
-              Prefer master password unlock on shared drives.
-            </p>
-          )}
-          {settings.biometricUnlock && (
-            <label className="mt-3 block text-sm">
-              Master password to store in keyring
-              <input
-                type="password"
-                className="inset-field mt-1 w-full px-3 py-2"
-                value={bioPassword}
-                onChange={(e) => setBioPassword(e.target.value)}
-                placeholder={
-                  bioPersistedOn
-                    ? "Optional — enter only to refresh the stored secret"
-                    : "Required to enable"
-                }
-                autoComplete="current-password"
-              />
-            </label>
-          )}
-        </div>
-        <button
-          className="mt-4 rounded-md bg-[var(--primary)] px-4 py-2 text-[var(--primary-fg)]"
-          onClick={() => {
-            void (async () => {
-              try {
-                if (settings.biometricUnlock && !bioPassword.trim() && !bioPersistedOn) {
-                  throw new Error(
-                    "Enter your master password to enable convenience unlock, then save again.",
-                  );
-                }
-                await api.saveSettings(settings);
-                if (settings.biometricUnlock) {
-                  if (bioPassword.trim()) {
-                    await api.storeKeyringSecret(bioPassword);
-                    setBioPassword("");
-                  }
-                  setBioPersistedOn(true);
-                } else {
-                  await api.clearKeyringSecret().catch(() => undefined);
-                  setBioPassword("");
-                  setBioPersistedOn(false);
-                }
-                onError("");
-              } catch (e) {
-                onError(String(e));
-              }
-            })();
-          }}
-        >
-          Save preferences
-        </button>
-      </div>
-
-      <div className="panel p-5">
-        <h3 className="font-display text-xl">Workspaces</h3>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Each imported file becomes its own workspace. Manage cards on the dashboard; rename or
-          delete the active one here. Merge collapses same-name duplicates from older imports.
-        </p>
-        <p className="mt-3 text-sm">
-          Active: <span className="font-medium">{active?.name ?? "—"}</span>
-          {active ? (
-            <span className="text-[var(--muted)]"> · {active.entryCount} entries</span>
-          ) : null}
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <input
-            className="inset-field min-w-[180px] flex-1 px-3 py-2"
-            placeholder="Rename active workspace"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-          />
-          <button
-            type="button"
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              if (!active || !renameValue.trim()) return;
-              try {
-                const list = await api.renameWorkspace(active.id, renameValue.trim());
-                setRenameValue("");
-                await onWorkspacesChanged(list);
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Rename
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--danger)]/40 px-4 py-2 text-[var(--danger)]"
-            onClick={async () => {
-              if (!active) return;
-              const ok = await appConfirm({
-                title: "Delete workspace?",
-                description: `Delete workspace “${active.name}” and all of its entries? This cannot be undone.`,
-                confirmLabel: "Delete",
-                danger: true,
-              });
-              if (!ok) return;
-              try {
-                const list = await api.deleteWorkspace(active.id);
-                await onWorkspacesChanged(list);
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Delete active
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              const ok = await appConfirm({
-                title: "Merge duplicate workspaces?",
-                description:
-                  "Workspaces with the same name (ignoring case) will be combined. Entries are kept; extra copies of the workspace are removed.",
-                confirmLabel: "Merge duplicates",
-              });
-              if (!ok) return;
-              try {
-                const result = await api.mergeDuplicateWorkspaces();
-                await onWorkspacesChanged(result.workspaces);
-                onError(
-                  result.removed === 0
-                    ? "No duplicate workspace names found."
-                    : `Merged duplicates — removed ${result.removed} workspace(s).`,
-                );
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Merge duplicates
-          </button>
-        </div>
-      </div>
-
-      <div className="panel p-5">
-        <h3 className="font-display text-xl">Change master password</h3>
-        <div className="mt-4 grid gap-3">
-          <input
-            type="password"
-            placeholder="Current"
-            className="inset-field px-3 py-2"
-            value={currentPw}
-            onChange={(e) => setCurrentPw(e.target.value)}
-          />
-          <input
-            type="password"
-            placeholder="New"
-            className="inset-field px-3 py-2"
-            value={newPw}
-            onChange={(e) => setNewPw(e.target.value)}
-          />
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={() =>
-              api
-                .changeMasterPassword(currentPw, newPw)
-                .then(() => {
-                  setCurrentPw("");
-                  setNewPw("");
-                  onError("");
-                })
-                .catch((e) => {
-                  setCurrentPw("");
-                  setNewPw("");
-                  onError(String(e));
-                })
-            }
-          >
-            Update password
-          </button>
-        </div>
-      </div>
-
-      <div className="panel p-5">
-        <h3 className="font-display text-xl">Import / export</h3>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Encrypted backups use the same format as{" "}
-          <code className="text-[var(--foreground)]">vault.km</code> (Argon2id + AES-256-GCM).
-          Credential imports create a new workspace (named from the file). CSV/TSV maps
-          Bitwarden <code className="text-[var(--foreground)]">login_totp</code>, KeePass{" "}
-          <code className="text-[var(--foreground)]">TOTP</code>, and generic{" "}
-          <code className="text-[var(--foreground)]">totp</code> columns into authenticator seeds.
-          Use Replace to overwrite the current workspace list.
-        </p>
-        {cryptoInfo && (
-          <p className="mt-3 rounded-md border border-[var(--border)] bg-[var(--inset)]/50 px-3 py-2 text-xs text-[var(--muted)]">
-            <span className="font-medium text-[var(--foreground)]">Active vault KDF: </span>
-            {formatVaultCryptoInfo(cryptoInfo)}
-            {defaultKdf && isWeakerThanDefaults(cryptoInfo, defaultKdf) && (
-              <span className="mt-1 block text-[var(--foreground)]">
-                Weaker than current Clavis defaults — use “Upgrade KDF” below after confirming your
-                master password.
-              </span>
-            )}
-          </p>
-        )}
-        {importPeek && (
-          <p className="mt-2 text-xs text-[var(--muted)]">
-            Last peeked backup: {formatVaultCryptoInfo(importPeek)}
-          </p>
-        )}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              try {
-                const info = cryptoInfo ?? (await api.vaultCryptoInfo());
-                const ok = await appConfirm({
-                  title: "Export encrypted backup?",
-                  description: `Writes a portable .km file using ${formatVaultCryptoInfo(info)}. Same format as the live vault — keep the master password safe.`,
-                  confirmLabel: "Choose destination",
-                });
-                if (!ok) return;
-                const dest = await api.pickSavePath("clavis-backup.km");
-                if (dest) {
-                  await api.exportVault(dest);
-                  onError(`Exported encrypted backup to ${dest}`);
-                }
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Export encrypted backup
-          </button>
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              try {
-                const source = await api.pickOpenPath("vault");
-                if (!source) return;
-                let peek: VaultCryptoInfo | null = null;
-                try {
-                  peek = await api.peekVaultKdf(source);
-                  setImportPeek(peek);
-                } catch {
-                  setImportPeek(null);
-                }
-                if (!importPw) {
-                  onError(
-                    peek
-                      ? `Backup KDF: ${formatVaultCryptoInfo(peek)}. Enter the backup master password below, then import again.`
-                      : "Enter the backup master password below first.",
-                  );
-                  return;
-                }
-                const defaults = defaultKdf ?? (await api.defaultVaultKdf());
-                if (peek && isWeakerThanDefaults(peek, defaults)) {
-                  const proceed = await appConfirm({
-                    title: "Weaker KDF in backup",
-                    description: `This file uses ${formatVaultCryptoInfo(peek)}. Current Clavis defaults are stronger (${formatVaultCryptoInfo(defaults)}). Import anyway? You can upgrade the live vault afterward.`,
-                    confirmLabel: "Import",
-                    danger: true,
-                  });
-                  if (!proceed) return;
-                }
-                await api.importVault(source, importPw);
-                setImportPw("");
-                setImportPeek(null);
-                const live = await api.vaultCryptoInfo().catch(() => null);
-                setCryptoInfo(live);
-                await onImported();
-                if (live && isWeakerThanDefaults(live, defaults)) {
-                  onError(
-                    `Imported. Vault KDF is weaker than defaults (${formatVaultCryptoInfo(live)}). Use Upgrade KDF when ready.`,
-                  );
-                }
-              } catch (e) {
-                setImportPw("");
-                onError(String(e));
-              }
-            }}
-          >
-            Import encrypted backup
-          </button>
-          {cryptoInfo && defaultKdf && isWeakerThanDefaults(cryptoInfo, defaultKdf) && (
-            <button
-              type="button"
-              className="rounded-md border border-[var(--border)] px-4 py-2"
-              onClick={async () => {
-                try {
-                  const password = await appPrompt({
-                    title: "Upgrade vault KDF",
-                    description: `Re-wrap with ${formatVaultCryptoInfo(defaultKdf)}. Enter your master password.`,
-                    inputLabel: "Master password",
-                    placeholder: "Required",
-                    confirmLabel: "Upgrade",
-                    password: true,
-                  });
-                  if (!password) return;
-                  const info = await api.upgradeVaultKdf(password);
-                  setCryptoInfo(info);
-                  onError(`KDF upgraded: ${formatVaultCryptoInfo(info)}`);
-                } catch (e) {
-                  onError(String(e));
-                }
-              }}
-            >
-              Upgrade KDF to defaults
-            </button>
-          )}
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              try {
-                const source = await api.pickOpenPath("credentials");
-                if (!source) return;
-                const result = await importCredentialsFileSmart(source, "new");
-                if (!result) return;
-                onError(formatImportMessage(result));
-                await onImported(result);
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Import → new workspace
-          </button>
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              try {
-                const ok = await appConfirm({
-                  title: "Replace workspace?",
-                  description: `Replace all entries in “${active?.name ?? "this workspace"}” with the imported file?`,
-                  confirmLabel: "Replace",
-                  danger: true,
-                });
-                if (!ok) return;
-                const source = await api.pickOpenPath("credentials");
-                if (!source) return;
-                const result = await api.importCredentialsFile(source, "replace");
-                onError(formatImportMessage(result));
-                await onImported(result);
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Replace current workspace
-          </button>
-          <button
-            className="rounded-md border border-[var(--border)] px-4 py-2"
-            onClick={async () => {
-              try {
-                const source = await api.pickOpenPath("csv");
-                if (!source) return;
-                const result = await importCredentialsFileSmart(source, "new");
-                if (!result) return;
-                onError(formatImportMessage(result));
-                await onImported(result);
-              } catch (e) {
-                onError(String(e));
-              }
-            }}
-          >
-            Import CSV / TSV → new
-          </button>
-        </div>
-        <FileDropZone
-          className="mt-4"
-          compact
-          mode="new"
-          onImported={async (result) => {
-            onError(formatImportMessage(result));
-            await onImported(result);
-          }}
-          onError={onError}
-        />
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          Drop files above or use Browse. Text blocks with Username / Email / Password are
-          detected automatically. Spreadsheets use the first sheet.
-        </p>
-        <input
-          type="password"
-          placeholder="Password for encrypted import"
-          className="inset-field mt-3 w-full px-3 py-2"
-          value={importPw}
-          onChange={(e) => setImportPw(e.target.value)}
-        />
-      </div>
-    </section>
-  );
-}
-
-function SnapshotsControls({
-  unlocked,
-  onError,
-  onRestored,
-}: {
-  unlocked: boolean;
-  onError: (e: string) => void;
-  onRestored: () => Promise<void>;
-}) {
-  const [list, setList] = useState<SnapshotInfo[]>([]);
-  const [busy, setBusy] = useState(false);
-
-  async function refresh() {
-    if (!unlocked) {
-      setList([]);
-      return;
-    }
+  const savePreferences = useCallback(async () => {
+    setSaveBusy(true);
     try {
-      setList(await api.listVaultSnapshots());
-    } catch {
-      setList([]);
-    }
-  }
-
-  useEffect(() => {
-    void refresh();
-  }, [unlocked]);
-
-  async function create() {
-    setBusy(true);
-    try {
-      await api.createVaultSnapshot();
-      await refresh();
+      if (settings.biometricUnlock && !bioPassword.trim() && !bioPersistedOn) {
+        throw new Error(
+          "Enter your master password to enable convenience unlock, then save again.",
+        );
+      }
+      await api.saveSettings(settings);
+      if (settings.biometricUnlock) {
+        if (bioPassword.trim()) {
+          await api.storeKeyringSecret(bioPassword);
+          setBioPassword("");
+        }
+        setBioPersistedOn(true);
+      } else {
+        await api.clearKeyringSecret().catch(() => undefined);
+        setBioPassword("");
+        setBioPersistedOn(false);
+      }
       onError("");
     } catch (e) {
-      onError(String(e).replace(/^Error:\s*/, ""));
+      onError(String(e));
     } finally {
-      setBusy(false);
+      setSaveBusy(false);
     }
-  }
+  }, [settings, bioPassword, bioPersistedOn, onError]);
 
-  async function restore(name: string) {
-    const ok = await appConfirm({
-      title: "Restore snapshot?",
-      description: `Replace the live vault with “${name}”? You will re-enter your master password. This does not restore attachment sidecars by itself.`,
-      confirmLabel: "Restore",
-      danger: true,
-    });
-    if (!ok) return;
-    const password = await appPrompt({
-      title: "Master password",
-      description: "Unlock the restored vault.",
-      confirmLabel: "Unlock",
-      password: true,
-    });
-    if (password == null || !password.trim()) return;
-    setBusy(true);
-    try {
-      await api.restoreVaultSnapshot(name, password);
-      await onRestored();
-      await refresh();
-      onError("Vault snapshot restored.");
-    } catch (e) {
-      onError(String(e).replace(/^Error:\s*/, ""));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(name: string) {
-    const ok = await appConfirm({
-      title: "Delete snapshot?",
-      description: `Permanently delete “${name}”?`,
-      confirmLabel: "Delete",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await api.deleteVaultSnapshot(name);
-      await refresh();
-    } catch (e) {
-      onError(String(e).replace(/^Error:\s*/, ""));
-    }
-  }
-
-  function formatSize(n: number) {
-    if (n < 1024) return `${n} B`;
-    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-    return `${(n / (1024 * 1024)).toFixed(1)} MiB`;
-  }
+  const sectionProps = {
+    active,
+    status,
+    settings,
+    setSettings,
+    compact,
+    dataPortable,
+    setDataPortable,
+    theme,
+    setTheme,
+    bioPassword,
+    setBioPassword,
+    bioPersistedOn,
+    cryptoInfo,
+    setCryptoInfo,
+    defaultKdf,
+    importPeek,
+    setImportPeek,
+    currentPw,
+    setCurrentPw,
+    newPw,
+    setNewPw,
+    importPw,
+    setImportPw,
+    renameValue,
+    setRenameValue,
+    workspaces,
+    activeWorkspace,
+    onError,
+    onImported,
+    onWorkspacesChanged,
+    onDataDirChanged,
+  };
 
   return (
-    <div className="mt-3 space-y-2">
-      <button
-        type="button"
-        className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--accent-wash)] disabled:opacity-50"
-        disabled={!unlocked || busy}
-        onClick={() => void create()}
-      >
-        {busy ? "Working…" : "Create snapshot now"}
-      </button>
-      {!unlocked ? (
-        <p className="text-xs text-[var(--muted)]">Unlock to manage snapshots.</p>
-      ) : list.length === 0 ? (
-        <p className="text-xs text-[var(--muted)]">No snapshots yet.</p>
-      ) : (
-        <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
-          {list.map((s) => (
-            <li
-              key={s.name}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5"
-            >
-              <span className="min-w-0 truncate font-mono text-xs">
-                {s.name}{" "}
-                <span className="text-[var(--muted)]">· {formatSize(s.size)}</span>
-              </span>
-              <span className="flex shrink-0 gap-1">
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs"
-                  disabled={busy}
-                  onClick={() => void restore(s.name)}
-                >
-                  Restore
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-[var(--danger)]/40 px-2 py-0.5 text-xs text-[var(--danger)]"
-                  disabled={busy}
-                  onClick={() => void remove(s.name)}
-                >
-                  Delete
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <section className="panel settings-shell flex h-full min-h-0 w-full max-w-none flex-col overflow-hidden lg:flex-row">
+      <div className="shrink-0 border-b border-[var(--border)] px-4 py-3 lg:hidden">
+        <h1 className="settings-section-title">Settings</h1>
+        <input
+          type="search"
+          placeholder="Search settings…"
+          className="inset-field mt-3 h-9 w-full px-3 text-sm"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <label className="mt-2 block text-sm">
+          <span className="sr-only">Jump to section</span>
+          <select
+            className="inset-field h-9 w-full px-3"
+            value={active}
+            onChange={(e) => setActive(e.target.value as SettingsSectionId)}
+          >
+            {visibleIds.map((id) => {
+              const item = SETTINGS_NAV.find((n) => n.id === id);
+              return (
+                <option key={id} value={id}>
+                  {item?.label ?? id}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+        {SETTINGS_PERSIST_SECTIONS.has(active) && (
+          <button
+            type="button"
+            className="btn-primary mt-3 w-full disabled:cursor-not-allowed"
+            disabled={saveBusy}
+            onClick={() => void savePreferences()}
+          >
+            {saveBusy ? "Saving…" : "Save preferences"}
+          </button>
+        )}
+      </div>
+
+      <div className="settings-nav-column hidden min-h-0 shrink-0 flex-col border-[var(--border)] lg:flex lg:border-r">
+        <div className="shrink-0 border-b border-[var(--border)] px-3 py-4 xl:px-4 xl:py-5">
+          <h1 className="settings-section-title">Settings</h1>
+          <p className="mt-2 truncate font-mono text-[10px] text-[var(--muted)]" title={status.dataDir}>
+            {status.dataDir}
+          </p>
+        </div>
+        <SettingsSidebar
+          active={active}
+          onSelect={setActive}
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          compact={compact}
+          showSave={SETTINGS_PERSIST_SECTIONS.has(active)}
+          onSave={() => void savePreferences()}
+          saveBusy={saveBusy}
+        />
+      </div>
+
+      <SettingsSectionContent {...sectionProps} />
+    </section>
   );
 }

@@ -68,7 +68,7 @@ export function ForegroundSuggestions({
           <li key={c.entryId} className="flex items-center gap-1">
             <button
               type="button"
-              className="rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1 text-xs hover:bg-[var(--accent-wash)]"
+              className="rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs hover:bg-[var(--accent-wash)]"
               onClick={() => onOpenEntry(c.entryId, c.workspaceId)}
               title={c.url || c.username}
             >

@@ -7,6 +7,7 @@ import {
   type HealthFindingKind,
   type HealthReport,
 } from "@/lib/api";
+import { ModalShell } from "@/components/ui/modal-shell";
 
 const KIND_LABEL: Record<HealthFindingKind, string> = {
   empty: "Empty password",
@@ -88,13 +89,8 @@ export function PasswordHealthPanel({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        className="animate-rise flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-lg"
-        role="dialog"
-        aria-label="Password health"
-      >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+    <ModalShell open={open} onClose={onClose} label="Password health">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
           <div>
             <h3 className="font-display text-lg">Password health</h3>
             <p className="text-xs text-[var(--muted)]">
@@ -186,7 +182,7 @@ export function PasswordHealthPanel({
                     <span
                       className={
                         f.severity === "high"
-                          ? "shrink-0 text-[10px] uppercase tracking-wide text-red-600"
+                          ? "shrink-0 text-[10px] uppercase tracking-wide text-[var(--danger)]"
                           : "shrink-0 text-[10px] uppercase tracking-wide text-amber-600"
                       }
                     >
@@ -198,7 +194,6 @@ export function PasswordHealthPanel({
             </ul>
           )}
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }

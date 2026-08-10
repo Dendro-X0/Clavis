@@ -6,6 +6,7 @@ import type { EntryLayout } from "@/components/shell/dashboard-header";
 import { EntryIcon } from "@/components/vault/entry-icon";
 import { SwipeableRow } from "@/components/vault/swipeable-row";
 import { VaultEmptyState } from "@/components/vault/vault-empty-state";
+import { ModalShell } from "@/components/ui/modal-shell";
 import { useCompactSurface } from "@/lib/use-compact-surface";
 import { cn } from "@/lib/utils";
 
@@ -64,8 +65,7 @@ function CopyButtons({
         title="Copy username now, then password (and TOTP if set)"
         aria-label="Copy login (username then password)"
         className={cn(
-          "rounded-md border border-[var(--border)] bg-[var(--primary)]/10 px-2 py-1 text-xs font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/20",
-          "min-h-9 touch-target px-3",
+          "btn-ghost-sm min-h-9 touch-target border-transparent bg-[var(--primary)]/10 px-3 font-medium text-[var(--foreground)] hover:bg-[var(--primary)]/20",
           copyFlash === `${id}:login` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -80,7 +80,7 @@ function CopyButtons({
         title="Copy all fields as a labeled block"
         aria-label="Copy all fields"
         className={cn(
-          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
+          "btn-ghost-sm min-h-9 touch-target px-3",
           copyFlash === `${id}:all` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -95,7 +95,7 @@ function CopyButtons({
         title="Copy username"
         aria-label="Copy username"
         className={cn(
-          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
+          "btn-ghost-sm min-h-9 touch-target px-3",
           copyFlash === `${id}:user` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -110,7 +110,7 @@ function CopyButtons({
         title="Copy password"
         aria-label="Copy password"
         className={cn(
-          "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
+          "btn-ghost-sm min-h-9 touch-target px-3",
           copyFlash === `${id}:pass` && "animate-copy border-[var(--primary)]",
         )}
         onClick={(e) => {
@@ -126,7 +126,7 @@ function CopyButtons({
           title="Copy current TOTP code"
           aria-label="Copy TOTP code"
           className={cn(
-            "min-h-9 touch-target rounded-md border border-[var(--border)] px-3 py-1 text-xs hover:bg-[var(--inset)]",
+            "btn-ghost-sm min-h-9 touch-target px-3",
             copyFlash === `${id}:otp` && "animate-copy border-[var(--primary)]",
           )}
           onClick={(e) => {
@@ -168,16 +168,13 @@ function CompactCopyMenu({
     actions.push(["otp", "Copy TOTP code", onCopyOtp]);
   }
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-end justify-center bg-[rgba(15,28,28,0.45)] p-4 sm:items-center"
-      role="dialog"
-      aria-label={`Copy actions for ${entry.title}`}
-      onClick={onClose}
+    <ModalShell
+      open
+      onClose={onClose}
+      label={`Copy actions for ${entry.title}`}
+      panelClassName="max-w-sm"
     >
-      <div
-        className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-lg backdrop-blur-md"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="p-4">
         <p className="font-medium text-[var(--foreground)]">{entry.title}</p>
         <p className="mt-1 text-xs text-[var(--muted)]">
           Swipe right to copy login · swipe left to open · long-press for this menu
@@ -187,7 +184,7 @@ function CompactCopyMenu({
             <button
               key={key}
               type="button"
-              className="min-h-11 rounded-md border border-[var(--border)] px-3 py-2 text-left text-sm hover:bg-[var(--inset)]"
+              className="btn-ghost min-h-11 text-left"
               onClick={() => {
                 fn(entry.id);
                 onClose();
@@ -198,14 +195,14 @@ function CompactCopyMenu({
           ))}
           <button
             type="button"
-            className="min-h-11 rounded-md px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--inset)]"
+            className="min-h-11 rounded-md px-3 py-2 text-sm text-[var(--muted)] hover:bg-[var(--surface)]"
             onClick={onClose}
           >
             Cancel
           </button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }
 
@@ -306,7 +303,7 @@ export function EntryList({
                 role="button"
                 tabIndex={0}
                 onClick={() => {
-                  if (!compact) onSelect(e.id, e.workspaceId);
+                  onSelect(e.id, e.workspaceId);
                 }}
                 onKeyDown={(ev) => {
                   if (ev.key === "Enter" || ev.key === " ") {
@@ -315,7 +312,7 @@ export function EntryList({
                   }
                 }}
                 className={cn(
-                  "flex h-full w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition",
+                  "entry-card-virtual flex h-full w-full cursor-pointer flex-col gap-2 rounded-lg border p-4 text-left transition",
                   selectedId === e.id
                     ? "border-[var(--primary)]/45 bg-[var(--accent-wash)]"
                     : "border-[var(--border)] bg-[var(--card)]/50 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
@@ -388,7 +385,7 @@ export function EntryList({
           const row = (
             <div
               className={cn(
-                "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
+                "entry-row-virtual flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
                 selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
               )}
             >

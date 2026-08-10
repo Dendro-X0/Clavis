@@ -79,7 +79,7 @@ export function AppSidebar({
     <aside
       className={cn(
         "flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--sidebar)] py-3 transition-[width]",
-        collapsed ? "w-[64px]" : "w-[220px]",
+        collapsed ? "w-14 sm:w-16" : "w-[min(13.75rem,28vw)] min-w-[11.5rem] max-w-[14rem]",
       )}
     >
       <p

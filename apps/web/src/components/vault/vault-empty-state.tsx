@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardPaste, FileUp, Plus, RefreshCw } from "lucide-react";
+import { ClipboardPaste, FileUp, Plus } from "lucide-react";
 import { FileDropZone } from "@/components/import/file-drop-zone";
 import { api, type ImportResult } from "@/lib/api";
 import { importCredentialsFileSmart, importCredentialsTextSmart } from "@/lib/import";
@@ -23,44 +23,91 @@ export function VaultEmptyState({
   workspaceName?: string;
 }) {
   return (
-    <div className="flex h-full min-h-[280px] flex-col gap-4 p-5">
-      <div className="text-center">
-        <h3 className="font-display text-xl text-[var(--foreground)]">
+    <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-6 p-6">
+      <div className="max-w-md text-center">
+        <h3 className="settings-section-title text-[var(--foreground)]">
           {workspaceName ? `${workspaceName} is empty` : "This workspace is empty"}
         </h3>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          Add logins manually, paste credentials, or import a file into a dedicated workspace.
+        <p className="settings-section-desc mt-2">
+          Create a login, or bring credentials in from a file or the clipboard.
         </p>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <button
-          type="button"
-          className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
-          onClick={onNewEntry}
-        >
-          <Plus className="h-5 w-5 text-[var(--primary)]" />
-          <span className="text-sm font-medium">New entry</span>
-          <span className="text-xs text-[var(--muted)]">
-            Create a login in the current workspace.
-          </span>
+      <div className="flex w-full max-w-sm flex-col gap-2">
+        <button type="button" className="btn-primary flex w-full items-center justify-center gap-2 py-2.5" onClick={onNewEntry}>
+          <Plus className="h-4 w-4" aria-hidden />
+          New entry
         </button>
-        {onNewFromClipboard && (
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
-            onClick={onNewFromClipboard}
+            className="btn-ghost flex items-center justify-center gap-2"
+            onClick={async () => {
+              try {
+                const path = await api.pickOpenPath("credentials");
+                if (!path) return;
+                const result = await importCredentialsFileSmart(path, "new");
+                if (result) await onImported(result);
+              } catch (e) {
+                onError(String(e).replace(/^Error:\s*/, ""));
+              }
+            }}
           >
-            <ClipboardPaste className="h-5 w-5 text-[var(--primary)]" />
-            <span className="text-sm font-medium">From clipboard</span>
-            <span className="text-xs text-[var(--muted)]">
-              Draft from otpauth, password, or labeled paste — no auto-save.
-            </span>
+            <FileUp className="h-4 w-4" aria-hidden />
+            Import file
           </button>
-        )}
+          {onNewFromClipboard ? (
+            <button
+              type="button"
+              className="btn-ghost flex items-center justify-center gap-2"
+              onClick={onNewFromClipboard}
+            >
+              <ClipboardPaste className="h-4 w-4" aria-hidden />
+              From clipboard
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-ghost flex items-center justify-center gap-2"
+              onClick={async () => {
+                try {
+                  let text = "";
+                  try {
+                    const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
+                    text = await readText();
+                  } catch {
+                    text = await navigator.clipboard.readText();
+                  }
+                  if (!text.trim()) {
+                    onError("Clipboard is empty. Copy a credentials note first.");
+                    return;
+                  }
+                  const result = await importCredentialsTextSmart(text, "new", "Pasted import");
+                  if (result) await onImported(result);
+                } catch (e) {
+                  onError(String(e).replace(/^Error:\s*/, ""));
+                }
+              }}
+            >
+              <ClipboardPaste className="h-4 w-4" aria-hidden />
+              Paste import
+            </button>
+          )}
+        </div>
+      </div>
+
+      <FileDropZone
+        className="w-full max-w-md"
+        compact
+        mode="new"
+        onImported={onImported}
+        onError={onError}
+      />
+
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
         <button
           type="button"
-          className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
+          className="underline-offset-2 hover:text-[var(--foreground)] hover:underline"
           onClick={async () => {
             try {
               let text = "";
@@ -81,58 +128,25 @@ export function VaultEmptyState({
             }
           }}
         >
-          <ClipboardPaste className="h-5 w-5 text-[var(--primary)]" />
-          <span className="text-sm font-medium">Paste → new workspace</span>
-          <span className="text-xs text-[var(--muted)]">
-            Creates a workspace from clipboard Email / Password blocks.
-          </span>
+          Paste → new workspace
         </button>
+        {onReplace && (
+          <button
+            type="button"
+            className="text-[var(--danger)] underline-offset-2 hover:underline"
+            onClick={() => onReplace()}
+          >
+            Replace this list…
+          </button>
+        )}
         <button
           type="button"
-          className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
-          onClick={async () => {
-            try {
-              const path = await api.pickOpenPath("credentials");
-              if (!path) return;
-              const result = await importCredentialsFileSmart(path, "new");
-              if (result) await onImported(result);
-            } catch (e) {
-              onError(String(e).replace(/^Error:\s*/, ""));
-            }
-          }}
-        >
-          <FileUp className="h-5 w-5 text-[var(--primary)]" />
-          <span className="text-sm font-medium">Import → new workspace</span>
-          <span className="text-xs text-[var(--muted)]">
-            File name becomes the workspace name.
-          </span>
-        </button>
-        <button
-          type="button"
-          className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
-          onClick={() => onReplace?.()}
-        >
-          <RefreshCw className="h-5 w-5 text-[var(--primary)]" />
-          <span className="text-sm font-medium">Replace this list</span>
-          <span className="text-xs text-[var(--muted)]">
-            Re-import a file and overwrite the current workspace entries.
-          </span>
-        </button>
-      </div>
-
-      <FileDropZone className="flex-1" mode="new" onImported={onImported} onError={onError} />
-
-      <p className="text-center text-xs text-[var(--muted)]">
-        Encrypted vault backups (.km) are under{" "}
-        <button
-          type="button"
-          className="text-[var(--primary)] underline-offset-2 hover:underline"
+          className="underline-offset-2 hover:text-[var(--foreground)] hover:underline"
           onClick={onOpenSettings}
         >
-          Settings → Import / export
+          Encrypted backup…
         </button>
-        .
-      </p>
+      </div>
     </div>
   );
 }

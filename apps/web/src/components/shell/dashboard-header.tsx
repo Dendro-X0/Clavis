@@ -50,119 +50,96 @@ export function DashboardHeader({
   const pinned = new Set(pinnedWorkspaceIds);
 
   return (
-    <div className="flex shrink-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-[10px] tracking-[0.2em] text-[var(--muted)] uppercase">Workspaces</p>
-        <span className="text-[10px] text-[var(--muted)]">
+    <div className="flex shrink-0 flex-col gap-2.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <p className="shrink-0 text-[10px] tracking-[0.16em] text-[var(--muted)] uppercase">
+          Workspaces
+        </p>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto scroll-region pb-0.5">
+          {workspaces.map((ws) => {
+            const isPinned = pinned.has(ws.id);
+            return (
+              <div
+                key={ws.id}
+                className={cn(
+                  "group flex shrink-0 items-center gap-0.5 rounded-lg border pl-1 pr-0.5 transition",
+                  ws.active
+                    ? "border-[var(--primary)]/40 bg-[var(--accent-wash)]"
+                    : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--primary)]/25",
+                )}
+              >
+                <button
+                  type="button"
+                  aria-pressed={ws.active}
+                  aria-label={`${ws.name}, ${ws.entryCount} entries${ws.active ? ", active" : ""}`}
+                  onClick={() => onSelectWorkspace(ws.id)}
+                  className="flex max-w-[10rem] items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm"
+                >
+                  <span className="truncate font-medium text-[var(--foreground)]">{ws.name}</span>
+                  <span className="tabular-nums text-[10px] text-[var(--muted)]">{ws.entryCount}</span>
+                </button>
+                <div className="flex items-center opacity-70 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                  {onTogglePinWorkspace && (
+                    <button
+                      type="button"
+                      aria-label={isPinned ? `Unpin ${ws.name}` : `Pin ${ws.name}`}
+                      aria-pressed={isPinned}
+                      className={cn(
+                        "rounded p-1 transition hover:bg-[var(--inset)]",
+                        isPinned ? "text-[var(--primary)]" : "text-[var(--muted)]",
+                      )}
+                      onClick={() => onTogglePinWorkspace(ws.id)}
+                    >
+                      <Pin className="h-3.5 w-3.5" aria-hidden />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Rename ${ws.name}`}
+                    className="rounded p-1 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                    onClick={() => onRenameWorkspace(ws.id)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={canDelete ? `Delete ${ws.name}` : "Cannot delete the last workspace"}
+                    disabled={!canDelete}
+                    className="rounded p-1 text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-35"
+                    onClick={() => onDeleteWorkspace(ws.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            aria-label="New workspace"
+            onClick={onCreateWorkspace}
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-dashed border-[var(--border)] px-2.5 py-1.5 text-xs text-[var(--muted)] transition hover:border-[var(--primary)]/40 hover:text-[var(--foreground)]"
+          >
+            <FolderPlus className="h-3.5 w-3.5" aria-hidden />
+            New
+          </button>
+        </div>
+        <span className="hidden shrink-0 text-[10px] text-[var(--muted)] sm:inline">
           {active ? `${entryCount} in ${active.name}` : `${entryCount} entries`}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {workspaces.map((ws) => {
-          const isPinned = pinned.has(ws.id);
-          return (
-          <div
-            key={ws.id}
-            role="button"
-            tabIndex={0}
-            aria-pressed={ws.active}
-            title={ws.name}
-            onClick={() => onSelectWorkspace(ws.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelectWorkspace(ws.id);
-              }
-            }}
-            className={cn(
-              "group flex min-h-[88px] cursor-pointer flex-col gap-2 rounded-lg border p-3 text-left transition",
-              ws.active
-                ? "border-[var(--primary)]/45 bg-[var(--accent-wash)] shadow-[inset_0_0_0_1px_rgba(42,143,131,0.12)]"
-                : "border-[var(--border)] bg-[var(--card)]/55 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
-            )}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-[var(--foreground)]">{ws.name}</p>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">
-                  {ws.entryCount} {ws.entryCount === 1 ? "entry" : "entries"}
-                  {ws.active ? " · active" : ""}
-                  {isPinned ? " · pinned" : ""}
-                </p>
-              </div>
-              <div className="flex shrink-0 gap-1">
-                {onTogglePinWorkspace && (
-                  <button
-                    type="button"
-                    title={isPinned ? "Unpin from sidebar" : "Pin to sidebar"}
-                    aria-pressed={isPinned}
-                    className={cn(
-                      "rounded-md border border-[var(--border)] p-1.5 transition hover:bg-[var(--inset)]",
-                      isPinned
-                        ? "text-[var(--primary)]"
-                        : "text-[var(--muted)] hover:text-[var(--foreground)]",
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTogglePinWorkspace(ws.id);
-                    }}
-                  >
-                    <Pin className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  title="Rename workspace"
-                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRenameWorkspace(ws.id);
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  title={canDelete ? "Delete workspace" : "Cannot delete the last workspace"}
-                  disabled={!canDelete}
-                  className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:border-[var(--danger)]/40 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-35"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteWorkspace(ws.id);
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-            {ws.sourceFile ? (
-              <p className="truncate text-[10px] text-[var(--muted)]" title={ws.sourceFile}>
-                From {ws.sourceFile}
-              </p>
-            ) : (
-              <p className="text-[10px] text-[var(--muted)]">Manual workspace</p>
-            )}
-          </div>
-          );
-        })}
-
-        <button
-          type="button"
-          title="New workspace"
-          onClick={onCreateWorkspace}
-          className="flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] bg-transparent px-3 py-3 text-sm text-[var(--muted)] transition hover:border-[var(--primary)]/40 hover:bg-[var(--accent-wash)]/30 hover:text-[var(--foreground)]"
-        >
-          <FolderPlus className="h-5 w-5" />
-          <span>New workspace</span>
-        </button>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
+        <label className="sr-only" htmlFor="vault-search">
+          Search all workspaces
+        </label>
         <input
           className="inset-field min-w-[180px] flex-1 px-3 py-2"
           id="vault-search"
-          placeholder="Search all workspaces… (/)"
+          name="vault-search"
+          type="search"
+          placeholder="Search all workspaces…"
+          aria-label="Search all workspaces"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />
@@ -173,7 +150,7 @@ export function DashboardHeader({
         >
           <button
             type="button"
-            title="List layout"
+            aria-label="List layout"
             aria-pressed={layout === "list"}
             onClick={() => onLayoutChange("list")}
             className={cn(
@@ -183,11 +160,11 @@ export function DashboardHeader({
                 : "text-[var(--muted)] hover:text-[var(--foreground)]",
             )}
           >
-            <LayoutList className="h-4 w-4" />
+            <LayoutList className="h-4 w-4" aria-hidden />
           </button>
           <button
             type="button"
-            title="Grid layout"
+            aria-label="Grid layout"
             aria-pressed={layout === "grid"}
             onClick={() => onLayoutChange("grid")}
             className={cn(
@@ -197,32 +174,19 @@ export function DashboardHeader({
                 : "text-[var(--muted)] hover:text-[var(--foreground)]",
             )}
           >
-            <LayoutGrid className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <button
-          type="button"
-          className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--inset)]"
-          onClick={onReplace}
-        >
-          Replace
-        </button>
         {onNewFromClipboard && (
-          <button
-            type="button"
-            className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--inset)]"
-            onClick={onNewFromClipboard}
-            title="Draft a new entry from clipboard contents"
-          >
+          <button type="button" className="btn-ghost" onClick={onNewFromClipboard}>
             From clipboard
           </button>
         )}
-        <button
-          type="button"
-          className="rounded-md bg-[var(--primary)] px-4 py-2 font-medium text-[var(--primary-fg)] hover:opacity-90"
-          onClick={onNewEntry}
-        >
+        <button type="button" className="btn-primary" onClick={onNewEntry}>
           New entry
+        </button>
+        <button type="button" className="btn-danger" onClick={onReplace}>
+          Replace…
         </button>
       </div>
 

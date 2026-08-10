@@ -39,7 +39,7 @@ export function DialogContent({
       <DialogPrimitive.Content
         className={cn(
           "fixed top-1/2 left-1/2 z-50 w-[min(100%-2rem,420px)] -translate-x-1/2 -translate-y-1/2",
-          "rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-lg backdrop-blur-md",
+          "rounded-xl border border-[var(--border)] bg-[var(--modal)] p-5 shadow-lg",
           "focus:outline-none",
           className,
         )}

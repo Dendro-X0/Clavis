@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ModalShell } from "@/components/ui/modal-shell";
 
 const PRESET_DEFAULTS: Record<GeneratorPreset, Partial<GenerateOptions>> = {
   strong: { length: 20, uppercase: true, lowercase: true, digits: true, symbols: true },
@@ -98,12 +99,16 @@ export function PasswordGeneratorPanel({
   const lengthMax = preset === "passphrase" ? 12 : preset === "pin" ? 12 : 128;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        className="animate-rise w-full max-w-md rounded-lg border border-[var(--border)] bg-[var(--panel)] p-4 shadow-lg"
-        role="dialog"
-        aria-label="Password generator"
-      >
+    <ModalShell
+      open={open}
+      onClose={() => {
+        setPreview("");
+        onClose();
+      }}
+      label="Password generator"
+      panelClassName="max-w-md"
+    >
+      <div className="p-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-display text-lg">Password generator</h3>
           <button
@@ -180,14 +185,14 @@ export function PasswordGeneratorPanel({
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--inset)]"
+            className="btn-ghost"
             onClick={() => regenerate().catch((e) => onError(String(e)))}
           >
             Regenerate
           </button>
           <button
             type="button"
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm text-[var(--accent-fg,white)]"
+            className="btn-primary"
             disabled={!preview}
             onClick={() => {
               if (!preview) return;
@@ -223,6 +228,6 @@ export function PasswordGeneratorPanel({
           </div>
         )}
       </div>
-    </div>
+    </ModalShell>
   );
 }

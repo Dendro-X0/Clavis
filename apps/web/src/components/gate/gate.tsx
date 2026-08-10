@@ -148,7 +148,7 @@ export function Gate({
         <button
           type="button"
           disabled={bioBusy}
-          className="mt-6 w-full rounded-md bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-fg)] hover:opacity-90 disabled:opacity-60"
+          className="btn-primary mt-6 w-full py-2.5 disabled:opacity-60"
           onClick={() => void unlockWithBiometrics()}
         >
           {bioBusy ? "Waiting for biometrics…" : "Unlock with biometrics"}
@@ -183,9 +183,7 @@ export function Gate({
       <button
         type="button"
         className={
-          showBio
-            ? "mt-3 w-full rounded-md border border-[var(--border)] bg-[var(--inset)] py-2.5 font-medium text-[var(--foreground)] hover:bg-[var(--accent-wash)]"
-            : "mt-6 w-full rounded-md bg-[var(--primary)] py-2.5 font-medium text-[var(--primary-fg)] hover:opacity-90"
+          showBio ? "btn-ghost mt-3 w-full py-2.5 font-medium" : "btn-primary mt-6 w-full py-2.5"
         }
         onClick={async () => {
           try {

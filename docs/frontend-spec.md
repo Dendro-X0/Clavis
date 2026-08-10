@@ -69,7 +69,7 @@ Workspaces are **not** in the sidebar.
    - List or grid of entries (active workspace, or global search results)
    - **Pagination**: page size 10 / 25 / 50 / 100 (user-selectable); footer with prev/next and range
    - Editor panel when creating/editing
-4. Settings replaces main when nav=settings
+4. Settings replaces main when nav=settings — **two-pane layout**: categorized sidebar (search + section nav with hairline category dividers) + section content; compact uses section dropdown. Nav width is fluid (`clamp`); content column scales up to ~52rem on ultra-wide. Minimal field rows with hairline dividers; nav uses left accent bar (matches main sidebar).
 5. **Command palette** (`Ctrl/Cmd+K`): search entries globally + actions (New, Settings, Lock, Focus search, Toggle layout). `/` focuses toolbar search. `Ctrl/Cmd+,` opens Settings. Esc closes palette then editor.
 6. **v0.3.0 palette**: switch workspace rows; per-entry Copy login / User / Pass actions.
 7. **Sidebar workspace pins**: pinned IDs under Vault; pin/unpin from workspace cards; active workspace always listed if not pinned.
@@ -86,10 +86,22 @@ Workspaces are **not** in the sidebar.
 18. **Password health (v0.11)**: Local report (reuse / short / weak / common denylist); trash excluded. Optional HIBP k-anonymity behind `allowNetwork` + `checkBreaches` (one-shot from Health panel).
 19. **Desktop fill (v0.12)**: Opt-in Windows autotype (confirm shows foreground title; SendInput). Optional title-based suggestions. Defaults off.
 20. **Vault richness (v0.13)**: Settings snapshots (create / restore / retain); entry notes plain|markdown + preview; encrypted attachments (≤256 KiB, 5/entry) with purge-aligned sidecars. Encrypted export is still `vault.km` only.
+21. **UX remediation (post-0.13)**: Calm unlocked home (compact workspace strip); simplified empty state (1 primary + secondary actions); hardened `ModalShell` (focus trap); success toast vs error banner with `aria-live`; a11y labels + `prefers-reduced-motion`; shared `btn-*` kit; list/grid `content-visibility` for large vaults.
 
 ### Dialogs
 
-All destructive or naming prompts use custom Radix dialogs via an app-level host (`appConfirm` / `appPrompt`). No native browser pop-ups. Command palette uses the same Dialog primitive.
+All destructive or naming prompts use custom Radix dialogs via an app-level host (`appConfirm` / `appPrompt`). No native browser pop-ups. Command palette uses the same Dialog primitive. Feature modals (health / generator / trash) use `ModalShell` with focus trap, Escape, and backdrop dismiss.
+
+### UX remediation — unlocked home
+
+| Surface | Target |
+|---------|--------|
+| Workspaces | Horizontal chip strip (active + count); pin/rename/delete as compact icon actions — not tall cards |
+| Empty workspace | One primary **New entry**; secondary **Import** / **From clipboard**; tertiary text links for paste→workspace and Replace |
+| Feedback | Errors → banner `role="alert"`; successes → brief status toast (`aria-live="polite"`) |
+| Search | Visible label or `aria-label` on `#vault-search` |
+| Controls | Shared CSS kit: `btn-primary` / `btn-ghost` / `btn-danger` (+ `-sm` / `btn-icon`) |
+| Large lists | `entry-row-virtual` / `entry-card-virtual` (`content-visibility: auto`) — no virtualizer dep yet |
 
 ### Entries: name & categorize
 

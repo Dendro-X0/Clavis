@@ -10,6 +10,7 @@ import {
   type PaletteAutotypeMode,
 } from "@/components/shell/command-palette";
 import { ClipboardClearToast } from "@/components/shell/clipboard-clear-toast";
+import { StatusBanners, isSuccessTone } from "@/components/shell/status-banners";
 import { AppSidebar, type NavId } from "@/components/shell/sidebar";
 import { SettingsPanel } from "@/components/shell/settings-panel";
 import { Titlebar } from "@/components/titlebar/titlebar";
@@ -35,6 +36,8 @@ import {
   type UpsertEntryInput,
   type WorkspaceSummary,
   normalizeEntry,
+  normalizeEntryLayout,
+  normalizeTheme,
 } from "@/lib/api";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/lib/clipboard";
@@ -50,7 +53,7 @@ function formatImportMessage(result: ImportResult) {
 }
 
 function normalizeLayout(value: string | undefined): "list" | "grid" {
-  return value === "grid" ? "grid" : "list";
+  return normalizeEntryLayout(value);
 }
 
 export default function HomePage() {
@@ -58,7 +61,8 @@ export default function HomePage() {
   const compact = useCompactSurface();
   const [boot, setBoot] = useState(true);
   const [status, setStatus] = useState<StatusDto | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setErrorRaw] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [entries, setEntries] = useState<EntrySummary[]>([]);
   const [allEntries, setAllEntries] = useState<EntrySummary[]>([]);
   const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
@@ -98,6 +102,22 @@ export default function HomePage() {
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setError = useCallback((msg: string | null) => {
+    if (msg == null || msg === "") {
+      setErrorRaw(null);
+      return;
+    }
+    if (isSuccessTone(msg)) {
+      setErrorRaw(null);
+      setNotice(msg);
+      return;
+    }
+    setNotice(null);
+    setErrorRaw(msg);
+  }, []);
+
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   const refreshVault = useCallback(async () => {
     const [list, all, ws, trash] = await Promise.all([
@@ -243,7 +263,8 @@ export default function HomePage() {
       .then((s) => {
         setSettings({
           ...s,
-          entryLayout: normalizeLayout(s.entryLayout),
+          theme: normalizeTheme(s.theme),
+          entryLayout: normalizeEntryLayout(s.entryLayout),
           pageSize: normalizePageSize(s.pageSize),
           pinnedWorkspaceIds: s.pinnedWorkspaceIds ?? [],
           fetchFavicons: Boolean(s.fetchFavicons),
@@ -256,7 +277,7 @@ export default function HomePage() {
           suggestFromForeground: Boolean(s.suggestFromForeground),
           autotypeKeyDelayMs: s.autotypeKeyDelayMs ?? 25,
         });
-        if (s.theme) setTheme(s.theme);
+        if (s.theme) setTheme(normalizeTheme(s.theme));
       })
       .catch(() => undefined);
   }, [status?.state, setTheme]);
@@ -810,28 +831,18 @@ export default function HomePage() {
         <main
           className={
             compact
-              ? "flex min-w-0 flex-1 flex-col overflow-hidden p-3"
-              : "flex min-w-0 flex-1 flex-col overflow-hidden p-4 md:p-5"
+              ? "flex min-w-0 flex-1 flex-col overflow-hidden p-2.5 sm:p-3"
+              : "flex min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-5"
           }
         >
-          {error && (
-            <div
-              className={
-                error.startsWith("Imported") ||
-                error.startsWith("Replaced") ||
-                error.startsWith("Username copied") ||
-                error.startsWith("Password copied") ||
-                error.startsWith("Merged") ||
-                error.startsWith("No duplicate") ||
-                error.startsWith("Data directory") ||
-                error.startsWith("Vault snapshot")
-                  ? "mb-3 shrink-0 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm"
-                  : "mb-3 shrink-0 rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm"
-              }
-            >
-              {error}
-            </div>
-          )}
+          {error || notice ? (
+            <StatusBanners
+              error={error}
+              notice={notice}
+              onDismissError={() => setErrorRaw(null)}
+              onDismissNotice={dismissNotice}
+            />
+          ) : null}
 
           {boot && (
             <div className="grid flex-1 place-items-center text-[var(--muted)]">

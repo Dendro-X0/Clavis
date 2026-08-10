@@ -1,5 +1,14 @@
 import { isTauri, invoke } from "./tauri";
 
+export function normalizeTheme(value: string | undefined): AppSettings["theme"] {
+  if (value === "light" || value === "dark" || value === "system") return value;
+  return "system";
+}
+
+export function normalizeEntryLayout(value: string | undefined): AppSettings["entryLayout"] {
+  return value === "grid" ? "grid" : "list";
+}
+
 export type VaultState = "missing" | "locked" | "unlocked";
 
 export type StatusDto = {

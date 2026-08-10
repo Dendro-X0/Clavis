@@ -79,7 +79,7 @@ export function EntryEditor({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+            className="btn-ghost-sm"
             title="Paste labeled credentials into matching fields (skips missing labels)"
             onClick={() => pasteAlignedFields().catch((e) => onError(String(e)))}
           >
@@ -146,7 +146,7 @@ export function EntryEditor({
             />
             <button
               type="button"
-              className="shrink-0 rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--accent-wash)]"
+              className="btn-ghost shrink-0"
               onClick={() => onGenerate().catch((e) => onError(String(e)))}
             >
               Generate…
@@ -186,7 +186,7 @@ export function EntryEditor({
             {(form.notesFormat ?? "plain") === "markdown" && (
               <button
                 type="button"
-                className="rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                className="btn-ghost-sm"
                 onClick={() => setShowMdPreview((v) => !v)}
               >
                 {showMdPreview ? "Edit" : "Preview"}
@@ -266,7 +266,7 @@ export function EntryEditor({
                 <button
                   key={preset}
                   type="button"
-                  className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                  className="btn-ghost-sm"
                   onClick={() =>
                     setForm((f) => ({
                       ...f,
@@ -279,7 +279,7 @@ export function EntryEditor({
               ))}
               <button
                 type="button"
-                className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                className="btn-ghost-sm"
                 onClick={() =>
                   setForm((f) => ({
                     ...f,
@@ -339,7 +339,7 @@ export function EntryEditor({
                       />
                       <button
                         type="button"
-                        className="shrink-0 rounded-md border border-[var(--border)] px-2 text-sm text-[var(--muted)] hover:border-[var(--danger)]/50 hover:text-[var(--danger)]"
+                        className="btn-ghost-sm shrink-0 hover:border-[var(--danger)]/50 hover:text-[var(--danger)]"
                         title="Remove field"
                         aria-label="Remove field"
                         onClick={() =>
@@ -361,22 +361,21 @@ export function EntryEditor({
       </div>
       <div className="flex flex-wrap gap-2 border-t border-[var(--border)] px-4 py-3 shrink-0">
         <button
-          className="rounded-md bg-[var(--primary)] px-4 py-2 font-medium text-[var(--primary-fg)]"
+          type="button"
+          className="btn-primary"
           onClick={() =>
             onSave().catch((e) => onError(String(e).replace(/^Error:\s*/, "")))
           }
         >
           Save
         </button>
-        <button
-          className="rounded-md border border-[var(--border)] px-4 py-2"
-          onClick={onClose}
-        >
+        <button type="button" className="btn-ghost" onClick={onClose}>
           Cancel
         </button>
         {onDelete && (
           <button
-            className="ml-auto rounded-md border border-[var(--danger)]/50 px-4 py-2 text-[var(--danger)]"
+            type="button"
+            className="btn-danger ml-auto"
             onClick={() =>
               onDelete().catch((e) => onError(String(e).replace(/^Error:\s*/, "")))
             }
@@ -481,7 +480,7 @@ function AttachmentsSection({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium">Attachments</h3>
         <label
-          className={`cursor-pointer rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)] ${
+          className={`btn-ghost-sm cursor-pointer ${
             busy || !entryId ? "pointer-events-none opacity-50" : ""
           }`}
         >
@@ -519,14 +518,14 @@ function AttachmentsSection({
               <span className="flex shrink-0 gap-1">
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--inset)]"
+                  className="btn-ghost-sm"
                   onClick={() => void download(att)}
                 >
                   Download
                 </button>
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--danger)]/40 px-2 py-0.5 text-xs text-[var(--danger)]"
+                  className="btn-danger-sm"
                   onClick={() => void remove(att)}
                 >
                   Remove
@@ -624,7 +623,7 @@ function HoldToRevealPassword({
       />
       <button
         type="button"
-        className="shrink-0 rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--accent-wash)]"
+        className="btn-ghost shrink-0"
         title="Hold to reveal"
         onMouseDown={() => setRevealed(true)}
         onMouseUp={() => setRevealed(false)}

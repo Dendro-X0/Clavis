@@ -14,7 +14,6 @@ import {
   type ConfirmOptions,
   type PromptOptions,
 } from "@/lib/app-dialogs";
-import { cn } from "@/lib/utils";
 
 type ConfirmState = ConfirmOptions & {
   resolve: (value: boolean) => void;
@@ -91,19 +90,14 @@ export function DialogProvider({ children }: { children: ReactNode }) {
               <DialogFooter>
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--inset)]"
+                  className="btn-ghost"
                   onClick={() => closeConfirm(false)}
                 >
                   {confirmState.cancelLabel ?? "Cancel"}
                 </button>
                 <button
                   type="button"
-                  className={cn(
-                    "rounded-md px-4 py-2 text-sm font-medium",
-                    confirmState.danger
-                      ? "border border-[var(--danger)]/50 text-[var(--danger)] hover:bg-[var(--danger)]/10"
-                      : "bg-[var(--primary)] text-[var(--primary-fg)] hover:opacity-90",
-                  )}
+                  className={confirmState.danger ? "btn-danger" : "btn-primary"}
                   onClick={() => closeConfirm(true)}
                 >
                   {confirmState.confirmLabel ?? "Confirm"}
@@ -152,15 +146,12 @@ export function DialogProvider({ children }: { children: ReactNode }) {
               <DialogFooter>
                 <button
                   type="button"
-                  className="rounded-md border border-[var(--border)] px-4 py-2 text-sm hover:bg-[var(--inset)]"
+                  className="btn-ghost"
                   onClick={() => closePrompt(null)}
                 >
                   {promptState.cancelLabel ?? "Cancel"}
                 </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-medium text-[var(--primary-fg)] hover:opacity-90"
-                >
+                <button type="submit" className="btn-primary">
                   {promptState.confirmLabel ?? "Save"}
                 </button>
               </DialogFooter>

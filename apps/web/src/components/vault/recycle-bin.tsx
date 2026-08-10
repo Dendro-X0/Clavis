@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type EntrySummary } from "@/lib/api";
 import { appConfirm } from "@/lib/app-dialogs";
+import { ModalShell } from "@/components/ui/modal-shell";
 
 export function RecycleBinPanel({
   open,
@@ -33,13 +34,8 @@ export function RecycleBinPanel({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div
-        className="animate-rise flex max-h-[85vh] w-full max-w-lg flex-col rounded-lg border border-[var(--border)] bg-[var(--panel)] shadow-lg"
-        role="dialog"
-        aria-label="Recycle bin"
-      >
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
+    <ModalShell open={open} onClose={onClose} label="Recycle bin">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
           <div>
             <h3 className="font-display text-lg">Recycle bin</h3>
             <p className="text-xs text-[var(--muted)]">
@@ -80,7 +76,7 @@ export function RecycleBinPanel({
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
-                      className="rounded border border-[var(--border)] px-2 py-1 text-xs hover:bg-[var(--inset)]"
+                      className="btn-ghost-sm"
                       disabled={busy}
                       onClick={async () => {
                         setBusy(true);
@@ -99,7 +95,7 @@ export function RecycleBinPanel({
                     </button>
                     <button
                       type="button"
-                      className="rounded border border-[var(--border)] px-2 py-1 text-xs text-red-600 hover:bg-[var(--inset)]"
+                      className="btn-danger-sm"
                       disabled={busy}
                       onClick={async () => {
                         const ok = await appConfirm({
@@ -133,7 +129,7 @@ export function RecycleBinPanel({
           <div className="shrink-0 border-t border-[var(--border)] px-4 py-3">
             <button
               type="button"
-              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm text-red-600 hover:bg-[var(--inset)]"
+              className="btn-danger"
               disabled={busy}
               onClick={async () => {
                 const ok = await appConfirm({
@@ -158,7 +154,6 @@ export function RecycleBinPanel({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </ModalShell>
   );
 }

@@ -16,7 +16,7 @@ export function SelectTrigger({
   return (
     <SelectPrimitive.Trigger
       className={cn(
-        "inset-field flex h-10 w-full items-center justify-between gap-2 px-3 py-2 text-sm outline-none",
+        "inset-field flex h-9 w-full items-center justify-between gap-2 px-3 text-sm outline-none",
         "data-[placeholder]:text-[var(--muted)]",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
@@ -42,7 +42,7 @@ export function SelectContent({
       <SelectPrimitive.Content
         className={cn(
           "z-[100] max-h-64 min-w-[8rem] overflow-hidden rounded-lg border border-[var(--border)]",
-          "bg-[var(--inset)] text-[var(--foreground)] shadow-lg backdrop-blur-md",
+          "bg-[var(--modal)] text-[var(--foreground)] shadow-lg",
           "data-[state=open]:animate-rise",
           position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
           className,
