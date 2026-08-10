@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 use vault_core::VaultSession;
+use zeroize::Zeroize;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +26,9 @@ pub struct AppSettings {
     /// Lock when the app document becomes hidden (tab switch / minimize / background).
     #[serde(default = "default_lock_on_hide")]
     pub lock_on_hide: bool,
+    /// Soft-deleted entries older than this many days are purged on unlock.
+    #[serde(default = "default_trash_retain_days")]
+    pub trash_retain_days: u64,
     /// SHA-256 hex of encrypted `vault.km` after last trusted unlock/persist (integrity signal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_vault_sha256: Option<String>,
@@ -46,6 +50,10 @@ fn default_lock_on_hide() -> bool {
     true
 }
 
+fn default_trash_retain_days() -> u64 {
+    30
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -59,14 +67,19 @@ impl Default for AppSettings {
             fetch_favicons: false,
             allow_network: false,
             lock_on_hide: default_lock_on_hide(),
+            trash_retain_days: default_trash_retain_days(),
             last_vault_sha256: None,
         }
     }
 }
 
+/// Session-only ring of generated passwords (not persisted).
+const GENERATOR_HISTORY_CAP: usize = 5;
+
 pub struct AppState {
     pub session: Mutex<Option<VaultSession>>,
     pub settings: Mutex<AppSettings>,
+    pub generator_history: Mutex<Vec<String>>,
 }
 
 impl Default for AppState {
@@ -74,6 +87,28 @@ impl Default for AppState {
         Self {
             session: Mutex::new(None),
             settings: Mutex::new(AppSettings::default()),
+            generator_history: Mutex::new(Vec::new()),
+        }
+    }
+}
+
+impl AppState {
+    pub fn clear_generator_history(&self) {
+        if let Ok(mut hist) = self.generator_history.lock() {
+            for s in hist.iter_mut() {
+                s.zeroize();
+            }
+            hist.clear();
+        }
+    }
+
+    pub fn push_generator_history(&self, password: &str) {
+        if let Ok(mut hist) = self.generator_history.lock() {
+            hist.push(password.to_string());
+            while hist.len() > GENERATOR_HISTORY_CAP {
+                let mut old = hist.remove(0);
+                old.zeroize();
+            }
         }
     }
 }

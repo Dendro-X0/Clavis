@@ -33,6 +33,8 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Network exfil / host intent leak | Offline-first: `allowNetwork` default off; favicon fetch gated | Done (v0.7.0) |
 | Non-portable data path on USB | Warn + one-click Make portable into `{exe}/data/` | Done (v0.7.0) |
 | TOTP seed exposure | Same lock/scrub as passwords; list shows `hasOtp` only; codes via IPC while unlocked | Done (v0.8.0) |
+| Generator plaintext in UI | Session-only history (≤5); wipe on lock/apply/dismiss; never persisted in `vault.km` | Done (v0.10) |
+| Soft-delete still decryptable | Trash is not secure erase until purge; document retain window; lifecycle owned by `vault-core` only | Done (v0.10) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 

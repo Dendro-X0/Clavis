@@ -23,6 +23,7 @@ export type EntrySummary = {
   customFields?: CustomField[];
   hasOtp?: boolean;
   updatedAt: string;
+  deletedAt?: string | null;
   workspaceId?: string;
   workspaceName?: string;
 };
@@ -45,6 +46,8 @@ export type Entry = {
   tags: string[];
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string | null;
+  deletedAt?: string | null;
 };
 
 export type AppSettings = {
@@ -60,8 +63,34 @@ export type AppSettings = {
   allowNetwork?: boolean;
   /** Lock when the window/tab is hidden. Default true. */
   lockOnHide?: boolean;
+  /** Soft-delete retain window (days). Default 30. */
+  trashRetainDays?: number;
   /** Encrypted vault fingerprint (integrity signal). */
   lastVaultSha256?: string | null;
+};
+
+export type GeneratorPreset = "strong" | "passphrase" | "pin";
+
+export type GenerateOptions = {
+  preset: GeneratorPreset;
+  length: number;
+  uppercase?: boolean;
+  lowercase?: boolean;
+  digits?: boolean;
+  symbols?: boolean;
+  avoidAmbiguous?: boolean;
+};
+
+export type QuickAddDraft = {
+  title: string;
+  username: string;
+  password: string;
+  url: string;
+  notes: string;
+  otpSecret: string;
+  tags: string[];
+  entryType: EntryType;
+  hint?: string | null;
 };
 
 export type VaultCryptoInfo = {
@@ -152,6 +181,7 @@ export const api = {
   lock: () => call<void>("lock"),
   listEntries: () => call<EntrySummary[]>("list_entries"),
   listAllEntries: () => call<EntrySummary[]>("list_all_entries"),
+  listDeletedEntries: () => call<EntrySummary[]>("list_deleted_entries"),
   listWorkspaces: () => call<WorkspaceSummary[]>("list_workspaces"),
   setActiveWorkspace: (id: string) => call<WorkspaceSummary[]>("set_active_workspace", { id }),
   createWorkspace: (name: string) => call<WorkspaceSummary>("create_workspace", { name }),
@@ -178,6 +208,10 @@ export const api = {
       },
     }),
   deleteEntry: (id: string) => call<void>("delete_entry", { id }),
+  restoreEntry: (id: string) => call<Entry>("restore_entry", { id }),
+  purgeEntry: (id: string) => call<void>("purge_entry", { id }),
+  emptyTrash: () => call<number>("empty_trash"),
+  trashCount: () => call<number>("trash_count"),
   exportVault: (dest: string) => call<void>("export_vault", { dest }),
   importVault: (source: string, password: string) =>
     call<StatusDto>("import_vault", { source, password }),
@@ -203,7 +237,15 @@ export const api = {
   upgradeVaultKdf: (password: string) => call<VaultCryptoInfo>("upgrade_vault_kdf", { password }),
   getSettings: () => call<AppSettings>("get_settings"),
   saveSettings: (settings: AppSettings) => call<void>("save_settings", { settings }),
-  generatePassword: (length = 20) => call<string>("generate_password", { length }),
+  generatePassword: (optionsOrLength: GenerateOptions | number = 20) => {
+    if (typeof optionsOrLength === "number") {
+      return call<string>("generate_password", { length: optionsOrLength, options: null });
+    }
+    return call<string>("generate_password", { options: optionsOrLength, length: null });
+  },
+  generatorHistory: () => call<string[]>("generator_history"),
+  clearGeneratorHistory: () => call<void>("clear_generator_history"),
+  clipboardQuickAdd: (text: string) => call<QuickAddDraft | null>("clipboard_quick_add", { text }),
   readTextFile: (path: string) => call<string>("read_text_file", { path }),
   readEntryIcon: (host: string) => call<string | null>("read_entry_icon", { host }),
   fetchEntryIcon: (host: string) => call<string | null>("fetch_entry_icon", { host }),

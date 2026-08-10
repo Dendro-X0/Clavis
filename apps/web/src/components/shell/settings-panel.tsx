@@ -280,6 +280,26 @@ export function SettingsPanel({
             New installs default to 15 seconds.
           </span>
         </label>
+        <label className="mt-4 block text-sm">
+          Recycle bin retain (days)
+          <input
+            type="number"
+            min={1}
+            max={365}
+            className="inset-field mt-1 w-full px-3 py-2"
+            value={settings.trashRetainDays ?? 30}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                trashRetainDays: Math.max(1, Number(e.target.value) || 30),
+              })
+            }
+          />
+          <span className="mt-1 block text-xs text-[var(--muted)]">
+            Soft-deleted entries older than this are purged on unlock. Empty the bin anytime from
+            the recycle bin panel.
+          </span>
+        </label>
         <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
           <p className="text-sm font-medium text-[var(--foreground)]">Network (offline-first)</p>
           <p className="mt-1 text-xs text-[var(--muted)]">

@@ -1,6 +1,6 @@
 # Design — Post-0.9.0 friction & vault hygiene (umbrella)
 
-**Status:** roadmap umbrella (bands planned; implement per-version design)  
+**Status:** roadmap umbrella (v0.10 done; v0.11–v0.13 planned)  
 **Bands:** v0.10 → v0.11 → v0.12 → v0.13  
 **Stance:** local-first; no Clavis cloud; `allowNetwork` stays default **off**
 

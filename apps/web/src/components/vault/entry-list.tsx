@@ -222,6 +222,7 @@ export function EntryList({
   onCopyPass,
   onCopyOtp,
   onNewEntry,
+  onNewFromClipboard,
   onImported,
   onError,
   onOpenSettings,
@@ -242,6 +243,7 @@ export function EntryList({
   onCopyPass: (id: string) => void;
   onCopyOtp?: (id: string) => void;
   onNewEntry: () => void;
+  onNewFromClipboard?: () => void;
   onImported: (result: ImportResult) => void | Promise<void>;
   onError: (message: string) => void;
   onOpenSettings: () => void;
@@ -263,6 +265,7 @@ export function EntryList({
     return (
       <VaultEmptyState
         onNewEntry={onNewEntry}
+        onNewFromClipboard={onNewFromClipboard}
         onImported={onImported}
         onError={onError}
         onOpenSettings={onOpenSettings}

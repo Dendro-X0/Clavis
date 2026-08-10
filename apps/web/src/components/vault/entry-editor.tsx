@@ -144,7 +144,7 @@ export function EntryEditor({
               className="shrink-0 rounded-md border border-[var(--border)] px-3 text-sm hover:bg-[var(--accent-wash)]"
               onClick={() => onGenerate().catch((e) => onError(String(e)))}
             >
-              Generate
+              Generate…
             </button>
           </div>
           <span className="mt-1 block text-xs text-[var(--muted)]">
@@ -334,7 +334,7 @@ export function EntryEditor({
               onDelete().catch((e) => onError(String(e).replace(/^Error:\s*/, "")))
             }
           >
-            Delete
+            Move to bin
           </button>
         )}
       </div>

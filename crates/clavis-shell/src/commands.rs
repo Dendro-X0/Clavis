@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 use vault_core::{
-    Entry, EntryType, TotpCode, VaultCryptoInfo, create_vault as core_create, export_encrypted,
+    Entry, EntryType, GenerateOptions, QuickAddDraft, TotpCode, VaultCryptoInfo,
+    create_vault as core_create, export_encrypted, generate_password as core_generate_password,
     generate_totp_now, import_credentials_auto, import_credentials_from_path, import_csv_logins,
-    import_encrypted, normalize_otp_secret, open_vault_file, peek_kdf_from_path, vault_exists,
+    import_encrypted, normalize_otp_secret, open_vault_file, parse_clipboard_for_quick_add,
+    peek_kdf_from_path, vault_exists,
 };
 
 use crate::paths::{
@@ -42,6 +44,8 @@ pub struct EntrySummary {
     /// True when entry has a TOTP seed (secret never listed).
     pub has_otp: bool,
     pub updated_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -114,7 +118,7 @@ fn map_workspace(session: &vault_core::VaultSession) -> Vec<WorkspaceSummary> {
         .map(|w| WorkspaceSummary {
             id: w.id.clone(),
             name: w.name.clone(),
-            entry_count: w.entries.len(),
+            entry_count: w.entries.iter().filter(|e| !e.is_deleted()).count(),
             source_file: w.source_file.clone(),
             active: w.id == active,
         })
@@ -136,6 +140,7 @@ fn summary(e: &Entry) -> EntrySummary {
         custom_fields: e.custom_fields.clone(),
         has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
+        deleted_at: e.deleted_at.map(|t| t.to_rfc3339()),
         workspace_id: None,
         workspace_name: None,
     }
@@ -152,6 +157,7 @@ fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> 
         custom_fields: e.custom_fields.clone(),
         has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
+        deleted_at: e.deleted_at.map(|t| t.to_rfc3339()),
         workspace_id: Some(workspace_id.to_string()),
         workspace_name: Some(workspace_name.to_string()),
     }
@@ -404,7 +410,11 @@ pub fn unlock(
     let path = vault_path(&app)?;
     let session = open_vault_file(&path, &password).map_err(map_err);
     password.zeroize();
-    let session = session?;
+    let mut session = session?;
+    let retain = load_settings_disk(&app)
+        .map(|s| s.trash_retain_days)
+        .unwrap_or(30);
+    let _ = session.purge_expired_trash(retain);
     let changed = check_and_update_vault_fingerprint(&app, &state)?;
     let dto = StatusDto {
         state: "unlocked".into(),
@@ -413,6 +423,7 @@ pub fn unlock(
         data_dir: ensure_data_dir(&app)?.display().to_string(),
         vault_fingerprint_changed: changed,
     };
+    state.clear_generator_history();
     *state.session.lock().map_err(|e| e.to_string())? = Some(session);
     Ok(dto)
 }
@@ -423,6 +434,7 @@ pub fn lock(state: State<'_, AppState>) -> Result<(), String> {
     if let Some(session) = guard.take() {
         session.into_locked();
     }
+    state.clear_generator_history();
     Ok(())
 }
 
@@ -433,7 +445,7 @@ pub fn list_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>, Str
     Ok(session
         .list_entries()
         .map_err(map_err)?
-        .iter()
+        .into_iter()
         .map(summary)
         .collect())
 }
@@ -444,6 +456,17 @@ pub fn list_all_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>,
     let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
     Ok(session
         .list_all_entries()
+        .into_iter()
+        .map(|(ws_id, ws_name, entry)| summary_in_workspace(entry, ws_id, ws_name))
+        .collect())
+}
+
+#[tauri::command]
+pub fn list_deleted_entries(state: State<'_, AppState>) -> Result<Vec<EntrySummary>, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(session
+        .list_deleted_entries()
         .into_iter()
         .map(|(ws_id, ws_name, entry)| summary_in_workspace(entry, ws_id, ws_name))
         .collect())
@@ -596,6 +619,52 @@ pub fn delete_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> R
     }
     let _ = record_vault_fingerprint(&app, &state);
     Ok(())
+}
+
+#[tauri::command]
+pub fn restore_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<Entry, String> {
+    let saved = {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session.restore_entry(&id).map_err(map_err)?
+    };
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(saved)
+}
+
+#[tauri::command]
+pub fn purge_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session.purge_entry(&id).map_err(map_err)?;
+    }
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> Result<usize, String> {
+    let removed = {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        session.empty_trash().map_err(map_err)?
+    };
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(removed)
+}
+
+#[tauri::command]
+pub fn trash_count(state: State<'_, AppState>) -> Result<usize, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(session.trash_count())
 }
 
 #[tauri::command]
@@ -863,19 +932,42 @@ pub fn save_settings(
 }
 
 #[tauri::command]
-pub fn generate_password(length: usize) -> Result<String, String> {
-    use rand::Rng;
-    let len = length.clamp(8, 128);
-    const CHARSET: &[u8] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+";
-    let mut rng = rand::thread_rng();
-    let password: String = (0..len)
-        .map(|_| {
-            let idx = rng.gen_range(0..CHARSET.len());
-            CHARSET[idx] as char
-        })
-        .collect();
+pub fn generate_password(
+    state: State<'_, AppState>,
+    options: Option<GenerateOptions>,
+    length: Option<usize>,
+) -> Result<String, String> {
+    let opts = if let Some(o) = options {
+        o
+    } else {
+        GenerateOptions::strong(length.unwrap_or(20))
+    };
+    let password = core_generate_password(&opts)?;
+    state.push_generator_history(&password);
     Ok(password)
+}
+
+#[tauri::command]
+pub fn generator_history(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    let hist = state.generator_history.lock().map_err(|e| e.to_string())?;
+    Ok(hist.clone())
+}
+
+#[tauri::command]
+pub fn clear_generator_history(state: State<'_, AppState>) -> Result<(), String> {
+    state.clear_generator_history();
+    Ok(())
+}
+
+/// Parse clipboard text into an unsaved draft. Requires unlocked vault (session present).
+#[tauri::command]
+pub fn clipboard_quick_add(
+    state: State<'_, AppState>,
+    text: String,
+) -> Result<Option<QuickAddDraft>, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(parse_clipboard_for_quick_add(&text))
 }
 
 #[tauri::command]

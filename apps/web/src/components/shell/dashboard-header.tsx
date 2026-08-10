@@ -24,6 +24,7 @@ export function DashboardHeader({
   pinnedWorkspaceIds = [],
   onReplace,
   onNewEntry,
+  onNewFromClipboard,
 }: {
   workspaces: WorkspaceSummary[];
   entryCount: number;
@@ -42,6 +43,7 @@ export function DashboardHeader({
   pinnedWorkspaceIds?: string[];
   onReplace: () => void;
   onNewEntry: () => void;
+  onNewFromClipboard?: () => void;
 }) {
   const active = workspaces.find((w) => w.active);
   const canDelete = workspaces.length > 1;
@@ -205,6 +207,16 @@ export function DashboardHeader({
         >
           Replace
         </button>
+        {onNewFromClipboard && (
+          <button
+            type="button"
+            className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--inset)]"
+            onClick={onNewFromClipboard}
+            title="Draft a new entry from clipboard contents"
+          >
+            From clipboard
+          </button>
+        )}
         <button
           type="button"
           className="rounded-md bg-[var(--primary)] px-4 py-2 font-medium text-[var(--primary-fg)] hover:opacity-90"

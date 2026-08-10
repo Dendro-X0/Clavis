@@ -11,6 +11,7 @@ import {
   Settings,
   Shield,
   StickyNote,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ export function AppSidebar({
   onNavigate,
   onLock,
   onSearch,
+  onOpenTrash,
+  trashCount,
   workspaces,
   pinnedWorkspaceIds,
   onSelectWorkspace,
@@ -49,6 +52,8 @@ export function AppSidebar({
   onNavigate: (id: NavId) => void;
   onLock: () => void;
   onSearch?: () => void;
+  onOpenTrash?: () => void;
+  trashCount?: number;
   workspaces?: WorkspaceSummary[];
   pinnedWorkspaceIds?: string[];
   onSelectWorkspace?: (id: string) => void;
@@ -163,6 +168,29 @@ export function AppSidebar({
         )}
       </nav>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] px-2 pt-2">
+        {onOpenTrash && (
+          <button
+            type="button"
+            title="Recycle bin"
+            onClick={onOpenTrash}
+            className={cn(
+              "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <Trash2 className="h-4 w-4" />
+            {!collapsed && (
+              <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <span>Recycle bin</span>
+                {trashCount != null && trashCount > 0 && (
+                  <span className="rounded-full bg-[var(--inset)] px-1.5 text-[10px] tabular-nums">
+                    {trashCount}
+                  </span>
+                )}
+              </span>
+            )}
+          </button>
+        )}
         <button
           type="button"
           title="Settings"

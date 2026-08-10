@@ -3,8 +3,10 @@
 mod crypto;
 mod error;
 mod format;
+mod generate;
 mod import_export;
 mod model;
+mod quick_add;
 mod store;
 mod totp;
 
@@ -12,11 +14,13 @@ pub use error::{Result, VaultError};
 pub use format::{
     VaultCryptoInfo, peek_kdf_from_bytes, peek_kdf_from_path, write_all_atomic,
 };
+pub use generate::{GenerateOptions, GeneratorPreset, generate_password};
 pub use import_export::{
     export_encrypted, import_credential_text, import_credentials_auto,
     import_credentials_from_path, import_csv_logins, import_encrypted, merge_entries,
 };
 pub use model::{CustomField, Entry, EntryType, VaultDocument, VaultMeta, Workspace};
+pub use quick_add::{QuickAddDraft, parse_clipboard_for_quick_add};
 pub use store::{VaultSession, VaultStatus, create_vault, open_vault_file, vault_exists};
 pub use totp::{TotpCode, generate_totp_at, generate_totp_now, normalize_otp_secret, parse_otpauth_uri};
 
@@ -563,5 +567,64 @@ Password: has-pass
         session.into_locked();
         let again = open_vault_file(&path, "secret").unwrap();
         assert!(!again.crypto_info().is_weaker_than_defaults());
+    }
+
+    #[test]
+    fn soft_delete_restore_and_purge() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let params = fast_params();
+        let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
+        crate::format::write_all_atomic(&path, &encoded).unwrap();
+        let mut session = open_vault_file(&path, "pw").unwrap();
+
+        let mut entry = Entry::new(EntryType::Login, "TrashMe");
+        entry.password = "secret".into();
+        let saved = session.upsert_entry(entry).unwrap();
+        assert_eq!(session.entry_count(), 1);
+
+        session.delete_entry(&saved.id).unwrap();
+        assert_eq!(session.entry_count(), 0);
+        assert_eq!(session.list_entries().unwrap().len(), 0);
+        assert_eq!(session.list_deleted_entries().len(), 1);
+        assert!(session.get_entry(&saved.id).unwrap().is_deleted());
+
+        session.restore_entry(&saved.id).unwrap();
+        assert_eq!(session.entry_count(), 1);
+        assert!(!session.get_entry(&saved.id).unwrap().is_deleted());
+
+        session.delete_entry(&saved.id).unwrap();
+        assert_eq!(session.empty_trash().unwrap(), 1);
+        assert!(session.get_entry(&saved.id).is_err());
+        assert_eq!(session.trash_count(), 0);
+    }
+
+    #[test]
+    fn purge_expired_trash_respects_retain_days() {
+        use chrono::Utc;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("vault.km");
+        let params = fast_params();
+        let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
+        crate::format::write_all_atomic(&path, &encoded).unwrap();
+        let mut session = open_vault_file(&path, "pw").unwrap();
+
+        let mut old = Entry::new(EntryType::Login, "OldTrash");
+        old.password = "x".into();
+        let old = session.upsert_entry(old).unwrap();
+        session.delete_entry(&old.id).unwrap();
+        let mut e = session.get_entry(&old.id).unwrap().clone();
+        e.deleted_at = Some(Utc::now() - chrono::Duration::days(60));
+        session.upsert_entry(e).unwrap();
+
+        let mut recent = Entry::new(EntryType::Login, "RecentTrash");
+        recent.password = "y".into();
+        let recent = session.upsert_entry(recent).unwrap();
+        session.delete_entry(&recent.id).unwrap();
+
+        assert_eq!(session.purge_expired_trash(30).unwrap(), 1);
+        assert!(session.get_entry(&old.id).is_err());
+        assert!(session.get_entry(&recent.id).unwrap().is_deleted());
     }
 }

@@ -46,6 +46,9 @@ pub struct Entry {
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Soft-delete tombstone. `None` = active; set → hidden from default lists until restore/purge.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deleted_at: Option<DateTime<Utc>>,
 }
 
 impl Entry {
@@ -64,6 +67,7 @@ impl Entry {
             tags: Vec::new(),
             created_at: now,
             updated_at: now,
+            deleted_at: None,
         }
     }
 
@@ -79,6 +83,10 @@ impl Entry {
 
     pub fn has_otp(&self) -> bool {
         !self.otp_secret.trim().is_empty()
+    }
+
+    pub fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
     }
 }
 

@@ -82,6 +82,7 @@ Workspaces are **not** in the sidebar.
 14. **Encrypted backup KDF (v0.6.0)**: Settings Import/export shows active vault KDF (Argon2id params + AES-256-GCM). Export confirms with those params. Import peeks the file header (no password), warns if weaker than app defaults, and offers **Upgrade KDF to defaults** (password prompt) after import when the live vault is still weak.
 15. **Offline-first portable (v0.7.0)**: Settings portable kit; **Make portable** copies vault into `{exe}/data/`; `allowNetwork` (default off) gates outbound HTTP; hold-to-reveal password fields; unlock may warn if `vault.km` SHA-256 changed since last session.
 16. **TOTP (v0.8.0)**: Optional `otpSecret` on entries; live code + Copy code; Copy login sequences user → password → TOTP when set. CSV imports map Bitwarden/KeePass `totp` columns.
+17. **Generate / capture / trash (v0.10)**: Password generator presets (Strong / Passphrase / PIN) with apply-to-editor and session-only history (wiped on lock). “New from clipboard” opens an editor draft only (otpauth / labeled / password-like). Soft-delete → Recycle bin; restore or purge; retain days in Settings.
 
 ### Dialogs
 
@@ -149,3 +150,4 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `autoLockSeconds`: number (default `300`, min effective `30`) — idle lock from app input
 - `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
 - `clipboardClearSeconds`: number (default `15` for new installs)
+- `trashRetainDays`: number (default `30`) — soft-deleted entries older than this are purged on unlock

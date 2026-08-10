@@ -14,6 +14,8 @@ import { SettingsPanel } from "@/components/shell/settings-panel";
 import { Titlebar } from "@/components/titlebar/titlebar";
 import { EntryEditor } from "@/components/vault/entry-editor";
 import { EntryList } from "@/components/vault/entry-list";
+import { PasswordGeneratorPanel } from "@/components/vault/password-generator";
+import { RecycleBinPanel } from "@/components/vault/recycle-bin";
 import {
   EntryPagination,
   normalizePageSize,
@@ -31,7 +33,7 @@ import {
   normalizeEntry,
 } from "@/lib/api";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
-import { copyToClipboard, formatEntryForClipboard } from "@/lib/clipboard";
+import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/lib/clipboard";
 import { blankEntryForm } from "@/lib/sensitive";
 import { useCompactSurface } from "@/lib/use-compact-surface";
 import { useTheme } from "next-themes";
@@ -71,26 +73,32 @@ export default function HomePage() {
     fetchFavicons: false,
     allowNetwork: false,
     lockOnHide: true,
+    trashRetainDays: 30,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
   const [clipboardClearEndsAt, setClipboardClearEndsAt] = useState<number | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loginCopyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipboardClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshVault = useCallback(async () => {
-    const [list, all, ws] = await Promise.all([
+    const [list, all, ws, trash] = await Promise.all([
       api.listEntries(),
       api.listAllEntries(),
       api.listWorkspaces(),
+      api.trashCount().catch(() => 0),
     ]);
     setEntries(list);
     setAllEntries(all);
     setWorkspaces(ws);
+    setTrashCount(trash);
     return { list, all, ws };
   }, []);
 
@@ -110,6 +118,9 @@ export default function HomePage() {
       setForm(null);
       setNav("all");
       setCategoryFilter(null);
+      setGeneratorOpen(false);
+      setTrashOpen(false);
+      setTrashCount(0);
     }
     setBoot(false);
     return s;
@@ -122,12 +133,43 @@ export default function HomePage() {
       loginCopyTimer.current = null;
     }
     setForm(null);
+    setGeneratorOpen(false);
   }, []);
 
   async function lockVault() {
     clearSensitiveUi();
+    setTrashOpen(false);
     await api.lock();
+    await api.clearGeneratorHistory().catch(() => undefined);
     await refreshStatus();
+  }
+
+  async function newFromClipboard() {
+    try {
+      const text = await readClipboardText();
+      const draft = await api.clipboardQuickAdd(text);
+      setNav("all");
+      if (!draft) {
+        setError("Nothing useful on clipboard — opened a blank entry.");
+        setForm({ ...blankEntryForm() });
+        return;
+      }
+      setError(null);
+      setForm({
+        ...blankEntryForm(),
+        entryType: draft.entryType ?? "login",
+        title: draft.title ?? "",
+        username: draft.username ?? "",
+        password: draft.password ?? "",
+        url: draft.url ?? "",
+        notes: draft.notes ?? "",
+        tags: draft.tags ?? [],
+        otpSecret: draft.otpSecret ?? "",
+      });
+    } catch (e) {
+      setError(String(e).replace(/^Error:\s*/, ""));
+      setForm({ ...blankEntryForm() });
+    }
   }
 
   useEffect(() => {
@@ -150,6 +192,7 @@ export default function HomePage() {
           allowNetwork: Boolean(s.allowNetwork),
           lockOnHide: s.lockOnHide !== false,
           clipboardClearSeconds: s.clipboardClearSeconds ?? 15,
+          trashRetainDays: s.trashRetainDays ?? 30,
         });
         if (s.theme) setTheme(s.theme);
       })
@@ -597,6 +640,12 @@ export default function HomePage() {
         setNav("all");
         setForm({ ...blankEntryForm() });
         break;
+      case "new-from-clipboard":
+        newFromClipboard().catch((err) => setError(String(err)));
+        break;
+      case "recycle-bin":
+        setTrashOpen(true);
+        break;
       case "settings":
         clearSensitiveUi();
         setNav("settings");
@@ -679,6 +728,8 @@ export default function HomePage() {
               setNav("all");
               setPaletteOpen(true);
             }}
+            onOpenTrash={() => setTrashOpen(true)}
+            trashCount={trashCount}
             onLock={() => lockVault()}
           />
         )}
@@ -817,6 +868,9 @@ export default function HomePage() {
                     handleReplace().catch((err) => setError(String(err)));
                   }}
                   onNewEntry={() => setForm({ ...blankEntryForm() })}
+                  onNewFromClipboard={() => {
+                    newFromClipboard().catch((err) => setError(String(err)));
+                  }}
                 />
                 <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
                   <div className="min-h-0 flex-1 overflow-y-auto scroll-region">
@@ -854,6 +908,9 @@ export default function HomePage() {
                         copyTotpCode(id).catch((err) => setError(String(err)));
                       }}
                       onNewEntry={() => setForm({ ...blankEntryForm() })}
+                      onNewFromClipboard={() => {
+                        newFromClipboard().catch((err) => setError(String(err)));
+                      }}
                       onOpenSettings={() => {
                         clearSensitiveUi();
                         setNav("settings");
@@ -901,8 +958,7 @@ export default function HomePage() {
                         : undefined
                     }
                     onGenerate={async () => {
-                      const password = await api.generatePassword(20);
-                      setForm((f) => (f ? { ...f, password } : f));
+                      setGeneratorOpen(true);
                     }}
                     onCopy={async () => {
                       try {
@@ -923,6 +979,29 @@ export default function HomePage() {
           )}
         </main>
       </div>
+
+      {unlocked && (
+        <>
+          <PasswordGeneratorPanel
+            open={generatorOpen}
+            onClose={() => setGeneratorOpen(false)}
+            onApply={(password) => {
+              setForm((f) => (f ? { ...f, password } : { ...blankEntryForm(), password }));
+              setGeneratorOpen(false);
+            }}
+            onError={setError}
+          />
+          <RecycleBinPanel
+            open={trashOpen}
+            onClose={() => setTrashOpen(false)}
+            retainDays={settings.trashRetainDays ?? 30}
+            onChanged={async () => {
+              await refreshVault();
+            }}
+            onError={setError}
+          />
+        </>
+      )}
     </div>
   );
 }

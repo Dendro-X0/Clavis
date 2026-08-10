@@ -71,7 +71,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | P1 | Favicons / site icons (optional, offline-safe) | v0.3.0 — lettermark + optional cache |
 | P1 | Duplicate workspace merge / cleanup | Users already hit duplicate names |
 | P1 | Workspace sidebar pins + clipboard clear toast | v0.3.0 |
-| P1 | Password generator + clipboard quick-add + soft-delete | Planned — v0.10 |
+| P1 | Password generator + clipboard quick-add + soft-delete | Done — v0.10 |
 | P1 | URL / app match (opt-in, offline heuristics) | Planned — v0.12 |
 | P2 | Password health (length, reuse warnings — local only) | Planned — v0.11 |
 | P2 | Attachments / snapshots / structured notes | Planned — v0.13 |
@@ -117,7 +117,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 
 ### Phase E — Friction & vault hygiene (post-0.9.0)
 
-- **v0.10** — Generator, clipboard quick-add, soft-delete  
+- **v0.10** — Generator, clipboard quick-add, soft-delete — **done**
 - **v0.11** — Local password health; optional HIBP offline / gated network  
 - **v0.12** — Desktop autotype + URL/app match (threat-model first)  
 - **v0.13** — Attachments, snapshots, structured notes  
@@ -270,21 +270,23 @@ Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`
 
 | Version | Theme | Status |
 |---------|--------|--------|
-| v0.10 | Generate, quick-add, soft-delete | Planned — design ready |
+| v0.10 | Generate, quick-add, soft-delete | Done |
 | v0.11 | Password health + optional breach pack | Planned — stub in umbrella |
 | v0.12 | Desktop autotype + URL/app match | Planned — stub; design+threat-model before code |
 | v0.13 | Attachments, snapshots, structured notes | Planned — stub in umbrella |
 
-### v0.10.0 — Generate, capture & soft-delete — planned
+### v0.10.0 — Generate, capture & soft-delete — done
 
 Design: `specs/backend/v0.10.0-generate-capture-design.md`
 
 | Item | Status |
 |------|--------|
-| Password generator (presets + apply-to-editor; session-only history; scrub) | Planned |
-| Quick-add from clipboard (password / otpauth / labeled paste → draft only) | Planned |
-| Soft-delete + Recycle bin + retain-N-days purge (`vault-core` owner) | Planned |
-| Frontend-spec / threat-model touch + version bump 0.10.0 | Planned |
+| Password generator (presets + apply-to-editor; session-only history; scrub) | Done |
+| Quick-add from clipboard (password / otpauth / labeled paste → draft only) | Done |
+| Soft-delete + Recycle bin + retain-N-days purge (`vault-core` owner) | Done |
+| Frontend-spec / threat-model touch + version bump 0.10.0 | Done |
+
+Next: **v0.11** password health (or Phase D when unblocked).
 
 ### v0.11.0 — Password health — planned
 

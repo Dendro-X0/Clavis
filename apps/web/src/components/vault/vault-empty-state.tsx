@@ -7,6 +7,7 @@ import { importCredentialsFileSmart, importCredentialsTextSmart } from "@/lib/im
 
 export function VaultEmptyState({
   onNewEntry,
+  onNewFromClipboard,
   onImported,
   onError,
   onOpenSettings,
@@ -14,6 +15,7 @@ export function VaultEmptyState({
   workspaceName,
 }: {
   onNewEntry: () => void;
+  onNewFromClipboard?: () => void;
   onImported: (result: ImportResult) => void | Promise<void>;
   onError: (message: string) => void;
   onOpenSettings: () => void;
@@ -43,6 +45,19 @@ export function VaultEmptyState({
             Create a login in the current workspace.
           </span>
         </button>
+        {onNewFromClipboard && (
+          <button
+            type="button"
+            className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"
+            onClick={onNewFromClipboard}
+          >
+            <ClipboardPaste className="h-5 w-5 text-[var(--primary)]" />
+            <span className="text-sm font-medium">From clipboard</span>
+            <span className="text-xs text-[var(--muted)]">
+              Draft from otpauth, password, or labeled paste — no auto-save.
+            </span>
+          </button>
+        )}
         <button
           type="button"
           className="flex flex-col items-start gap-2 rounded-xl border border-[var(--border)] bg-[var(--inset)] p-4 text-left transition hover:border-[var(--primary)]/50 hover:bg-[var(--accent-wash)]"

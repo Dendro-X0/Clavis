@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 
 export type PaletteActionId =
   | "new-entry"
+  | "new-from-clipboard"
+  | "recycle-bin"
   | "settings"
   | "lock"
   | "focus-search"
@@ -41,6 +43,8 @@ type PaletteItem =
 
 const ACTIONS: Extract<PaletteItem, { kind: "action" }>[] = [
   { kind: "action", id: "new-entry", label: "New entry", hint: "Ctrl/Cmd+N" },
+  { kind: "action", id: "new-from-clipboard", label: "New from clipboard", hint: "" },
+  { kind: "action", id: "recycle-bin", label: "Open recycle bin", hint: "" },
   { kind: "action", id: "settings", label: "Open settings", hint: "Ctrl/Cmd+," },
   { kind: "action", id: "lock", label: "Lock vault", hint: "Ctrl/Cmd+L" },
   { kind: "action", id: "focus-search", label: "Focus toolbar search", hint: "/" },

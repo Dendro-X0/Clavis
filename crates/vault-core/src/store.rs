@@ -81,8 +81,16 @@ impl VaultSession {
     pub fn entry_count(&self) -> usize {
         self.document
             .active_workspace()
-            .map(|w| w.entries.len())
+            .map(|w| w.entries.iter().filter(|e| !e.is_deleted()).count())
             .unwrap_or(0)
+    }
+
+    pub fn trash_count(&self) -> usize {
+        self.document
+            .workspaces
+            .iter()
+            .map(|w| w.entries.iter().filter(|e| e.is_deleted()).count())
+            .sum()
     }
 
     pub fn list_workspaces(&self) -> &[Workspace] {
@@ -277,19 +285,36 @@ impl VaultSession {
         Ok(out)
     }
 
-    pub fn list_entries(&self) -> Result<&[Entry]> {
-        self.document
+    /// Active (non-deleted) entries in the active workspace.
+    pub fn list_entries(&self) -> Result<Vec<&Entry>> {
+        let ws = self
+            .document
             .active_workspace()
-            .map(|w| w.entries.as_slice())
-            .ok_or_else(|| VaultError::Message("no active workspace".into()))
+            .ok_or_else(|| VaultError::Message("no active workspace".into()))?;
+        Ok(ws.entries.iter().filter(|e| !e.is_deleted()).collect())
     }
 
-    /// All entries across workspaces: `(workspace_id, workspace_name, entry)`.
+    /// Active entries across workspaces: `(workspace_id, workspace_name, entry)`.
     pub fn list_all_entries(&self) -> Vec<(&str, &str, &Entry)> {
         let mut out = Vec::new();
         for ws in &self.document.workspaces {
             for entry in &ws.entries {
-                out.push((ws.id.as_str(), ws.name.as_str(), entry));
+                if !entry.is_deleted() {
+                    out.push((ws.id.as_str(), ws.name.as_str(), entry));
+                }
+            }
+        }
+        out
+    }
+
+    /// Soft-deleted entries across workspaces.
+    pub fn list_deleted_entries(&self) -> Vec<(&str, &str, &Entry)> {
+        let mut out = Vec::new();
+        for ws in &self.document.workspaces {
+            for entry in &ws.entries {
+                if entry.is_deleted() {
+                    out.push((ws.id.as_str(), ws.name.as_str(), entry));
+                }
             }
         }
         out
@@ -306,39 +331,134 @@ impl VaultSession {
 
     pub fn upsert_entry(&mut self, mut entry: Entry) -> Result<Entry> {
         entry.updated_at = Utc::now();
-        let ws = self
-            .document
-            .active_workspace_mut()
-            .ok_or_else(|| VaultError::Message("no active workspace".into()))?;
-        if let Some(existing) = ws.entries.iter_mut().find(|e| e.id == entry.id) {
+        // Prefer updating in whichever workspace already owns this id.
+        if let Some((ws_idx, entry_idx)) = self.find_entry_indices(&entry.id) {
+            let existing = &self.document.workspaces[ws_idx].entries[entry_idx];
             entry.created_at = existing.created_at;
-            *existing = entry.clone();
+            self.document.workspaces[ws_idx].entries[entry_idx] = entry.clone();
+            self.document.workspaces[ws_idx].updated_at = Utc::now();
         } else {
+            let ws = self
+                .document
+                .active_workspace_mut()
+                .ok_or_else(|| VaultError::Message("no active workspace".into()))?;
             if entry.created_at.timestamp() == 0 {
                 entry.created_at = entry.updated_at;
             }
+            entry.deleted_at = None;
             ws.entries.push(entry.clone());
+            ws.updated_at = Utc::now();
         }
-        ws.updated_at = Utc::now();
         self.document.meta.updated_at = Utc::now();
         self.persist()?;
         Ok(entry)
     }
 
-    pub fn delete_entry(&mut self, id: &str) -> Result<()> {
-        let ws = self
-            .document
-            .active_workspace_mut()
-            .ok_or_else(|| VaultError::Message("no active workspace".into()))?;
-        let before = ws.entries.len();
-        ws.entries.retain(|e| e.id != id);
-        if ws.entries.len() == before {
-            return Err(VaultError::EntryNotFound(id.to_string()));
+    fn find_entry_indices(&self, id: &str) -> Option<(usize, usize)> {
+        for (wi, ws) in self.document.workspaces.iter().enumerate() {
+            if let Some(ei) = ws.entries.iter().position(|e| e.id == id) {
+                return Some((wi, ei));
+            }
         }
-        ws.updated_at = Utc::now();
-        self.document.meta.updated_at = Utc::now();
+        None
+    }
+
+    /// Soft-delete: set `deleted_at` (searches all workspaces).
+    pub fn delete_entry(&mut self, id: &str) -> Result<()> {
+        let Some((wi, ei)) = self.find_entry_indices(id) else {
+            return Err(VaultError::EntryNotFound(id.to_string()));
+        };
+        let now = Utc::now();
+        let entry = &mut self.document.workspaces[wi].entries[ei];
+        if entry.deleted_at.is_some() {
+            return Ok(());
+        }
+        entry.deleted_at = Some(now);
+        entry.updated_at = now;
+        self.document.workspaces[wi].updated_at = now;
+        self.document.meta.updated_at = now;
         self.persist()?;
         Ok(())
+    }
+
+    /// Clear `deleted_at` for a trashed entry.
+    pub fn restore_entry(&mut self, id: &str) -> Result<Entry> {
+        let Some((wi, ei)) = self.find_entry_indices(id) else {
+            return Err(VaultError::EntryNotFound(id.to_string()));
+        };
+        let now = Utc::now();
+        let entry = &mut self.document.workspaces[wi].entries[ei];
+        if entry.deleted_at.is_none() {
+            return Ok(entry.clone());
+        }
+        entry.deleted_at = None;
+        entry.updated_at = now;
+        let out = entry.clone();
+        self.document.workspaces[wi].updated_at = now;
+        self.document.meta.updated_at = now;
+        self.persist()?;
+        Ok(out)
+    }
+
+    /// Permanently remove one trashed entry (or hard-delete if already active — still removes).
+    pub fn purge_entry(&mut self, id: &str) -> Result<()> {
+        let Some((wi, _)) = self.find_entry_indices(id) else {
+            return Err(VaultError::EntryNotFound(id.to_string()));
+        };
+        let before = self.document.workspaces[wi].entries.len();
+        self.document.workspaces[wi]
+            .entries
+            .retain(|e| e.id != id);
+        if self.document.workspaces[wi].entries.len() == before {
+            return Err(VaultError::EntryNotFound(id.to_string()));
+        }
+        let now = Utc::now();
+        self.document.workspaces[wi].updated_at = now;
+        self.document.meta.updated_at = now;
+        self.persist()?;
+        Ok(())
+    }
+
+    /// Hard-delete all soft-deleted entries. Returns count removed.
+    pub fn empty_trash(&mut self) -> Result<usize> {
+        let mut removed = 0usize;
+        for ws in &mut self.document.workspaces {
+            let before = ws.entries.len();
+            ws.entries.retain(|e| !e.is_deleted());
+            removed += before - ws.entries.len();
+            if before != ws.entries.len() {
+                ws.updated_at = Utc::now();
+            }
+        }
+        if removed > 0 {
+            self.document.meta.updated_at = Utc::now();
+            self.persist()?;
+        }
+        Ok(removed)
+    }
+
+    /// Purge soft-deleted entries older than `retain_days`. Returns count removed.
+    pub fn purge_expired_trash(&mut self, retain_days: u64) -> Result<usize> {
+        let retain_days = retain_days.max(1);
+        let cutoff = Utc::now() - chrono::Duration::days(retain_days as i64);
+        let mut removed = 0usize;
+        for ws in &mut self.document.workspaces {
+            let before = ws.entries.len();
+            ws.entries.retain(|e| match e.deleted_at {
+                Some(at) if at < cutoff => false,
+                _ => true,
+            });
+            let delta = before - ws.entries.len();
+            if delta > 0 {
+                removed += delta;
+                ws.updated_at = Utc::now();
+            }
+        }
+        if removed > 0 {
+            self.document.meta.updated_at = Utc::now();
+            self.persist()?;
+        }
+        Ok(removed)
     }
 
     pub fn change_password(&mut self, current: &str, new_password: &str) -> Result<()> {
