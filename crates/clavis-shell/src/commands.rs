@@ -229,9 +229,11 @@ fn check_and_update_vault_fingerprint(
         Some(prev) if prev != current => true,
         _ => false,
     };
-    settings.last_vault_sha256 = Some(current);
+    settings.last_vault_sha256 = Some(current.clone());
     persist_settings(app, &settings)?;
     *state.settings.lock().map_err(|e| e.to_string())? = settings;
+    *state.known_disk_sha256.lock().map_err(|e| e.to_string())? = Some(current);
+    *state.pending_disk_change_warn.lock().map_err(|e| e.to_string())? = false;
     Ok(changed)
 }
 
@@ -243,10 +245,123 @@ fn record_vault_fingerprint(app: &AppHandle, state: &State<'_, AppState>) -> Res
     }
     let current = sha256_hex_file(&path)?;
     let mut settings = load_settings_disk(app)?;
-    settings.last_vault_sha256 = Some(current);
+    settings.last_vault_sha256 = Some(current.clone());
     persist_settings(app, &settings)?;
     *state.settings.lock().map_err(|e| e.to_string())? = settings;
+    *state.known_disk_sha256.lock().map_err(|e| e.to_string())? = Some(current);
+    *state.pending_disk_change_warn.lock().map_err(|e| e.to_string())? = false;
     Ok(())
+}
+
+fn force_lock_session(state: &State<'_, AppState>) -> Result<(), String> {
+    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+    if let Some(session) = guard.take() {
+        session.into_locked();
+    }
+    state.clear_generator_history();
+    Ok(())
+}
+
+/// Abort writes if `vault.km` drifted under an open session (folder sync / peer write).
+fn ensure_disk_matches_session(app: &AppHandle, state: &State<'_, AppState>) -> Result<(), String> {
+    let path = vault_path(app)?;
+    if !path.is_file() {
+        return Ok(());
+    }
+    let current = sha256_hex_file(&path)?;
+    let known = state
+        .known_disk_sha256
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone();
+    if let Some(prev) = known {
+        if prev != current {
+            force_lock_session(state)?;
+            *state.known_disk_sha256.lock().map_err(|e| e.to_string())? = Some(current);
+            *state.pending_disk_change_warn.lock().map_err(|e| e.to_string())? = true;
+            return Err(
+                "Vault changed on disk; your unsaved edits were not written. Unlock again."
+                    .into(),
+            );
+        }
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultDiskCheckDto {
+    pub changed: bool,
+    pub forced_lock: bool,
+    pub state: String,
+    pub vault_fingerprint_changed: bool,
+}
+
+/// Poll `vault.km` for external changes (focus / locked interval). Unlocked → force lock.
+#[tauri::command]
+pub fn check_vault_disk(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<VaultDiskCheckDto, String> {
+    let path = vault_path(&app)?;
+    let unlocked = state.session.lock().map_err(|e| e.to_string())?.is_some();
+    if !path.is_file() {
+        return Ok(VaultDiskCheckDto {
+            changed: false,
+            forced_lock: false,
+            state: if unlocked {
+                "unlocked".into()
+            } else {
+                "missing".into()
+            },
+            vault_fingerprint_changed: *state
+                .pending_disk_change_warn
+                .lock()
+                .map_err(|e| e.to_string())?,
+        });
+    }
+
+    let current = sha256_hex_file(&path)?;
+    let mut known = state.known_disk_sha256.lock().map_err(|e| e.to_string())?;
+    let mut forced_lock = false;
+    let mut changed = false;
+
+    match known.as_ref() {
+        None => {
+            *known = Some(current);
+        }
+        Some(prev) if prev != &current => {
+            changed = true;
+            drop(known);
+            if unlocked {
+                force_lock_session(&state)?;
+                forced_lock = true;
+            }
+            *state.known_disk_sha256.lock().map_err(|e| e.to_string())? = Some(current);
+            *state.pending_disk_change_warn.lock().map_err(|e| e.to_string())? = true;
+        }
+        Some(_) => {}
+    }
+
+    let still_unlocked = state.session.lock().map_err(|e| e.to_string())?.is_some();
+    let pending = *state
+        .pending_disk_change_warn
+        .lock()
+        .map_err(|e| e.to_string())?;
+    let state_str = if still_unlocked {
+        "unlocked"
+    } else if vault_exists(&path) {
+        "locked"
+    } else {
+        "missing"
+    };
+
+    Ok(VaultDiskCheckDto {
+        changed: changed || pending,
+        forced_lock,
+        state: state_str.into(),
+        vault_fingerprint_changed: pending,
+    })
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
@@ -296,7 +411,7 @@ pub fn set_data_dir(
     data_dir_info(&app)
 }
 
-/// Copy current vault/config/icons into `{exe}/data/` and clear `data-location.json`.
+/// Copy current vault/config/icons/attachments/snapshots into `{exe}/data/` and clear `data-location.json`.
 #[tauri::command]
 pub fn make_data_dir_portable(
     app: AppHandle,
@@ -337,6 +452,14 @@ pub fn make_data_dir_portable(
     if src_icons.is_dir() {
         copy_dir_recursive(&src_icons, &dest_dir.join("icons"))?;
     }
+    let src_attachments = src_dir.join("attachments");
+    if src_attachments.is_dir() {
+        copy_dir_recursive(&src_attachments, &dest_dir.join("attachments"))?;
+    }
+    let src_snapshots = src_dir.join("snapshots");
+    if src_snapshots.is_dir() {
+        copy_dir_recursive(&src_snapshots, &dest_dir.join("snapshots"))?;
+    }
 
     set_data_dir_override(&app, None)?;
     data_dir_info(&app)
@@ -363,6 +486,10 @@ pub fn pick_data_dir(app: AppHandle) -> Result<Option<String>, String> {
 pub fn vault_status(app: AppHandle, state: State<'_, AppState>) -> Result<StatusDto, String> {
     let data = ensure_data_dir(&app)?;
     let path = vault_path(&app)?;
+    let pending = *state
+        .pending_disk_change_warn
+        .lock()
+        .map_err(|e| e.to_string())?;
     let guard = state.session.lock().map_err(|e| e.to_string())?;
     if let Some(session) = guard.as_ref() {
         return Ok(StatusDto {
@@ -383,7 +510,7 @@ pub fn vault_status(app: AppHandle, state: State<'_, AppState>) -> Result<Status
         entry_count: None,
         name: None,
         data_dir: data.display().to_string(),
-        vault_fingerprint_changed: false,
+        vault_fingerprint_changed: pending,
     })
 }
 
@@ -441,12 +568,7 @@ pub fn unlock(
 
 #[tauri::command]
 pub fn lock(state: State<'_, AppState>) -> Result<(), String> {
-    let mut guard = state.session.lock().map_err(|e| e.to_string())?;
-    if let Some(session) = guard.take() {
-        session.into_locked();
-    }
-    state.clear_generator_history();
-    Ok(())
+    force_lock_session(&state)
 }
 
 #[tauri::command]
@@ -491,65 +613,106 @@ pub fn list_workspaces(state: State<'_, AppState>) -> Result<Vec<WorkspaceSummar
 }
 
 #[tauri::command]
-pub fn set_active_workspace(state: State<'_, AppState>, id: String) -> Result<Vec<WorkspaceSummary>, String> {
+pub fn set_active_workspace(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<WorkspaceSummary>, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
     session.set_active_workspace(&id).map_err(map_err)?;
-    Ok(map_workspace(session))
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok({
+        let guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+        map_workspace(session)
+    })
 }
 
 #[tauri::command]
-pub fn create_workspace(state: State<'_, AppState>, name: String) -> Result<WorkspaceSummary, String> {
+pub fn create_workspace(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+) -> Result<WorkspaceSummary, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
     let ws = session.create_workspace(&name).map_err(map_err)?;
-    Ok(WorkspaceSummary {
+    let summary = WorkspaceSummary {
         id: ws.id,
         name: ws.name,
         entry_count: 0,
         source_file: ws.source_file,
         active: true,
-    })
+    };
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(summary)
 }
 
 #[tauri::command]
 pub fn rename_workspace(
+    app: AppHandle,
     state: State<'_, AppState>,
     id: String,
     name: String,
 ) -> Result<Vec<WorkspaceSummary>, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
     session.rename_workspace(&id, &name).map_err(map_err)?;
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
     Ok(map_workspace(session))
 }
 
 #[tauri::command]
-pub fn delete_workspace(state: State<'_, AppState>, id: String) -> Result<Vec<WorkspaceSummary>, String> {
+pub fn delete_workspace(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<Vec<WorkspaceSummary>, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
     session.delete_workspace(&id).map_err(map_err)?;
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
     Ok(map_workspace(session))
 }
 
 #[tauri::command]
-pub fn merge_duplicate_workspaces(state: State<'_, AppState>) -> Result<MergeDuplicatesResult, String> {
+pub fn merge_duplicate_workspaces(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<MergeDuplicatesResult, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
         .ok_or_else(|| "vault is locked".to_string())?;
     let removed = session.merge_duplicate_workspaces().map_err(map_err)?;
+    let workspaces = map_workspace(session);
+    drop(guard);
+    let _ = record_vault_fingerprint(&app, &state);
     Ok(MergeDuplicatesResult {
         removed,
-        workspaces: map_workspace(session),
+        workspaces,
     })
 }
 
@@ -584,6 +747,7 @@ pub fn upsert_entry(
     state: State<'_, AppState>,
     input: UpsertEntryInput,
 ) -> Result<Entry, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     let session = guard
         .as_mut()
@@ -623,6 +787,7 @@ pub fn upsert_entry(
 
 #[tauri::command]
 pub fn delete_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
+    ensure_disk_matches_session(&app, &state)?;
     {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
@@ -636,6 +801,7 @@ pub fn delete_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> R
 
 #[tauri::command]
 pub fn restore_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<Entry, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let saved = {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
@@ -649,6 +815,7 @@ pub fn restore_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> 
 
 #[tauri::command]
 pub fn purge_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<(), String> {
+    ensure_disk_matches_session(&app, &state)?;
     {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
@@ -663,6 +830,7 @@ pub fn purge_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
 
 #[tauri::command]
 pub fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> Result<usize, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let (removed, ids) = {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
@@ -903,6 +1071,7 @@ pub fn add_entry_attachment(
     state: State<'_, AppState>,
     input: AddAttachmentInput,
 ) -> Result<AttachmentMeta, String> {
+    ensure_disk_matches_session(&app, &state)?;
     use base64::Engine;
     let raw = base64::engine::general_purpose::STANDARD
         .decode(input.data_base64.trim())
@@ -978,6 +1147,7 @@ pub fn remove_entry_attachment(
     entry_id: String,
     attachment_id: String,
 ) -> Result<(), String> {
+    ensure_disk_matches_session(&app, &state)?;
     {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
@@ -1045,66 +1215,78 @@ pub fn import_vault(
 
 #[tauri::command]
 pub fn import_csv(
+    app: AppHandle,
     state: State<'_, AppState>,
     csv_text: String,
     mode: Option<String>,
     workspace_name: Option<String>,
     workspace_id: Option<String>,
 ) -> Result<ImportResult, String> {
-    import_entries_into_workspace(
-        state,
+    ensure_disk_matches_session(&app, &state)?;
+    let result = import_entries_into_workspace(
+        &state,
         import_csv_logins(&csv_text).map_err(map_err)?,
         mode.as_deref().unwrap_or("new"),
         workspace_name.unwrap_or_else(|| "CSV import".into()),
         None,
         workspace_id,
-    )
+    )?;
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn import_credentials_file(
+    app: AppHandle,
     state: State<'_, AppState>,
     path: String,
     mode: Option<String>,
     workspace_id: Option<String>,
 ) -> Result<ImportResult, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let entries = import_credentials_from_path(std::path::Path::new(&path)).map_err(map_err)?;
     let name = workspace_name_from_path(&path);
     let source = std::path::Path::new(&path)
         .file_name()
         .and_then(|s| s.to_str())
         .map(|s| s.to_string());
-    import_entries_into_workspace(
-        state,
+    let result = import_entries_into_workspace(
+        &state,
         entries,
         mode.as_deref().unwrap_or("new"),
         name,
         source,
         workspace_id,
-    )
+    )?;
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(result)
 }
 
 #[tauri::command]
 pub fn import_credentials_text(
+    app: AppHandle,
     state: State<'_, AppState>,
     text: String,
     mode: Option<String>,
     workspace_name: Option<String>,
     workspace_id: Option<String>,
 ) -> Result<ImportResult, String> {
+    ensure_disk_matches_session(&app, &state)?;
     let entries = import_credentials_auto(&text).map_err(map_err)?;
-    import_entries_into_workspace(
-        state,
+    let result = import_entries_into_workspace(
+        &state,
         entries,
         mode.as_deref().unwrap_or("new"),
         workspace_name.unwrap_or_else(|| "Pasted import".into()),
         None,
         workspace_id,
-    )
+    )?;
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(result)
 }
 
 fn import_entries_into_workspace(
-    state: State<'_, AppState>,
+    state: &State<'_, AppState>,
     entries: Vec<Entry>,
     mode: &str,
     name: String,
@@ -1191,6 +1373,7 @@ pub fn change_master_password(
     mut new_password: String,
 ) -> Result<(), String> {
     let result = (|| {
+        ensure_disk_matches_session(&app, &state)?;
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
             .as_mut()
@@ -1230,6 +1413,7 @@ pub fn upgrade_vault_kdf(
     mut password: String,
 ) -> Result<VaultCryptoInfo, String> {
     let result = (|| {
+        ensure_disk_matches_session(&app, &state)?;
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
             .as_mut()

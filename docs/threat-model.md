@@ -43,7 +43,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Snapshot copies of vault.km | Same ciphertext sensitivity; only under app data dir; retain prune | Done (v0.13) |
 | Attachment plaintext on disk | Sidecars sealed with vault key; purge/empty trash deletes dirs; export omits sidecars (documented) | Done (v0.13) |
 | Markdown notes XSS | Preview escapes HTML; no remote content | Done (v0.13) |
-| User-folder / Syncthing sync of data dir | Ciphertext only; LWW whole `vault.km`; external change → lock / refuse persist; no Clavis cloud | Design — v0.14 (`specs/backend/v0.14.0-folder-sync-design.md`) |
+| User-folder / Syncthing sync of data dir | Ciphertext only; LWW whole `vault.km`; external change → lock / refuse persist; no Clavis cloud | Done (v0.14) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 

@@ -124,7 +124,8 @@ export const SETTINGS_SECTION_META: Record<
   },
   "portable-data": {
     title: "Data folder",
-    description: "Where vault.km and config live — portable kit vs custom path.",
+    description:
+      "Portable kit vs custom/synced path — keep vault.km and attachments/ together (no Clavis cloud).",
   },
   snapshots: {
     title: "Snapshots",

@@ -265,6 +265,13 @@ export const api = {
   makeDataDirPortable: (overwrite: boolean) =>
     call<DataDirInfo>("make_data_dir_portable", { overwrite }),
   pickDataDir: () => call<string | null>("pick_data_dir"),
+  checkVaultDisk: () =>
+    call<{
+      changed: boolean;
+      forcedLock: boolean;
+      state: string;
+      vaultFingerprintChanged: boolean;
+    }>("check_vault_disk"),
   createVault: (name: string, password: string) =>
     call<StatusDto>("create_vault", { name, password }),
   unlock: (password: string) => call<StatusDto>("unlock", { password }),

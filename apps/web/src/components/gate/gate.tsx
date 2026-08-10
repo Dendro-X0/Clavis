@@ -18,7 +18,7 @@ async function warnIfVaultChanged(status: StatusDto) {
   await appConfirm({
     title: "Vault file changed",
     description:
-      "vault.km differs from the fingerprint stored at the last unlock. Expected after migrate, USB move, or backup restore. Unexpected if you did not change the file — treat with caution.",
+      "vault.km differs from the fingerprint stored at the last unlock. Common after Syncthing/cloud sync, USB move, or backup restore. Unexpected if you did not change the file — treat with caution.",
     confirmLabel: "Continue",
     cancelLabel: "OK",
   });

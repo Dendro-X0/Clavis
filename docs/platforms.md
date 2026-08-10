@@ -58,16 +58,18 @@ File dialogs via Tauri dialog plugin when available. Share-sheet / Files intent 
 | Mode | Location | How |
 |------|----------|-----|
 | **Portable (default)** | `{executable_directory}/data/` | No pointer file |
-| **Custom** | User-chosen folder | Settings → Change data folder… writes `{exe}/data-location.json` |
+| **Custom / synced** | User-chosen folder (Syncthing, cloud, USB path) | Settings → **Use synced / custom folder…** writes `{exe}/data-location.json` |
+
+Keep **`vault.km` and `attachments/`** in the same data directory when syncing. Clavis does not run a sync daemon; multi-device is **last-write-wins** on the encrypted blob. If `vault.km` changes under an unlocked session, Clavis locks and refuses to overwrite. `snapshots/` is optional to sync (local rollback copies).
 
 ### USB / plug-and-play kit
 
 1. Prefer **portable default** (no `data-location.json`).
-2. Copy the **entire install folder** (binary + `data/` containing encrypted `vault.km`) to a USB drive or another PC.
-3. Absolute custom data paths break when drive letters change — Settings warns and offers **Make portable** (copies vault + config into `{exe}/data/` and removes the override).
+2. Copy the **entire install folder** (binary + `data/` containing encrypted `vault.km` and `attachments/`) to a USB drive or another PC.
+3. Absolute custom data paths break when drive letters change — Settings warns and offers **Make portable** (copies vault, config, icons, attachments, and snapshots into `{exe}/data/` and removes the override).
 4. Disable convenience unlock (OS keyring) on shared/USB kits — keyring is machine-local.
 
-- Changing the folder **locks** the vault; use Make portable or copy files yourself when migrating.
+- Changing the folder **locks** the vault; use Make portable or copy the whole data folder yourself when migrating.
 - Reset with **Use portable default** (removes `data-location.json` without copying).
 - Env/profile OS folders are never the default dump location.
 

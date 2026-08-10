@@ -365,6 +365,53 @@ export default function HomePage() {
     };
   }, [resetIdle, status?.state, refreshStatus, clearSensitiveUi, settings.lockOnHide]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function runCheck() {
+      try {
+        const result = await api.checkVaultDisk();
+        if (cancelled) return;
+        if (result.forcedLock) {
+          clearSensitiveUi();
+          setError(
+            "Vault changed on disk (sync or another copy). Locked to avoid overwriting — unlock again.",
+          );
+          await refreshStatus();
+          return;
+        }
+        if (result.changed && result.state !== "unlocked") {
+          await refreshStatus();
+        }
+      } catch {
+        /* browser / no IPC */
+      }
+    }
+
+    const onFocus = () => {
+      void runCheck();
+    };
+    window.addEventListener("focus", onFocus);
+    const onVis = () => {
+      if (!document.hidden) void runCheck();
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    // Light poll while locked so Syncthing updates surface without focus.
+    const interval = window.setInterval(() => {
+      if (status?.state === "locked") void runCheck();
+    }, 10_000);
+
+    void runCheck();
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      window.clearInterval(interval);
+    };
+  }, [status?.state, refreshStatus, clearSensitiveUi, setError]);
+
   const activeWorkspace = useMemo(() => workspaces.find((w) => w.active), [workspaces]);
 
   const categories = useMemo(() => {

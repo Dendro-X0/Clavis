@@ -320,14 +320,16 @@ Design: `specs/backend/v0.13.0-vault-richness-design.md`
 | Structured notes (markdown; searchable) | Done |
 | Version bump 0.13.0 | Done |
 
-### v0.14.0 — Optional folder sync — design
+### v0.14.0 — Optional folder sync — done
 
 Design: `specs/backend/v0.14.0-folder-sync-design.md`
 
 | Item | Status |
 |------|--------|
-| User data-dir / Syncthing as sync root (reuse `set_data_dir`) | Design |
-| External `vault.km` change → lock / refuse persist (LWW blob) | Design |
-| Docs: attachments travel with data dir; no Clavis cloud | Design |
+| User data-dir / Syncthing as sync root (reuse `set_data_dir`) | Done |
+| External `vault.km` change → lock / refuse persist (LWW blob) | Done |
+| Portable migrate copies attachments + snapshots | Done |
+| Docs: attachments travel with data dir; no Clavis cloud | Done |
+| Version bump 0.14.0 | Done |
 
-Next: implement atomic slices 2–5 from the design, then tag 0.14.0.
+Next: later Phase D (merge UI, store signing) when ready.

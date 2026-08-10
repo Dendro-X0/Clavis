@@ -380,8 +380,14 @@ function PortableDataSection({
   return (
     <SettingsCard>
       <p className="settings-card__desc">
-        Copy this entire install folder (app + <code className="text-[var(--foreground)]">data/</code>) to
-        another PC or USB. The encrypted vault moves with the app. Prefer the portable default.
+        Point this folder at a location you sync yourself (Syncthing, cloud drive, or USB). Keep the
+        whole data directory together — especially <code className="text-[var(--foreground)]">vault.km</code>{" "}
+        and <code className="text-[var(--foreground)]">attachments/</code>. Clavis does not run its own
+        sync; concurrent edits on two machines use last-write-wins on the encrypted vault file.
+      </p>
+      <p className="mt-2 text-sm text-[var(--muted)]">
+        Portable kit: copy this entire install folder (app +{" "}
+        <code className="text-[var(--foreground)]">data/</code>) to another PC or USB.
       </p>
       {!dataPortable && (
         <p className="mt-2 text-xs text-[var(--foreground)]">
@@ -397,7 +403,7 @@ function PortableDataSection({
             const ok = await appConfirm({
               title: "Change data directory?",
               description:
-                "The vault will lock. Choose a folder for vault.km and config.json. Existing data is not moved automatically — copy files yourself if needed.",
+                "The vault will lock. Choose a folder for vault.km, attachments/, and config. Existing data is not moved automatically — copy the whole data folder yourself if needed (or use Make portable).",
               confirmLabel: "Choose folder",
             });
             if (!ok) return;
@@ -413,7 +419,7 @@ function PortableDataSection({
             }
           }}
         >
-          Change data folder…
+          Use synced / custom folder…
         </button>
         <button
           type="button"
@@ -447,7 +453,7 @@ function PortableDataSection({
             const ok = await appConfirm({
               title: "Make portable?",
               description:
-                "Copies vault.km, config.json, and icons into {app}/data next to the executable, then clears the custom path. The vault will lock.",
+                "Copies vault.km, config.json, icons, attachments, and snapshots into {app}/data next to the executable, then clears the custom path. The vault will lock.",
               confirmLabel: "Make portable",
             });
             if (!ok) return;

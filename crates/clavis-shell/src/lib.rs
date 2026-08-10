@@ -25,6 +25,7 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::create_vault,
             commands::unlock,
             commands::lock,
+            commands::check_vault_disk,
             commands::list_entries,
             commands::list_all_entries,
             commands::list_deleted_entries,

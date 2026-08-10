@@ -108,6 +108,10 @@ pub struct AppState {
     pub session: Mutex<Option<VaultSession>>,
     pub settings: Mutex<AppSettings>,
     pub generator_history: Mutex<Vec<String>>,
+    /// SHA-256 of `vault.km` last adopted by this process (unlock/persist/disk check).
+    pub known_disk_sha256: Mutex<Option<String>>,
+    /// True after an external disk change until unlock surfaces the gate warning.
+    pub pending_disk_change_warn: Mutex<bool>,
 }
 
 impl Default for AppState {
@@ -116,6 +120,8 @@ impl Default for AppState {
             session: Mutex::new(None),
             settings: Mutex::new(AppSettings::default()),
             generator_history: Mutex::new(Vec::new()),
+            known_disk_sha256: Mutex::new(None),
+            pending_disk_change_warn: Mutex::new(false),
         }
     }
 }
