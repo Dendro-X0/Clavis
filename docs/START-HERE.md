@@ -28,6 +28,7 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `specs/backend/v0.11.0-password-health-design.md` | v0.11 password health + optional HIBP |
 | `specs/backend/v0.12.0-desktop-fill-match-design.md` | v0.12 desktop autotype + title match (Windows first) |
 | `specs/backend/v0.13.0-vault-richness-design.md` | v0.13 snapshots / attachments / structured notes |
+| `specs/backend/v0.14.0-folder-sync-design.md` | v0.14 optional user-folder / Syncthing data-dir sync |
 | `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |

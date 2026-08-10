@@ -51,6 +51,8 @@ After mobile installers (v0.9.0), prioritize **daily friction** and **local trus
 
 **Non-goals:** Clavis cloud backup; unlimited blob storage.
 
-## Phase D interaction
+**Phase D interaction**
 
 Folder sync of `vault.km` stays Phase D. When sync lands, it must respect soft-delete + snapshot semantics from 0.10/0.13 — design sync **after** those owners exist or with an explicit compatibility section.
+
+**v0.14 design (ready):** `specs/backend/v0.14.0-folder-sync-design.md` — optional user data-dir / Syncthing folder; whole-blob LWW; external change forces lock.

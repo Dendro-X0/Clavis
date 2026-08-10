@@ -112,7 +112,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 ### Phase D — Interop & trust
 
 - Import from Bitwarden / KeePass / browser CSV (documented mapping) — CSV + TOTP done in v0.8.0; folder sync remains
-- Optional user-folder sync of `vault.km` (conflict = last-write or explicit merge)
+- Optional user-folder sync of `vault.km` (conflict = last-write or explicit merge) — **design:** `specs/backend/v0.14.0-folder-sync-design.md` (LWW blob; data-dir reuse)
 - Store signing / notarization / Play + App Store listing when project is ready (not blocking OSS sideload)
 
 ### Phase E — Friction & vault hygiene (post-0.9.0)
@@ -307,7 +307,7 @@ Design: `specs/backend/v0.12.0-desktop-fill-match-design.md`
 | Opt-in URL / app-title entry suggestions | Done |
 | Version bump 0.12.0 | Done |
 
-Next: Phase D when unblocked. Post-0.13 UX remediation (calm home, modal a11y, feedback, button kit, list paint, URL hash state) is implemented on `main` ahead of the next release tag.
+Next: **v0.14** folder sync — design `specs/backend/v0.14.0-folder-sync-design.md`. Post-0.13 UX remediation is on `main` ahead of the next release tag.
 
 ### v0.13.0 — Vault richness — done
 
@@ -320,4 +320,14 @@ Design: `specs/backend/v0.13.0-vault-richness-design.md`
 | Structured notes (markdown; searchable) | Done |
 | Version bump 0.13.0 | Done |
 
-Next: Phase D when unblocked. Post-0.13 UX remediation (calm home, modal a11y, feedback, button kit, list paint, URL hash state) is implemented on `main` ahead of the next release tag.
+### v0.14.0 — Optional folder sync — design
+
+Design: `specs/backend/v0.14.0-folder-sync-design.md`
+
+| Item | Status |
+|------|--------|
+| User data-dir / Syncthing as sync root (reuse `set_data_dir`) | Design |
+| External `vault.km` change → lock / refuse persist (LWW blob) | Design |
+| Docs: attachments travel with data dir; no Clavis cloud | Design |
+
+Next: implement atomic slices 2–5 from the design, then tag 0.14.0.
