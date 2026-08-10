@@ -4,7 +4,9 @@ mod crypto;
 mod error;
 mod format;
 mod generate;
+mod health;
 mod import_export;
+mod match_rank;
 mod model;
 mod quick_add;
 mod store;
@@ -15,10 +17,15 @@ pub use format::{
     VaultCryptoInfo, peek_kdf_from_bytes, peek_kdf_from_path, write_all_atomic,
 };
 pub use generate::{GenerateOptions, GeneratorPreset, generate_password};
+pub use health::{
+    HealthFinding, HealthFindingKind, HealthReport, HealthReportOptions, HealthSeverity,
+    hibp_range_contains_suffix, hibp_range_parts, password_sha1_hex, score_entries,
+};
 pub use import_export::{
     export_encrypted, import_credential_text, import_credentials_auto,
     import_credentials_from_path, import_csv_logins, import_encrypted, merge_entries,
 };
+pub use match_rank::{MatchCandidate, rank_entries_for_title};
 pub use model::{CustomField, Entry, EntryType, VaultDocument, VaultMeta, Workspace};
 pub use quick_add::{QuickAddDraft, parse_clipboard_for_quick_add};
 pub use store::{VaultSession, VaultStatus, create_vault, open_vault_file, vault_exists};

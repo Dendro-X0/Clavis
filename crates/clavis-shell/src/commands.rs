@@ -5,13 +5,15 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 use vault_core::{
-    Entry, EntryType, GenerateOptions, QuickAddDraft, TotpCode, VaultCryptoInfo,
-    create_vault as core_create, export_encrypted, generate_password as core_generate_password,
-    generate_totp_now, import_credentials_auto, import_credentials_from_path, import_csv_logins,
+    Entry, EntryType, GenerateOptions, HealthReport, HealthReportOptions, MatchCandidate,
+    QuickAddDraft, TotpCode, VaultCryptoInfo, create_vault as core_create, export_encrypted,
+    generate_password as core_generate_password, generate_totp_now, hibp_range_contains_suffix,
+    hibp_range_parts, import_credentials_auto, import_credentials_from_path, import_csv_logins,
     import_encrypted, normalize_otp_secret, open_vault_file, parse_clipboard_for_quick_add,
-    peek_kdf_from_path, vault_exists,
+    password_sha1_hex, peek_kdf_from_path, rank_entries_for_title, vault_exists,
 };
 
+use crate::autotype::{self, ForegroundWindowInfo};
 use crate::paths::{
     app_root, config_path, ensure_data_dir, icons_dir, is_portable_data_dir, portable_data_dir,
     set_data_dir_override, vault_path,
@@ -968,6 +970,220 @@ pub fn clipboard_quick_add(
     let guard = state.session.lock().map_err(|e| e.to_string())?;
     let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
     Ok(parse_clipboard_for_quick_add(&text))
+}
+
+#[tauri::command]
+pub fn password_health_report(
+    state: State<'_, AppState>,
+    options: Option<HealthReportOptions>,
+) -> Result<HealthReport, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    Ok(session.password_health_report(options.unwrap_or_default()))
+}
+
+/// One-shot HIBP k-anonymity check for a single password (never logged).
+#[tauri::command]
+pub fn check_password_breached(
+    state: State<'_, AppState>,
+    mut password: String,
+) -> Result<bool, String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    if !(settings.allow_network && settings.check_breaches) {
+        password.zeroize();
+        return Err("breach checks require Network and Check breaches in Settings".into());
+    }
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    drop(guard);
+
+    let hex = password_sha1_hex(&password);
+    password.zeroize();
+    let (prefix, suffix) = hibp_range_parts(&hex).ok_or_else(|| "invalid hash".to_string())?;
+    let url = format!("https://api.pwnedpasswords.com/range/{prefix}");
+    let body = ureq::get(&url)
+        .set("User-Agent", "Clavis-local-vault")
+        .set("Add-Padding", "true")
+        .call()
+        .map_err(|e| format!("HIBP request failed: {e}"))?
+        .into_string()
+        .map_err(|e| format!("HIBP read failed: {e}"))?;
+    Ok(hibp_range_contains_suffix(&body, suffix))
+}
+
+/// Run HIBP against scored entry passwords; returns entry ids that matched (no passwords).
+#[tauri::command]
+pub fn check_vault_breaches(
+    state: State<'_, AppState>,
+    options: Option<HealthReportOptions>,
+) -> Result<Vec<String>, String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    if !(settings.allow_network && settings.check_breaches) {
+        return Err("breach checks require Network and Check breaches in Settings".into());
+    }
+
+    let opts = options.unwrap_or_default();
+    let mut passwords: Vec<(String, String)> = {
+        let guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+        let mut out = Vec::new();
+        let workspaces: Vec<_> = if opts.all_workspaces {
+            session.list_workspaces().iter().collect()
+        } else {
+            session
+                .document()
+                .active_workspace()
+                .into_iter()
+                .collect()
+        };
+        for ws in workspaces {
+            for entry in &ws.entries {
+                if !opts.include_trash && entry.is_deleted() {
+                    continue;
+                }
+                if entry.password.is_empty() {
+                    continue;
+                }
+                out.push((entry.id.clone(), entry.password.clone()));
+            }
+        }
+        out
+    };
+
+    let mut breached_ids = Vec::new();
+    for (id, mut password) in passwords.drain(..) {
+        let hex = password_sha1_hex(&password);
+        password.zeroize();
+        let Some((prefix, suffix)) = hibp_range_parts(&hex) else {
+            continue;
+        };
+        let url = format!("https://api.pwnedpasswords.com/range/{prefix}");
+        let body = match ureq::get(&url)
+            .set("User-Agent", "Clavis-local-vault")
+            .set("Add-Padding", "true")
+            .call()
+        {
+            Ok(resp) => resp.into_string().unwrap_or_default(),
+            Err(_) => continue,
+        };
+        if hibp_range_contains_suffix(&body, suffix) {
+            breached_ids.push(id);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    Ok(breached_ids)
+}
+
+#[tauri::command]
+pub fn get_foreground_window_info(
+    state: State<'_, AppState>,
+) -> Result<ForegroundWindowInfo, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    drop(guard);
+    autotype::foreground_window_info()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AutotypeOptions {
+    #[serde(default)]
+    pub expected_title: Option<String>,
+    #[serde(default)]
+    pub key_delay_ms: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AutotypeMode {
+    Username,
+    Password,
+    Login,
+    Totp,
+}
+
+/// Confirm-gated autotype. UI must show foreground title and pass `expectedTitle`.
+#[tauri::command]
+pub fn autotype_entry(
+    state: State<'_, AppState>,
+    id: String,
+    mode: AutotypeMode,
+    options: Option<AutotypeOptions>,
+) -> Result<(), String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    if !settings.autotype_enabled {
+        return Err("autotype is disabled in Settings".into());
+    }
+    let opts = options.unwrap_or(AutotypeOptions {
+        expected_title: None,
+        key_delay_ms: None,
+    });
+    let delay = opts
+        .key_delay_ms
+        .unwrap_or(settings.autotype_key_delay_ms)
+        .clamp(0, 200);
+
+    let (username, mut password, otp_secret) = {
+        let guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+        let entry = session.get_entry(&id).map_err(map_err)?;
+        (
+            entry.username.clone(),
+            entry.password.clone(),
+            entry.otp_secret.clone(),
+        )
+    };
+
+    if let Some(ref expected) = opts.expected_title {
+        autotype::assert_foreground_title(expected)?;
+    }
+
+    let result = (|| -> Result<(), String> {
+        match mode {
+            AutotypeMode::Username => autotype::type_text(&username, delay),
+            AutotypeMode::Password => autotype::type_text(&password, delay),
+            AutotypeMode::Login => {
+                autotype::type_text(&username, delay)?;
+                autotype::type_tab(delay)?;
+                if let Some(ref expected) = opts.expected_title {
+                    autotype::assert_foreground_title(expected)?;
+                }
+                autotype::type_text(&password, delay)
+            }
+            AutotypeMode::Totp => {
+                if otp_secret.trim().is_empty() {
+                    return Err("entry has no TOTP secret".into());
+                }
+                let code = generate_totp_now(&otp_secret).map_err(map_err)?;
+                autotype::type_text(&code.code, delay)
+            }
+        }
+    })();
+    password.zeroize();
+    result
+}
+
+#[tauri::command]
+pub fn suggest_entries_for_foreground(
+    state: State<'_, AppState>,
+) -> Result<Vec<MatchCandidate>, String> {
+    let settings = state.settings.lock().map_err(|e| e.to_string())?.clone();
+    if !settings.suggest_from_foreground {
+        return Ok(Vec::new());
+    }
+    let info = {
+        let guard = state.session.lock().map_err(|e| e.to_string())?;
+        let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+        drop(guard);
+        autotype::foreground_window_info()?
+    };
+    if !info.supported || info.title.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    let rows = session.list_all_entries();
+    Ok(rank_entries_for_title(&info.title, &rows, 5))
 }
 
 #[tauri::command]

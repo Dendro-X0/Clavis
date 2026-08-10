@@ -29,6 +29,18 @@ pub struct AppSettings {
     /// Soft-deleted entries older than this many days are purged on unlock.
     #[serde(default = "default_trash_retain_days")]
     pub trash_retain_days: u64,
+    /// Opt-in HIBP k-anonymity checks (also requires `allow_network`). Default off.
+    #[serde(default)]
+    pub check_breaches: bool,
+    /// Desktop: allow confirm-gated SendInput autotype (Windows). Default off.
+    #[serde(default)]
+    pub autotype_enabled: bool,
+    /// Desktop: suggest entries from foreground window title. Default off.
+    #[serde(default)]
+    pub suggest_from_foreground: bool,
+    /// Delay between autotype keystrokes (ms).
+    #[serde(default = "default_autotype_key_delay_ms")]
+    pub autotype_key_delay_ms: u64,
     /// SHA-256 hex of encrypted `vault.km` after last trusted unlock/persist (integrity signal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_vault_sha256: Option<String>,
@@ -54,6 +66,10 @@ fn default_trash_retain_days() -> u64 {
     30
 }
 
+fn default_autotype_key_delay_ms() -> u64 {
+    25
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -68,6 +84,10 @@ impl Default for AppSettings {
             allow_network: false,
             lock_on_hide: default_lock_on_hide(),
             trash_retain_days: default_trash_retain_days(),
+            check_breaches: false,
+            autotype_enabled: false,
+            suggest_from_foreground: false,
+            autotype_key_delay_ms: default_autotype_key_delay_ms(),
             last_vault_sha256: None,
         }
     }

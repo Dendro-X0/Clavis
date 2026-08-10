@@ -83,6 +83,8 @@ Workspaces are **not** in the sidebar.
 15. **Offline-first portable (v0.7.0)**: Settings portable kit; **Make portable** copies vault into `{exe}/data/`; `allowNetwork` (default off) gates outbound HTTP; hold-to-reveal password fields; unlock may warn if `vault.km` SHA-256 changed since last session.
 16. **TOTP (v0.8.0)**: Optional `otpSecret` on entries; live code + Copy code; Copy login sequences user → password → TOTP when set. CSV imports map Bitwarden/KeePass `totp` columns.
 17. **Generate / capture / trash (v0.10)**: Password generator presets (Strong / Passphrase / PIN) with apply-to-editor and session-only history (wiped on lock). “New from clipboard” opens an editor draft only (otpauth / labeled / password-like). Soft-delete → Recycle bin; restore or purge; retain days in Settings.
+18. **Password health (v0.11)**: Local report (reuse / short / weak / common denylist); trash excluded. Optional HIBP k-anonymity behind `allowNetwork` + `checkBreaches` (one-shot from Health panel).
+19. **Desktop fill (v0.12)**: Opt-in Windows autotype (confirm shows foreground title; SendInput). Optional title-based suggestions. Defaults off.
 
 ### Dialogs
 
@@ -151,3 +153,7 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
 - `clipboardClearSeconds`: number (default `15` for new installs)
 - `trashRetainDays`: number (default `30`) — soft-deleted entries older than this are purged on unlock
+- `checkBreaches`: `boolean` (default `false`) — opt-in HIBP; requires `allowNetwork`
+- `autotypeEnabled`: `boolean` (default `false`) — Windows SendInput after confirm
+- `suggestFromForeground`: `boolean` (default `false`) — title heuristic suggestions
+- `autotypeKeyDelayMs`: number (default `25`)

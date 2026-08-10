@@ -3,6 +3,7 @@
 import {
   FileKey2,
   Folder,
+  HeartPulse,
   KeyRound,
   Lock,
   NotebookPen,
@@ -42,6 +43,7 @@ export function AppSidebar({
   onLock,
   onSearch,
   onOpenTrash,
+  onOpenHealth,
   trashCount,
   workspaces,
   pinnedWorkspaceIds,
@@ -53,6 +55,7 @@ export function AppSidebar({
   onLock: () => void;
   onSearch?: () => void;
   onOpenTrash?: () => void;
+  onOpenHealth?: () => void;
   trashCount?: number;
   workspaces?: WorkspaceSummary[];
   pinnedWorkspaceIds?: string[];
@@ -168,6 +171,20 @@ export function AppSidebar({
         )}
       </nav>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-[var(--border)] px-2 pt-2">
+        {onOpenHealth && (
+          <button
+            type="button"
+            title="Password health"
+            onClick={onOpenHealth}
+            className={cn(
+              "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <HeartPulse className="h-4 w-4" />
+            {!collapsed && <span>Password health</span>}
+          </button>
+        )}
         {onOpenTrash && (
           <button
             type="button"

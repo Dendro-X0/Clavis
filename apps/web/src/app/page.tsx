@@ -7,6 +7,7 @@ import { OnboardingTip } from "@/components/shell/onboarding-tip";
 import {
   CommandPalette,
   type PaletteActionId,
+  type PaletteAutotypeMode,
 } from "@/components/shell/command-palette";
 import { ClipboardClearToast } from "@/components/shell/clipboard-clear-toast";
 import { AppSidebar, type NavId } from "@/components/shell/sidebar";
@@ -15,6 +16,8 @@ import { Titlebar } from "@/components/titlebar/titlebar";
 import { EntryEditor } from "@/components/vault/entry-editor";
 import { EntryList } from "@/components/vault/entry-list";
 import { PasswordGeneratorPanel } from "@/components/vault/password-generator";
+import { PasswordHealthPanel } from "@/components/vault/password-health";
+import { ForegroundSuggestions } from "@/components/vault/foreground-suggestions";
 import { RecycleBinPanel } from "@/components/vault/recycle-bin";
 import {
   EntryPagination,
@@ -74,6 +77,10 @@ export default function HomePage() {
     allowNetwork: false,
     lockOnHide: true,
     trashRetainDays: 30,
+    checkBreaches: false,
+    autotypeEnabled: false,
+    suggestFromForeground: false,
+    autotypeKeyDelayMs: 25,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
@@ -82,6 +89,7 @@ export default function HomePage() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   const [trashCount, setTrashCount] = useState(0);
   const [clipboardClearEndsAt, setClipboardClearEndsAt] = useState<number | null>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,6 +128,7 @@ export default function HomePage() {
       setCategoryFilter(null);
       setGeneratorOpen(false);
       setTrashOpen(false);
+      setHealthOpen(false);
       setTrashCount(0);
     }
     setBoot(false);
@@ -134,14 +143,52 @@ export default function HomePage() {
     }
     setForm(null);
     setGeneratorOpen(false);
+    setHealthOpen(false);
   }, []);
 
   async function lockVault() {
     clearSensitiveUi();
     setTrashOpen(false);
+    setHealthOpen(false);
     await api.lock();
     await api.clearGeneratorHistory().catch(() => undefined);
     await refreshStatus();
+  }
+
+  async function confirmAndAutotype(id: string, mode: PaletteAutotypeMode) {
+    if (!settings.autotypeEnabled) {
+      setError("Enable autotype in Settings first.");
+      return;
+    }
+    try {
+      const info = await api.getForegroundWindowInfo();
+      if (!info.supported) {
+        setError("Autotype is only available on Windows in this release.");
+        return;
+      }
+      const label =
+        mode === "login"
+          ? "username, Tab, then password"
+          : mode === "username"
+            ? "username"
+            : mode === "password"
+              ? "password"
+              : "TOTP code";
+      const ok = await appConfirm({
+        title: "Type into focused window?",
+        description: `Target: “${info.title || "(no title)"}”${
+          info.processName ? ` (${info.processName})` : ""
+        }\nWill type: ${label}. Switch to the target field, then confirm.`,
+        confirmLabel: "Type now",
+      });
+      if (!ok) return;
+      // Brief pause so focus can return to the target app after the dialog.
+      await new Promise((r) => setTimeout(r, 350));
+      const again = await api.getForegroundWindowInfo();
+      await api.autotypeEntry(id, mode, { expectedTitle: again.title });
+    } catch (e) {
+      setError(String(e).replace(/^Error:\s*/, ""));
+    }
   }
 
   async function newFromClipboard() {
@@ -193,6 +240,10 @@ export default function HomePage() {
           lockOnHide: s.lockOnHide !== false,
           clipboardClearSeconds: s.clipboardClearSeconds ?? 15,
           trashRetainDays: s.trashRetainDays ?? 30,
+          checkBreaches: Boolean(s.checkBreaches),
+          autotypeEnabled: Boolean(s.autotypeEnabled),
+          suggestFromForeground: Boolean(s.suggestFromForeground),
+          autotypeKeyDelayMs: s.autotypeKeyDelayMs ?? 25,
         });
         if (s.theme) setTheme(s.theme);
       })
@@ -646,6 +697,9 @@ export default function HomePage() {
       case "recycle-bin":
         setTrashOpen(true);
         break;
+      case "password-health":
+        setHealthOpen(true);
+        break;
       case "settings":
         clearSensitiveUi();
         setNav("settings");
@@ -708,6 +762,10 @@ export default function HomePage() {
             }
           }}
           onAction={handlePaletteAction}
+          autotypeEnabled={Boolean(settings.autotypeEnabled)}
+          onAutotypeEntry={(id, mode) => {
+            confirmAndAutotype(id, mode).catch((err) => setError(String(err)));
+          }}
         />
       )}
       <div className="flex min-h-0 flex-1">
@@ -729,6 +787,7 @@ export default function HomePage() {
               setPaletteOpen(true);
             }}
             onOpenTrash={() => setTrashOpen(true)}
+            onOpenHealth={() => setHealthOpen(true)}
             trashCount={trashCount}
             onLock={() => lockVault()}
           />
@@ -830,6 +889,17 @@ export default function HomePage() {
                     onImportHint={() => setNav("settings")}
                   />
                 )}
+                <ForegroundSuggestions
+                  enabled={Boolean(settings.suggestFromForeground)}
+                  autotypeEnabled={Boolean(settings.autotypeEnabled)}
+                  onOpenEntry={(id, workspaceId) => {
+                    openEntry(id, workspaceId).catch((err) => setError(String(err)));
+                  }}
+                  onAutotypeLogin={(id) => {
+                    confirmAndAutotype(id, "login").catch((err) => setError(String(err)));
+                  }}
+                  onError={setError}
+                />
                 <DashboardHeader
                   workspaces={workspaces}
                   entryCount={entries.length}
@@ -997,6 +1067,16 @@ export default function HomePage() {
             retainDays={settings.trashRetainDays ?? 30}
             onChanged={async () => {
               await refreshVault();
+            }}
+            onError={setError}
+          />
+          <PasswordHealthPanel
+            open={healthOpen}
+            onClose={() => setHealthOpen(false)}
+            allowNetwork={Boolean(settings.allowNetwork)}
+            checkBreaches={Boolean(settings.checkBreaches)}
+            onOpenEntry={(id, workspaceId) => {
+              openEntry(id, workspaceId).catch((err) => setError(String(err)));
             }}
             onError={setError}
           />

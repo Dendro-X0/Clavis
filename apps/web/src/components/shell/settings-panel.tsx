@@ -316,6 +316,7 @@ export function SettingsPanel({
                   ...settings,
                   allowNetwork: e.target.checked,
                   fetchFavicons: e.target.checked ? settings.fetchFavicons : false,
+                  checkBreaches: e.target.checked ? settings.checkBreaches : false,
                 })
               }
             />
@@ -345,6 +346,83 @@ export function SettingsPanel({
                 when fetching.
               </span>
             </span>
+          </label>
+          <label
+            className={`mt-3 flex items-start gap-2 text-sm ${
+              !settings.allowNetwork ? "opacity-50" : ""
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              disabled={!settings.allowNetwork}
+              checked={Boolean(settings.checkBreaches) && Boolean(settings.allowNetwork)}
+              onChange={(e) => setSettings({ ...settings, checkBreaches: e.target.checked })}
+            />
+            <span>
+              Check breaches (HIBP)
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                Opt-in one-shot k-anonymity checks from Password health. Sends a 5-character SHA-1
+                prefix to Have I Been Pwned — never your vault. Not continuous monitoring.
+              </span>
+            </span>
+          </label>
+        </div>
+        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
+          <p className="text-sm font-medium text-[var(--foreground)]">Desktop fill (Windows)</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Opt-in SendInput into the focused window after a confirm step. Off by default. Not
+            available on mobile / non-Windows builds.
+          </p>
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={Boolean(settings.autotypeEnabled)}
+              onChange={(e) =>
+                setSettings({ ...settings, autotypeEnabled: e.target.checked })
+              }
+            />
+            <span>
+              Enable autotype
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                Palette / entry actions type into the foreground app after you confirm the window
+                title.
+              </span>
+            </span>
+          </label>
+          <label className="mt-3 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={Boolean(settings.suggestFromForeground)}
+              onChange={(e) =>
+                setSettings({ ...settings, suggestFromForeground: e.target.checked })
+              }
+            />
+            <span>
+              Suggest from window title
+              <span className="mt-0.5 block text-xs text-[var(--muted)]">
+                Heuristic match against entry URL/title — not a real browser URL without an
+                extension.
+              </span>
+            </span>
+          </label>
+          <label className="mt-3 block text-sm">
+            Key delay (ms)
+            <input
+              type="number"
+              min={0}
+              max={200}
+              className="inset-field mt-1 w-full px-3 py-2"
+              value={settings.autotypeKeyDelayMs ?? 25}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  autotypeKeyDelayMs: Math.max(0, Number(e.target.value) || 25),
+                })
+              }
+            />
           </label>
         </div>
         <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">

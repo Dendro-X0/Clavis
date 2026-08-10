@@ -35,6 +35,11 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | TOTP seed exposure | Same lock/scrub as passwords; list shows `hasOtp` only; codes via IPC while unlocked | Done (v0.8.0) |
 | Generator plaintext in UI | Session-only history (≤5); wipe on lock/apply/dismiss; never persisted in `vault.km` | Done (v0.10) |
 | Soft-delete still decryptable | Trash is not secure erase until purge; document retain window; lifecycle owned by `vault-core` only | Done (v0.10) |
+| Password health report leaks secrets to UI | Findings are ids/titles only; scoring in Rust | Done (v0.11) |
+| Optional HIBP k-anonymity | Default off; requires `allowNetwork` + `checkBreaches`; one-shot; 5-char SHA-1 prefix only | Done (v0.11) |
+| Autotype to wrong window | Confirm shows foreground title; re-check immediately before SendInput; abort on change; default off | Done (v0.12) |
+| Foreground title spoofing | Suggestions are heuristics only; never auto-fill without confirm | Done (v0.12) |
+| Always-on input hooks | No persistent keylogger; event-driven fill only while unlocked | Done (v0.12) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 

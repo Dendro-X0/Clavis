@@ -52,7 +52,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | P1 | Optional PIN / biometric over keyring (desktop + mobile) | Ease of unlock without weakening master password |
 | P2 | Secure field reveal (hold-to-show), screen capture flags where OS allows | Hold-to-reveal done (v0.7.0); FLAG_SECURE → v0.9.0 |
 | P2 | Integrity: signed vault metadata / tamper detection UX | Fingerprint warn done (v0.7.0); deepen later |
-| P2 | Password health (local only) + optional breach pack | Planned — v0.11 |
+| P2 | Password health (local only) + optional breach pack | Done — v0.11 |
 | P3 | Audit logging (local, optional) | Power users / shared machines |
 | Later | Hardware key / passkey unlock of vault key wrap | Advanced users; keep master password recovery |
 
@@ -73,7 +73,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | P1 | Workspace sidebar pins + clipboard clear toast | v0.3.0 |
 | P1 | Password generator + clipboard quick-add + soft-delete | Done — v0.10 |
 | P1 | URL / app match (opt-in, offline heuristics) | Planned — v0.12 |
-| P2 | Password health (length, reuse warnings — local only) | Planned — v0.11 |
+| P2 | Password health (length, reuse warnings — local only) | Done — v0.11 |
 | P2 | Attachments / snapshots / structured notes | Planned — v0.13 |
 | P2 | Accessible density modes; larger touch targets for mobile | Mobile readiness |
 | P3 | Plugins / custom field templates | Stretch |
@@ -118,8 +118,8 @@ apps/web                   ← UI shell (static); platform plugins differ
 ### Phase E — Friction & vault hygiene (post-0.9.0)
 
 - **v0.10** — Generator, clipboard quick-add, soft-delete — **done**
-- **v0.11** — Local password health; optional HIBP offline / gated network  
-- **v0.12** — Desktop autotype + URL/app match (threat-model first)  
+- **v0.11** — Local password health; optional HIBP offline / gated network — **done**
+- **v0.12** — Desktop autotype + URL/app match (threat-model first) — **done**
 - **v0.13** — Attachments, snapshots, structured notes  
 
 Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`  
@@ -271,8 +271,8 @@ Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`
 | Version | Theme | Status |
 |---------|--------|--------|
 | v0.10 | Generate, quick-add, soft-delete | Done |
-| v0.11 | Password health + optional breach pack | Planned — stub in umbrella |
-| v0.12 | Desktop autotype + URL/app match | Planned — stub; design+threat-model before code |
+| v0.11 | Password health + optional breach pack | Done |
+| v0.12 | Desktop autotype + URL/app match | Done |
 | v0.13 | Attachments, snapshots, structured notes | Planned — stub in umbrella |
 
 ### v0.10.0 — Generate, capture & soft-delete — done
@@ -286,24 +286,28 @@ Design: `specs/backend/v0.10.0-generate-capture-design.md`
 | Soft-delete + Recycle bin + retain-N-days purge (`vault-core` owner) | Done |
 | Frontend-spec / threat-model touch + version bump 0.10.0 | Done |
 
-Next: **v0.11** password health (or Phase D when unblocked).
+### v0.11.0 — Password health — done
 
-### v0.11.0 — Password health — planned
-
-| Item | Status |
-|------|--------|
-| Local health report (reuse, short/weak; workspace-scoped) | Planned |
-| Optional breach pack (offline file or gated k-anonymity; default off) | Planned |
-| Version bump 0.11.0 | Planned |
-
-### v0.12.0 — Desktop fill & match — planned
+Design: `specs/backend/v0.11.0-password-health-design.md`
 
 | Item | Status |
 |------|--------|
-| Threat-model + design for autotype / window match | Planned (gate) |
-| Autotype into focused window (confirm; Windows first) | Planned |
-| Opt-in URL / app-title entry suggestions | Planned |
-| Version bump 0.12.0 | Planned |
+| Local health report (reuse, short/weak; workspace-scoped) | Done |
+| Optional breach pack (offline denylist + gated HIBP k-anonymity; default off) | Done |
+| Version bump 0.11.0 | Done (shipped with v0.12.0 tag) |
+
+### v0.12.0 — Desktop fill & match — done
+
+Design: `specs/backend/v0.12.0-desktop-fill-match-design.md`
+
+| Item | Status |
+|------|--------|
+| Threat-model + design for autotype / window match | Done |
+| Autotype into focused window (confirm; Windows first) | Done |
+| Opt-in URL / app-title entry suggestions | Done |
+| Version bump 0.12.0 | Done |
+
+Next: **v0.13** vault richness (or Phase D when unblocked).
 
 ### v0.13.0 — Vault richness — planned
 

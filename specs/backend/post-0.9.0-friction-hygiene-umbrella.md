@@ -1,6 +1,6 @@
 # Design — Post-0.9.0 friction & vault hygiene (umbrella)
 
-**Status:** roadmap umbrella (v0.10 done; v0.11–v0.13 planned)  
+**Status:** roadmap umbrella (v0.10–v0.12 done; v0.13 planned)  
 **Bands:** v0.10 → v0.11 → v0.12 → v0.13  
 **Stance:** local-first; no Clavis cloud; `allowNetwork` stays default **off**
 
@@ -13,8 +13,8 @@ After mobile installers (v0.9.0), prioritize **daily friction** and **local trus
 | Version | Theme | Design |
 |---------|--------|--------|
 | **0.10** | Generate, quick-add, soft-delete | `v0.10.0-generate-capture-design.md` |
-| **0.11** | Password health + optional breach pack | Stub below — expand before code |
-| **0.12** | Desktop autotype + URL/app match | Stub below — **threat-model + design required** before code |
+| **0.11** | Password health + optional breach pack | `v0.11.0-password-health-design.md` |
+| **0.12** | Desktop autotype + URL/app match | `v0.12.0-desktop-fill-match-design.md` |
 | **0.13** | Attachments, snapshots, structured notes | Stub below — vault format / lifecycle owner |
 
 **Do not** merge soft-delete, snapshots, and folder-sync conflict UI in one band — one lifecycle owner in `vault-core` at a time.

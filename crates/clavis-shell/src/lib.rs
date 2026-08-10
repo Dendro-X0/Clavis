@@ -1,6 +1,7 @@
 //! Shared Clavis Tauri shell — commands, paths, and builder wiring.
 //! Desktop and mobile crates own `generate_context!()` next to their configs.
 
+mod autotype;
 mod commands;
 mod paths;
 mod state;
@@ -59,6 +60,12 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::generator_history,
             commands::clear_generator_history,
             commands::clipboard_quick_add,
+            commands::password_health_report,
+            commands::check_password_breached,
+            commands::check_vault_breaches,
+            commands::get_foreground_window_info,
+            commands::autotype_entry,
+            commands::suggest_entries_for_foreground,
             commands::read_text_file,
             commands::try_keyring_unlock,
             commands::store_keyring_secret,

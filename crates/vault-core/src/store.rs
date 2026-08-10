@@ -461,6 +461,35 @@ impl VaultSession {
         Ok(removed)
     }
 
+    /// Local password health report (excludes trash unless options say otherwise).
+    pub fn password_health_report(
+        &self,
+        options: crate::health::HealthReportOptions,
+    ) -> crate::health::HealthReport {
+        let rows: Vec<(&str, &str, &Entry)> = if options.all_workspaces {
+            self.document
+                .workspaces
+                .iter()
+                .flat_map(|ws| {
+                    ws.entries
+                        .iter()
+                        .map(move |e| (ws.id.as_str(), ws.name.as_str(), e))
+                })
+                .collect()
+        } else {
+            self.document
+                .active_workspace()
+                .map(|ws| {
+                    ws.entries
+                        .iter()
+                        .map(|e| (ws.id.as_str(), ws.name.as_str(), e))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        crate::health::score_entries(&rows, &options)
+    }
+
     pub fn change_password(&mut self, current: &str, new_password: &str) -> Result<()> {
         let mut bytes = read_all(&self.path)?;
         let verified = decode_vault(&bytes, current);

@@ -19,6 +19,7 @@ base64 = { workspace = true }
 calamine = "0.26"
 csv = { workspace = true }
 totp-rs = { workspace = true }
+sha1 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"

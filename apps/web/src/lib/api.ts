@@ -65,8 +65,66 @@ export type AppSettings = {
   lockOnHide?: boolean;
   /** Soft-delete retain window (days). Default 30. */
   trashRetainDays?: number;
+  /** Opt-in HIBP k-anonymity (also requires allowNetwork). Default false. */
+  checkBreaches?: boolean;
+  /** Desktop confirm-gated SendInput autotype (Windows). Default false. */
+  autotypeEnabled?: boolean;
+  /** Suggest entries from foreground window title. Default false. */
+  suggestFromForeground?: boolean;
+  /** Delay between autotype keystrokes (ms). */
+  autotypeKeyDelayMs?: number;
   /** Encrypted vault fingerprint (integrity signal). */
   lastVaultSha256?: string | null;
+};
+
+export type ForegroundWindowInfo = {
+  title: string;
+  processName?: string | null;
+  platform: string;
+  supported: boolean;
+};
+
+export type AutotypeMode = "username" | "password" | "login" | "totp";
+
+export type MatchCandidate = {
+  entryId: string;
+  title: string;
+  username: string;
+  url: string;
+  workspaceId: string;
+  workspaceName: string;
+  score: number;
+};
+
+export type HealthFindingKind =
+  | "empty"
+  | "short"
+  | "weak_charset"
+  | "reused"
+  | "common"
+  | "breached";
+
+export type HealthSeverity = "info" | "warn" | "high";
+
+export type HealthFinding = {
+  entryId: string;
+  title: string;
+  workspaceId: string;
+  workspaceName: string;
+  kind: HealthFindingKind;
+  severity: HealthSeverity;
+  relatedEntryIds?: string[];
+};
+
+export type HealthReport = {
+  findings: HealthFinding[];
+  scoredEntries: number;
+  workspaceScoped: boolean;
+};
+
+export type HealthReportOptions = {
+  allWorkspaces?: boolean;
+  includeTrash?: boolean;
 };
 
 export type GeneratorPreset = "strong" | "passphrase" | "pin";
@@ -246,6 +304,20 @@ export const api = {
   generatorHistory: () => call<string[]>("generator_history"),
   clearGeneratorHistory: () => call<void>("clear_generator_history"),
   clipboardQuickAdd: (text: string) => call<QuickAddDraft | null>("clipboard_quick_add", { text }),
+  passwordHealthReport: (options?: HealthReportOptions) =>
+    call<HealthReport>("password_health_report", { options: options ?? null }),
+  checkPasswordBreached: (password: string) =>
+    call<boolean>("check_password_breached", { password }),
+  checkVaultBreaches: (options?: HealthReportOptions) =>
+    call<string[]>("check_vault_breaches", { options: options ?? null }),
+  getForegroundWindowInfo: () => call<ForegroundWindowInfo>("get_foreground_window_info"),
+  autotypeEntry: (
+    id: string,
+    mode: AutotypeMode,
+    options?: { expectedTitle?: string; keyDelayMs?: number },
+  ) => call<void>("autotype_entry", { id, mode, options: options ?? null }),
+  suggestEntriesForForeground: () =>
+    call<MatchCandidate[]>("suggest_entries_for_foreground"),
   readTextFile: (path: string) => call<string>("read_text_file", { path }),
   readEntryIcon: (host: string) => call<string | null>("read_entry_icon", { host }),
   fetchEntryIcon: (host: string) => call<string | null>("fetch_entry_icon", { host }),

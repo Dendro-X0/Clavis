@@ -9,12 +9,14 @@ export type PaletteActionId =
   | "new-entry"
   | "new-from-clipboard"
   | "recycle-bin"
+  | "password-health"
   | "settings"
   | "lock"
   | "focus-search"
   | "toggle-layout";
 
 export type PaletteCopyMode = "login" | "user" | "pass" | "otp";
+export type PaletteAutotypeMode = "login" | "username" | "password" | "totp";
 
 type PaletteItem =
   | { kind: "action"; id: PaletteActionId; label: string; hint: string }
@@ -39,12 +41,21 @@ type PaletteItem =
       mode: PaletteCopyMode;
       label: string;
       hint: string;
+    }
+  | {
+      kind: "autotype";
+      id: string;
+      entryId: string;
+      mode: PaletteAutotypeMode;
+      label: string;
+      hint: string;
     };
 
 const ACTIONS: Extract<PaletteItem, { kind: "action" }>[] = [
   { kind: "action", id: "new-entry", label: "New entry", hint: "Ctrl/Cmd+N" },
   { kind: "action", id: "new-from-clipboard", label: "New from clipboard", hint: "" },
   { kind: "action", id: "recycle-bin", label: "Open recycle bin", hint: "" },
+  { kind: "action", id: "password-health", label: "Password health", hint: "" },
   { kind: "action", id: "settings", label: "Open settings", hint: "Ctrl/Cmd+," },
   { kind: "action", id: "lock", label: "Lock vault", hint: "Ctrl/Cmd+L" },
   { kind: "action", id: "focus-search", label: "Focus toolbar search", hint: "/" },
@@ -64,6 +75,8 @@ export function CommandPalette({
   onSelectEntry,
   onSelectWorkspace,
   onCopyEntry,
+  onAutotypeEntry,
+  autotypeEnabled = false,
   onAction,
 }: {
   open: boolean;
@@ -73,6 +86,8 @@ export function CommandPalette({
   onSelectEntry: (id: string, workspaceId?: string) => void;
   onSelectWorkspace: (id: string) => void;
   onCopyEntry: (id: string, mode: PaletteCopyMode) => void;
+  onAutotypeEntry?: (id: string, mode: PaletteAutotypeMode) => void;
+  autotypeEnabled?: boolean;
   onAction: (id: PaletteActionId) => void;
 }) {
   const [q, setQ] = useState("");
@@ -151,11 +166,49 @@ export function CommandPalette({
             hint: "Authenticator code",
           });
         }
+        if (autotypeEnabled && onAutotypeEntry) {
+          entryItems.push(
+            {
+              kind: "autotype",
+              id: `${e.id}:type-login`,
+              entryId: e.id,
+              mode: "login",
+              label: `Type login — ${e.title}`,
+              hint: "Confirm → focused window",
+            },
+            {
+              kind: "autotype",
+              id: `${e.id}:type-user`,
+              entryId: e.id,
+              mode: "username",
+              label: `Type user — ${e.title}`,
+              hint: "Confirm → focused window",
+            },
+            {
+              kind: "autotype",
+              id: `${e.id}:type-pass`,
+              entryId: e.id,
+              mode: "password",
+              label: `Type pass — ${e.title}`,
+              hint: "Confirm → focused window",
+            },
+          );
+          if (e.hasOtp) {
+            entryItems.push({
+              kind: "autotype",
+              id: `${e.id}:type-otp`,
+              entryId: e.id,
+              mode: "totp",
+              label: `Type TOTP — ${e.title}`,
+              hint: "Confirm → focused window",
+            });
+          }
+        }
       }
     }
 
     return [...actions, ...workspaceItems, ...entryItems];
-  }, [entries, workspaces, q]);
+  }, [entries, workspaces, q, autotypeEnabled, onAutotypeEntry]);
 
   useEffect(() => {
     if (!open) return;
@@ -180,6 +233,8 @@ export function CommandPalette({
       onSelectWorkspace(item.id);
     } else if (item.kind === "copy") {
       onCopyEntry(item.entryId, item.mode);
+    } else if (item.kind === "autotype") {
+      onAutotypeEntry?.(item.entryId, item.mode);
     } else {
       onSelectEntry(item.id, item.workspaceId);
     }
@@ -190,6 +245,7 @@ export function CommandPalette({
     if (item.kind === "action") return "Action";
     if (item.kind === "workspace") return "Workspace";
     if (item.kind === "copy") return "Copy";
+    if (item.kind === "autotype") return "Type";
     return "Entry";
   }
 
