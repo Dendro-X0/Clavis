@@ -21,11 +21,24 @@ export type EntrySummary = {
   url: string;
   tags: string[];
   customFields?: CustomField[];
+  /** Unlocked list payload for client search. */
+  notes?: string;
   hasOtp?: boolean;
   updatedAt: string;
   deletedAt?: string | null;
   workspaceId?: string;
   workspaceName?: string;
+};
+
+export type NotesFormat = "plain" | "markdown";
+
+export type AttachmentMeta = {
+  id: string;
+  name: string;
+  mime?: string;
+  size: number;
+  created_at?: string;
+  createdAt?: string;
 };
 
 export type CustomField = { label: string; value: string };
@@ -39,11 +52,14 @@ export type Entry = {
   password: string;
   url: string;
   notes: string;
+  notes_format?: NotesFormat;
+  notesFormat?: NotesFormat;
   otp_secret?: string;
   otpSecret?: string;
   custom_fields?: CustomField[];
   customFields?: CustomField[];
   tags: string[];
+  attachments?: AttachmentMeta[];
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
@@ -73,6 +89,8 @@ export type AppSettings = {
   suggestFromForeground?: boolean;
   /** Delay between autotype keystrokes (ms). */
   autotypeKeyDelayMs?: number;
+  /** Max dated vault.km copies under data/snapshots. Default 10. */
+  snapshotRetain?: number;
   /** Encrypted vault fingerprint (integrity signal). */
   lastVaultSha256?: string | null;
 };
@@ -177,9 +195,17 @@ export type UpsertEntryInput = {
   password: string;
   url: string;
   notes: string;
+  notesFormat?: NotesFormat;
   tags: string[];
   customFields: CustomField[];
   otpSecret: string;
+};
+
+export type SnapshotInfo = {
+  name: string;
+  path: string;
+  size: number;
+  modifiedAt: string;
 };
 
 export type TotpCodeDto = {
@@ -260,6 +286,7 @@ export const api = {
         password: input.password,
         url: input.url,
         notes: input.notes,
+        notesFormat: input.notesFormat ?? "plain",
         tags: input.tags,
         customFields: input.customFields,
         otpSecret: input.otpSecret,
@@ -270,6 +297,29 @@ export const api = {
   purgeEntry: (id: string) => call<void>("purge_entry", { id }),
   emptyTrash: () => call<number>("empty_trash"),
   trashCount: () => call<number>("trash_count"),
+  createVaultSnapshot: () => call<SnapshotInfo>("create_vault_snapshot"),
+  listVaultSnapshots: () => call<SnapshotInfo[]>("list_vault_snapshots"),
+  restoreVaultSnapshot: (name: string, password: string) =>
+    call<StatusDto>("restore_vault_snapshot", { name, password }),
+  deleteVaultSnapshot: (name: string) => call<void>("delete_vault_snapshot", { name }),
+  addEntryAttachment: (input: {
+    entryId: string;
+    name: string;
+    mime?: string;
+    dataBase64: string;
+  }) =>
+    call<AttachmentMeta>("add_entry_attachment", {
+      input: {
+        entryId: input.entryId,
+        name: input.name,
+        mime: input.mime ?? "",
+        dataBase64: input.dataBase64,
+      },
+    }),
+  getEntryAttachment: (entryId: string, attachmentId: string) =>
+    call<string>("get_entry_attachment", { entryId, attachmentId }),
+  removeEntryAttachment: (entryId: string, attachmentId: string) =>
+    call<void>("remove_entry_attachment", { entryId, attachmentId }),
   exportVault: (dest: string) => call<void>("export_vault", { dest }),
   importVault: (source: string, password: string) =>
     call<StatusDto>("import_vault", { source, password }),
@@ -332,8 +382,16 @@ export function normalizeEntry(e: Entry) {
     password: e.password ?? "",
     url: e.url ?? "",
     notes: e.notes ?? "",
+    notesFormat: (e.notesFormat ?? e.notes_format ?? "plain") as NotesFormat,
     tags: e.tags ?? [],
     customFields: e.customFields ?? e.custom_fields ?? [],
     otpSecret: e.otpSecret ?? e.otp_secret ?? "",
+    attachments: (e.attachments ?? []).map((a) => ({
+      id: a.id,
+      name: a.name,
+      mime: a.mime ?? "application/octet-stream",
+      size: a.size,
+      createdAt: a.createdAt ?? a.created_at ?? "",
+    })),
   };
 }

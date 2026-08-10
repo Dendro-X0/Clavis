@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use zeroize::Zeroize;
 
-use crate::crypto::{KdfParams, VaultKey, derive_key, random_salt};
+use crate::crypto::{KdfParams, NONCE_LEN, VaultKey, decrypt, derive_key, encrypt, random_nonce, random_salt};
 use crate::error::{Result, VaultError};
 use crate::format::{
     VaultCryptoInfo, atomic_backup_path, cleanup_orphan_temps, decode_vault, encode_vault,
@@ -509,6 +509,27 @@ impl VaultSession {
     pub fn persist(&self) -> Result<()> {
         let encoded = encode_vault_with_key(&self.document, &self.key, self.salt, &self.params)?;
         write_all_atomic(&self.path, &encoded)
+    }
+
+    /// Seal arbitrary bytes with the session vault key (`nonce || ciphertext`).
+    pub fn seal_blob(&self, plaintext: &[u8]) -> Result<Vec<u8>> {
+        let nonce = random_nonce();
+        let ct = encrypt(&self.key, plaintext, &nonce)?;
+        let mut out = Vec::with_capacity(NONCE_LEN + ct.len());
+        out.extend_from_slice(&nonce);
+        out.extend_from_slice(&ct);
+        Ok(out)
+    }
+
+    /// Open a blob produced by `seal_blob`.
+    pub fn open_blob(&self, sealed: &[u8]) -> Result<Vec<u8>> {
+        if sealed.len() < NONCE_LEN {
+            return Err(VaultError::Message("sealed blob too short".into()));
+        }
+        let mut nonce = [0u8; NONCE_LEN];
+        nonce.copy_from_slice(&sealed[..NONCE_LEN]);
+        decrypt(&self.key, &sealed[NONCE_LEN..], &nonce)
+            .map_err(|_| VaultError::Message("failed to decrypt attachment".into()))
     }
 
     pub fn replace_document(&mut self, mut document: VaultDocument) -> Result<()> {

@@ -74,7 +74,7 @@ apps/web                   ← UI shell (static); platform plugins differ
 | P1 | Password generator + clipboard quick-add + soft-delete | Done — v0.10 |
 | P1 | URL / app match (opt-in, offline heuristics) | Planned — v0.12 |
 | P2 | Password health (length, reuse warnings — local only) | Done — v0.11 |
-| P2 | Attachments / snapshots / structured notes | Planned — v0.13 |
+| P2 | Attachments / snapshots / structured notes | Done — v0.13.0 |
 | P2 | Accessible density modes; larger touch targets for mobile | Mobile readiness |
 | P3 | Plugins / custom field templates | Stretch |
 
@@ -273,7 +273,7 @@ Umbrella: `specs/backend/post-0.9.0-friction-hygiene-umbrella.md`
 | v0.10 | Generate, quick-add, soft-delete | Done |
 | v0.11 | Password health + optional breach pack | Done |
 | v0.12 | Desktop autotype + URL/app match | Done |
-| v0.13 | Attachments, snapshots, structured notes | Planned — stub in umbrella |
+| v0.13 | Attachments, snapshots, structured notes | Done — v0.13.0 |
 
 ### v0.10.0 — Generate, capture & soft-delete — done
 
@@ -307,13 +307,17 @@ Design: `specs/backend/v0.12.0-desktop-fill-match-design.md`
 | Opt-in URL / app-title entry suggestions | Done |
 | Version bump 0.12.0 | Done |
 
-Next: **v0.13** vault richness (or Phase D when unblocked).
+Next: Phase D when unblocked.
 
-### v0.13.0 — Vault richness — planned
+### v0.13.0 — Vault richness — done
+
+Design: `specs/backend/v0.13.0-vault-richness-design.md`
 
 | Item | Status |
 |------|--------|
-| Encrypted attachments (size cap; trash-aligned) | Planned |
-| Dated encrypted snapshots + one-click restore | Planned |
-| Structured notes (markdown/tags; searchable) | Planned |
-| Version bump 0.13.0 | Planned |
+| Encrypted attachments (size cap; trash-aligned) | Done |
+| Dated encrypted snapshots + one-click restore | Done |
+| Structured notes (markdown; searchable) | Done |
+| Version bump 0.13.0 | Done |
+
+Next: Phase D when unblocked.

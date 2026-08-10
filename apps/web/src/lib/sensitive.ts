@@ -9,6 +9,7 @@ export function blankEntryForm(): UpsertEntryInput {
     password: "",
     url: "",
     notes: "",
+    notesFormat: "plain",
     tags: [],
     customFields: [],
     otpSecret: "",

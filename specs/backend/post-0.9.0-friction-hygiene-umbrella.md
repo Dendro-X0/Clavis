@@ -1,7 +1,7 @@
 # Design — Post-0.9.0 friction & vault hygiene (umbrella)
 
-**Status:** roadmap umbrella (v0.10–v0.12 done; v0.13 planned)  
-**Bands:** v0.10 → v0.11 → v0.12 → v0.13  
+**Status:** roadmap umbrella (v0.10–v0.13 done)  
+**Bands:** v0.10 → v0.11 → v0.12 → v0.13
 **Stance:** local-first; no Clavis cloud; `allowNetwork` stays default **off**
 
 ## North star
@@ -15,7 +15,7 @@ After mobile installers (v0.9.0), prioritize **daily friction** and **local trus
 | **0.10** | Generate, quick-add, soft-delete | `v0.10.0-generate-capture-design.md` |
 | **0.11** | Password health + optional breach pack | `v0.11.0-password-health-design.md` |
 | **0.12** | Desktop autotype + URL/app match | `v0.12.0-desktop-fill-match-design.md` |
-| **0.13** | Attachments, snapshots, structured notes | Stub below — vault format / lifecycle owner |
+| **0.13** | Attachments, snapshots, structured notes | `v0.13.0-vault-richness-design.md` |
 
 **Do not** merge soft-delete, snapshots, and folder-sync conflict UI in one band — one lifecycle owner in `vault-core` at a time.
 
@@ -39,15 +39,15 @@ After mobile installers (v0.9.0), prioritize **daily friction** and **local trus
 
 **Depends on:** Stable entry URL fields; generator optional for “fill new password” flows later.
 
-## v0.13 — Vault richness (stub)
+## v0.13 — Vault richness
 
-**Goals:**
+**Design:** `v0.13.0-vault-richness-design.md` (done — v0.13.0)
 
-- Encrypted **attachments** per entry (size cap; delete/purge aligned with soft-delete).
-- **Snapshots** — dated encrypted backups under data dir; retain N; one-click restore.
-- **Structured notes** — markdown/tags distinct from password; search indexes like custom fields.
+**Shipped surface:**
 
-**Format:** Prefer extend `vault.km` or explicit sidecar layout with atomic writes — decide in detailed design; no second crypto stack.
+- Encrypted **attachments** per entry (256 KiB / 5; purge deletes sidecars).
+- **Snapshots** — dated `vault.km` copies; retain N; restore + re-unlock.
+- **Structured notes** — `notes_format` plain|markdown; searchable; simple preview.
 
 **Non-goals:** Clavis cloud backup; unlimited blob storage.
 

@@ -5,18 +5,19 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 use zeroize::Zeroize;
 use vault_core::{
-    Entry, EntryType, GenerateOptions, HealthReport, HealthReportOptions, MatchCandidate,
-    QuickAddDraft, TotpCode, VaultCryptoInfo, create_vault as core_create, export_encrypted,
-    generate_password as core_generate_password, generate_totp_now, hibp_range_contains_suffix,
-    hibp_range_parts, import_credentials_auto, import_credentials_from_path, import_csv_logins,
-    import_encrypted, normalize_otp_secret, open_vault_file, parse_clipboard_for_quick_add,
-    password_sha1_hex, peek_kdf_from_path, rank_entries_for_title, vault_exists,
+    AttachmentMeta, Entry, EntryType, GenerateOptions, HealthReport, HealthReportOptions,
+    MatchCandidate, NotesFormat, QuickAddDraft, TotpCode, VaultCryptoInfo,
+    create_vault as core_create, export_encrypted, generate_password as core_generate_password,
+    generate_totp_now, hibp_range_contains_suffix, hibp_range_parts, import_credentials_auto,
+    import_credentials_from_path, import_csv_logins, import_encrypted, normalize_otp_secret,
+    open_vault_file, parse_clipboard_for_quick_add, password_sha1_hex, peek_kdf_from_path,
+    rank_entries_for_title, vault_exists,
 };
 
 use crate::autotype::{self, ForegroundWindowInfo};
 use crate::paths::{
-    app_root, config_path, ensure_data_dir, icons_dir, is_portable_data_dir, portable_data_dir,
-    set_data_dir_override, vault_path,
+    app_root, attachments_dir, config_path, ensure_data_dir, entry_attachments_dir, icons_dir,
+    is_portable_data_dir, portable_data_dir, set_data_dir_override, snapshots_dir, vault_path,
 };
 use crate::state::{AppSettings, AppState};
 
@@ -43,6 +44,9 @@ pub struct EntrySummary {
     pub tags: Vec<String>,
     /// Included so dashboard search can match emails/phones without opening each entry.
     pub custom_fields: Vec<vault_core::CustomField>,
+    /// Notes text for unlocked client search (same trust boundary as get_entry).
+    #[serde(default)]
+    pub notes: String,
     /// True when entry has a TOTP seed (secret never listed).
     pub has_otp: bool,
     pub updated_at: String,
@@ -64,6 +68,8 @@ pub struct UpsertEntryInput {
     pub password: String,
     pub url: String,
     pub notes: String,
+    #[serde(default)]
+    pub notes_format: NotesFormat,
     pub tags: Vec<String>,
     pub custom_fields: Vec<vault_core::CustomField>,
     #[serde(default)]
@@ -140,6 +146,7 @@ fn summary(e: &Entry) -> EntrySummary {
         url: e.url.clone(),
         tags: e.tags.clone(),
         custom_fields: e.custom_fields.clone(),
+        notes: e.notes.clone(),
         has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
         deleted_at: e.deleted_at.map(|t| t.to_rfc3339()),
@@ -157,6 +164,7 @@ fn summary_in_workspace(e: &Entry, workspace_id: &str, workspace_name: &str) -> 
         url: e.url.clone(),
         tags: e.tags.clone(),
         custom_fields: e.custom_fields.clone(),
+        notes: e.notes.clone(),
         has_otp: e.has_otp(),
         updated_at: e.updated_at.to_rfc3339(),
         deleted_at: e.deleted_at.map(|t| t.to_rfc3339()),
@@ -427,6 +435,7 @@ pub fn unlock(
     };
     state.clear_generator_history();
     *state.session.lock().map_err(|e| e.to_string())? = Some(session);
+    let _ = cleanup_orphan_attachments(&app, &state);
     Ok(dto)
 }
 
@@ -588,6 +597,7 @@ pub fn upsert_entry(
         existing.password = input.password;
         existing.url = input.url;
         existing.notes = input.notes;
+        existing.notes_format = input.notes_format;
         existing.tags = input.tags;
         existing.custom_fields = input.custom_fields;
         existing.otp_secret = normalize_otp_secret(&input.otp_secret).map_err(map_err)?;
@@ -598,6 +608,7 @@ pub fn upsert_entry(
         e.password = input.password;
         e.url = input.url;
         e.notes = input.notes;
+        e.notes_format = input.notes_format;
         e.tags = input.tags;
         e.custom_fields = input.custom_fields;
         e.otp_secret = normalize_otp_secret(&input.otp_secret).map_err(map_err)?;
@@ -645,21 +656,343 @@ pub fn purge_entry(app: AppHandle, state: State<'_, AppState>, id: String) -> Re
             .ok_or_else(|| "vault is locked".to_string())?;
         session.purge_entry(&id).map_err(map_err)?;
     }
+    let _ = remove_entry_attachments_dir(&app, &id);
     let _ = record_vault_fingerprint(&app, &state);
     Ok(())
 }
 
 #[tauri::command]
 pub fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> Result<usize, String> {
-    let removed = {
+    let (removed, ids) = {
         let mut guard = state.session.lock().map_err(|e| e.to_string())?;
         let session = guard
             .as_mut()
             .ok_or_else(|| "vault is locked".to_string())?;
-        session.empty_trash().map_err(map_err)?
+        let ids: Vec<String> = session
+            .list_deleted_entries()
+            .into_iter()
+            .map(|(_, _, e)| e.id.clone())
+            .collect();
+        let removed = session.empty_trash().map_err(map_err)?;
+        (removed, ids)
     };
+    for id in ids {
+        let _ = remove_entry_attachments_dir(&app, &id);
+    }
     let _ = record_vault_fingerprint(&app, &state);
     Ok(removed)
+}
+
+fn remove_entry_attachments_dir(app: &AppHandle, entry_id: &str) -> Result<(), String> {
+    let dir = attachments_dir(app)?.join(entry_id);
+    if dir.is_dir() {
+        fs::remove_dir_all(&dir).map_err(map_err)?;
+    }
+    Ok(())
+}
+
+fn cleanup_orphan_attachments(app: &AppHandle, state: &State<'_, AppState>) -> Result<(), String> {
+    let root = attachments_dir(app)?;
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = match guard.as_ref() {
+        Some(s) => s,
+        None => return Ok(()),
+    };
+    let mut live = std::collections::HashSet::new();
+    for ws in session.list_workspaces() {
+        for e in &ws.entries {
+            live.insert(e.id.clone());
+        }
+    }
+    drop(guard);
+    if let Ok(entries) = fs::read_dir(&root) {
+        for ent in entries.flatten() {
+            let path = ent.path();
+            if !path.is_dir() {
+                continue;
+            }
+            if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
+                if !live.contains(name) {
+                    let _ = fs::remove_dir_all(&path);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+const MAX_ATTACHMENT_BYTES: usize = 256 * 1024;
+const MAX_ATTACHMENTS_PER_ENTRY: usize = 5;
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SnapshotInfo {
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    pub modified_at: String,
+}
+
+#[tauri::command]
+pub fn create_vault_snapshot(app: AppHandle, state: State<'_, AppState>) -> Result<SnapshotInfo, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    drop(guard);
+    let src = vault_path(&app)?;
+    if !src.is_file() {
+        return Err("vault file missing".into());
+    }
+    let dir = snapshots_dir(&app)?;
+    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S");
+    let name = format!("vault-{stamp}.km");
+    let dest = dir.join(&name);
+    fs::copy(&src, &dest).map_err(map_err)?;
+    prune_snapshots(&app)?;
+    snapshot_info_for(&dest)
+}
+
+fn prune_snapshots(app: &AppHandle) -> Result<(), String> {
+    let retain = state_snapshot_retain(app);
+    let dir = snapshots_dir(app)?;
+    let mut files: Vec<_> = fs::read_dir(&dir)
+        .map_err(map_err)?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| {
+            p.extension()
+                .and_then(|x| x.to_str())
+                .map(|x| x.eq_ignore_ascii_case("km"))
+                .unwrap_or(false)
+        })
+        .collect();
+    files.sort_by_key(|p| std::cmp::Reverse(p.metadata().and_then(|m| m.modified()).ok()));
+    for old in files.into_iter().skip(retain as usize) {
+        let _ = fs::remove_file(old);
+    }
+    Ok(())
+}
+
+fn state_snapshot_retain(app: &AppHandle) -> u32 {
+    // Best-effort from disk settings; default 10.
+    load_settings_disk(app)
+        .map(|s| s.snapshot_retain.max(1))
+        .unwrap_or(10)
+}
+
+fn snapshot_info_for(path: &std::path::Path) -> Result<SnapshotInfo, String> {
+    let meta = fs::metadata(path).map_err(map_err)?;
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| {
+            let dt: chrono::DateTime<chrono::Utc> = t.into();
+            Some(dt.to_rfc3339())
+        })
+        .unwrap_or_default();
+    Ok(SnapshotInfo {
+        name: path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("snapshot.km")
+            .to_string(),
+        path: path.display().to_string(),
+        size: meta.len(),
+        modified_at: modified,
+    })
+}
+
+#[tauri::command]
+pub fn list_vault_snapshots(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<SnapshotInfo>, String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    drop(guard);
+    let dir = snapshots_dir(&app)?;
+    let mut out = Vec::new();
+    if let Ok(rd) = fs::read_dir(&dir) {
+        for ent in rd.flatten() {
+            let path = ent.path();
+            if path
+                .extension()
+                .and_then(|x| x.to_str())
+                .map(|x| x.eq_ignore_ascii_case("km"))
+                .unwrap_or(false)
+            {
+                if let Ok(info) = snapshot_info_for(&path) {
+                    out.push(info);
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn restore_vault_snapshot(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    name: String,
+    mut password: String,
+) -> Result<StatusDto, String> {
+    let safe = std::path::Path::new(&name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "invalid snapshot name".to_string())?;
+    if !safe.ends_with(".km") || safe.contains("..") {
+        return Err("invalid snapshot name".into());
+    }
+    let src = snapshots_dir(&app)?.join(safe);
+    if !src.is_file() {
+        password.zeroize();
+        return Err("snapshot not found".into());
+    }
+    // Lock current session before replacing bytes.
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        if let Some(session) = guard.take() {
+            session.into_locked();
+        }
+    }
+    let dest = vault_path(&app)?;
+    fs::copy(&src, &dest).map_err(map_err)?;
+    let session = open_vault_file(&dest, &password).map_err(map_err);
+    password.zeroize();
+    let session = session?;
+    let changed = check_and_update_vault_fingerprint(&app, &state)?;
+    let dto = StatusDto {
+        state: "unlocked".into(),
+        entry_count: Some(session.entry_count()),
+        name: Some(session.document().meta.name.clone()),
+        data_dir: ensure_data_dir(&app)?.display().to_string(),
+        vault_fingerprint_changed: changed,
+    };
+    *state.session.lock().map_err(|e| e.to_string())? = Some(session);
+    Ok(dto)
+}
+
+#[tauri::command]
+pub fn delete_vault_snapshot(app: AppHandle, state: State<'_, AppState>, name: String) -> Result<(), String> {
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let _session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    drop(guard);
+    let safe = std::path::Path::new(&name)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "invalid snapshot name".to_string())?;
+    let path = snapshots_dir(&app)?.join(safe);
+    if path.is_file() {
+        fs::remove_file(&path).map_err(map_err)?;
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AddAttachmentInput {
+    pub entry_id: String,
+    pub name: String,
+    #[serde(default)]
+    pub mime: String,
+    /// Base64-encoded plaintext bytes.
+    pub data_base64: String,
+}
+
+#[tauri::command]
+pub fn add_entry_attachment(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    input: AddAttachmentInput,
+) -> Result<AttachmentMeta, String> {
+    use base64::Engine;
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(input.data_base64.trim())
+        .map_err(|e| format!("invalid attachment data: {e}"))?;
+    if raw.len() > MAX_ATTACHMENT_BYTES {
+        return Err(format!(
+            "attachment too large (max {} KiB)",
+            MAX_ATTACHMENT_BYTES / 1024
+        ));
+    }
+    let name = input.name.trim();
+    if name.is_empty() {
+        return Err("attachment name required".into());
+    }
+
+    let meta = {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        let mut entry = session.get_entry(&input.entry_id).map_err(map_err)?.clone();
+        if entry.attachments.len() >= MAX_ATTACHMENTS_PER_ENTRY {
+            return Err(format!(
+                "max {MAX_ATTACHMENTS_PER_ENTRY} attachments per entry"
+            ));
+        }
+        let id = uuid::Uuid::new_v4().to_string();
+        let sealed = session.seal_blob(&raw).map_err(map_err)?;
+        let path = entry_attachments_dir(&app, &entry.id)?.join(format!("{id}.enc"));
+        fs::write(&path, &sealed).map_err(map_err)?;
+        let att = AttachmentMeta {
+            id: id.clone(),
+            name: name.to_string(),
+            mime: if input.mime.trim().is_empty() {
+                "application/octet-stream".into()
+            } else {
+                input.mime.trim().to_string()
+            },
+            size: raw.len() as u64,
+            created_at: chrono::Utc::now(),
+        };
+        entry.attachments.push(att.clone());
+        session.upsert_entry(entry).map_err(map_err)?;
+        att
+    };
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(meta)
+}
+
+#[tauri::command]
+pub fn get_entry_attachment(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    entry_id: String,
+    attachment_id: String,
+) -> Result<String, String> {
+    use base64::Engine;
+    let sealed = {
+        let path = entry_attachments_dir(&app, &entry_id)?.join(format!("{attachment_id}.enc"));
+        fs::read(&path).map_err(map_err)?
+    };
+    let guard = state.session.lock().map_err(|e| e.to_string())?;
+    let session = guard.as_ref().ok_or_else(|| "vault is locked".to_string())?;
+    let _ = session.get_entry(&entry_id).map_err(map_err)?;
+    let plain = session.open_blob(&sealed).map_err(map_err)?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(plain))
+}
+
+#[tauri::command]
+pub fn remove_entry_attachment(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    entry_id: String,
+    attachment_id: String,
+) -> Result<(), String> {
+    {
+        let mut guard = state.session.lock().map_err(|e| e.to_string())?;
+        let session = guard
+            .as_mut()
+            .ok_or_else(|| "vault is locked".to_string())?;
+        let mut entry = session.get_entry(&entry_id).map_err(map_err)?.clone();
+        entry.attachments.retain(|a| a.id != attachment_id);
+        session.upsert_entry(entry).map_err(map_err)?;
+    }
+    let path = entry_attachments_dir(&app, &entry_id)?.join(format!("{attachment_id}.enc"));
+    if path.is_file() {
+        let _ = fs::remove_file(path);
+    }
+    let _ = record_vault_fingerprint(&app, &state);
+    Ok(())
 }
 
 #[tauri::command]

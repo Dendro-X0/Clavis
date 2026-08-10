@@ -24,6 +24,24 @@ pub struct CustomField {
     pub value: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NotesFormat {
+    #[default]
+    Plain,
+    Markdown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AttachmentMeta {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub mime: String,
+    pub size: u64,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Entry {
     pub id: String,
@@ -37,6 +55,8 @@ pub struct Entry {
     pub url: String,
     #[serde(default)]
     pub notes: String,
+    #[serde(default)]
+    pub notes_format: NotesFormat,
     /// Base32 TOTP seed (empty = none). Scrubbed like password.
     #[serde(default)]
     pub otp_secret: String,
@@ -44,6 +64,8 @@ pub struct Entry {
     pub custom_fields: Vec<CustomField>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub attachments: Vec<AttachmentMeta>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     /// Soft-delete tombstone. `None` = active; set → hidden from default lists until restore/purge.
@@ -62,9 +84,11 @@ impl Entry {
             password: String::new(),
             url: String::new(),
             notes: String::new(),
+            notes_format: NotesFormat::Plain,
             otp_secret: String::new(),
             custom_fields: Vec::new(),
             tags: Vec::new(),
+            attachments: Vec::new(),
             created_at: now,
             updated_at: now,
             deleted_at: None,

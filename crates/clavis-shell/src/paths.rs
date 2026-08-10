@@ -120,11 +120,31 @@ pub fn ensure_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     fs::create_dir_all(dir.join("tmp")).map_err(|e| e.to_string())?;
     fs::create_dir_all(dir.join("icons")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(dir.join("snapshots")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(dir.join("attachments")).map_err(|e| e.to_string())?;
     Ok(dir)
 }
 
 pub fn icons_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
     let dir = ensure_data_dir(app)?.join("icons");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+pub fn snapshots_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let dir = ensure_data_dir(app)?.join("snapshots");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+pub fn attachments_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let dir = ensure_data_dir(app)?.join("attachments");
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
+pub fn entry_attachments_dir<R: Runtime>(app: &AppHandle<R>, entry_id: &str) -> Result<PathBuf, String> {
+    let dir = attachments_dir(app)?.join(entry_id);
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
 }

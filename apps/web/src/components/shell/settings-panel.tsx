@@ -3,7 +3,7 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { FileDropZone } from "@/components/import/file-drop-zone";
-import { api, type AppSettings, type ImportResult, type StatusDto, type VaultCryptoInfo, type WorkspaceSummary, formatVaultCryptoInfo, isWeakerThanDefaults } from "@/lib/api";
+import { api, type AppSettings, type ImportResult, type SnapshotInfo, type StatusDto, type VaultCryptoInfo, type WorkspaceSummary, formatVaultCryptoInfo, isWeakerThanDefaults } from "@/lib/api";
 import { importCredentialsFileSmart } from "@/lib/import";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import {
@@ -426,6 +426,37 @@ export function SettingsPanel({
           </label>
         </div>
         <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
+          <p className="text-sm font-medium text-[var(--foreground)]">Local snapshots</p>
+          <p className="mt-1 text-xs text-[var(--muted)]">
+            Dated copies of encrypted <code className="font-mono text-[0.7rem]">vault.km</code> under
+            the data folder. Restore replaces the live vault and re-unlocks. Attachment sidecars are
+            not inside the snapshot blob.
+          </p>
+          <label className="mt-3 block text-sm">
+            Keep last N snapshots
+            <input
+              type="number"
+              min={1}
+              max={50}
+              className="inset-field mt-1 w-full px-3 py-2"
+              value={settings.snapshotRetain ?? 10}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  snapshotRetain: Math.max(1, Math.min(50, Number(e.target.value) || 10)),
+                })
+              }
+            />
+          </label>
+          <SnapshotsControls
+            unlocked={status.state === "unlocked"}
+            onError={onError}
+            onRestored={async () => {
+              await onImported();
+            }}
+          />
+        </div>
+        <div className="mt-4 rounded-md border border-[var(--border)] bg-[var(--inset)]/40 p-3">
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -837,5 +868,147 @@ export function SettingsPanel({
         />
       </div>
     </section>
+  );
+}
+
+function SnapshotsControls({
+  unlocked,
+  onError,
+  onRestored,
+}: {
+  unlocked: boolean;
+  onError: (e: string) => void;
+  onRestored: () => Promise<void>;
+}) {
+  const [list, setList] = useState<SnapshotInfo[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  async function refresh() {
+    if (!unlocked) {
+      setList([]);
+      return;
+    }
+    try {
+      setList(await api.listVaultSnapshots());
+    } catch {
+      setList([]);
+    }
+  }
+
+  useEffect(() => {
+    void refresh();
+  }, [unlocked]);
+
+  async function create() {
+    setBusy(true);
+    try {
+      await api.createVaultSnapshot();
+      await refresh();
+      onError("");
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function restore(name: string) {
+    const ok = await appConfirm({
+      title: "Restore snapshot?",
+      description: `Replace the live vault with “${name}”? You will re-enter your master password. This does not restore attachment sidecars by itself.`,
+      confirmLabel: "Restore",
+      danger: true,
+    });
+    if (!ok) return;
+    const password = await appPrompt({
+      title: "Master password",
+      description: "Unlock the restored vault.",
+      confirmLabel: "Unlock",
+      password: true,
+    });
+    if (password == null || !password.trim()) return;
+    setBusy(true);
+    try {
+      await api.restoreVaultSnapshot(name, password);
+      await onRestored();
+      await refresh();
+      onError("Vault snapshot restored.");
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(name: string) {
+    const ok = await appConfirm({
+      title: "Delete snapshot?",
+      description: `Permanently delete “${name}”?`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.deleteVaultSnapshot(name);
+      await refresh();
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  function formatSize(n: number) {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
+    return `${(n / (1024 * 1024)).toFixed(1)} MiB`;
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <button
+        type="button"
+        className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm hover:bg-[var(--accent-wash)] disabled:opacity-50"
+        disabled={!unlocked || busy}
+        onClick={() => void create()}
+      >
+        {busy ? "Working…" : "Create snapshot now"}
+      </button>
+      {!unlocked ? (
+        <p className="text-xs text-[var(--muted)]">Unlock to manage snapshots.</p>
+      ) : list.length === 0 ? (
+        <p className="text-xs text-[var(--muted)]">No snapshots yet.</p>
+      ) : (
+        <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+          {list.map((s) => (
+            <li
+              key={s.name}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-[var(--panel)] px-2 py-1.5"
+            >
+              <span className="min-w-0 truncate font-mono text-xs">
+                {s.name}{" "}
+                <span className="text-[var(--muted)]">· {formatSize(s.size)}</span>
+              </span>
+              <span className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs"
+                  disabled={busy}
+                  onClick={() => void restore(s.name)}
+                >
+                  Restore
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--danger)]/40 px-2 py-0.5 text-xs text-[var(--danger)]"
+                  disabled={busy}
+                  onClick={() => void remove(s.name)}
+                >
+                  Delete
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

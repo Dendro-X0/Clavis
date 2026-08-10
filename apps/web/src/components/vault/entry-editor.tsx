@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type EntryType, type UpsertEntryInput } from "@/lib/api";
+import { api, type AttachmentMeta, type EntryType, type UpsertEntryInput } from "@/lib/api";
 import { CopyIconButton } from "@/components/ui/copy-button";
 import {
   hasParsedCredentialFields,
@@ -18,7 +18,9 @@ import {
 
 export function EntryEditor({
   form,
+  attachments = [],
   onChange,
+  onAttachmentsChange,
   onClose,
   onSave,
   onDelete,
@@ -27,7 +29,9 @@ export function EntryEditor({
   onError,
 }: {
   form: UpsertEntryInput;
+  attachments?: AttachmentMeta[];
   onChange: (updater: (prev: UpsertEntryInput) => UpsertEntryInput) => void;
+  onAttachmentsChange?: (list: AttachmentMeta[]) => void;
   onClose: () => void;
   onSave: () => Promise<void>;
   onDelete?: () => Promise<void>;
@@ -36,6 +40,7 @@ export function EntryEditor({
   onCopy?: () => void | Promise<void>;
   onError: (e: string) => void;
 }) {
+  const [showMdPreview, setShowMdPreview] = useState(false);
   const setForm = (patch: Partial<UpsertEntryInput> | ((f: UpsertEntryInput) => UpsertEntryInput)) => {
     onChange((f) => (typeof patch === "function" ? patch(f) : { ...f, ...patch }));
   };
@@ -160,11 +165,46 @@ export function EntryEditor({
         />
         <label className="block text-sm">
           Notes
-          <textarea
-            className="inset-field mt-1 min-h-24 w-full px-3 py-2"
-            value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          />
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <Select
+              value={form.notesFormat ?? "plain"}
+              onValueChange={(value) =>
+                setForm((f) => ({
+                  ...f,
+                  notesFormat: value as "plain" | "markdown",
+                }))
+              }
+            >
+              <SelectTrigger className="w-[9.5rem]">
+                <SelectValue placeholder="Format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="plain">Plain text</SelectItem>
+                <SelectItem value="markdown">Markdown</SelectItem>
+              </SelectContent>
+            </Select>
+            {(form.notesFormat ?? "plain") === "markdown" && (
+              <button
+                type="button"
+                className="rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)]"
+                onClick={() => setShowMdPreview((v) => !v)}
+              >
+                {showMdPreview ? "Edit" : "Preview"}
+              </button>
+            )}
+          </div>
+          {(form.notesFormat ?? "plain") === "markdown" && showMdPreview ? (
+            <div
+              className="inset-field mt-1 min-h-24 w-full overflow-auto px-3 py-2 text-sm leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: simpleMarkdownHtml(form.notes) }}
+            />
+          ) : (
+            <textarea
+              className="inset-field mt-1 min-h-24 w-full px-3 py-2 font-mono text-sm"
+              value={form.notes}
+              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            />
+          )}
         </label>
         <CopyableField
           label="Categories"
@@ -185,6 +225,13 @@ export function EntryEditor({
         <p className="text-xs text-[var(--muted)]">
           Comma-separated labels (e.g. work, banking). Filter them from the dashboard.
         </p>
+
+        <AttachmentsSection
+          entryId={form.id}
+          attachments={attachments}
+          onChange={onAttachmentsChange}
+          onError={onError}
+        />
 
         <div className="space-y-2 border-t border-[var(--border)] pt-3">
           <h3 className="text-sm font-medium">Authenticator (TOTP)</h3>
@@ -340,6 +387,176 @@ export function EntryEditor({
       </div>
     </section>
   );
+}
+
+function AttachmentsSection({
+  entryId,
+  attachments,
+  onChange,
+  onError,
+}: {
+  entryId?: string;
+  attachments: AttachmentMeta[];
+  onChange?: (list: AttachmentMeta[]) => void;
+  onError: (e: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function onPick(fileList: FileList | null) {
+    if (!entryId) {
+      onError("Save the entry before adding attachments.");
+      return;
+    }
+    const file = fileList?.[0];
+    if (!file) return;
+    if (file.size > 256 * 1024) {
+      onError("Attachment too large (max 256 KiB).");
+      return;
+    }
+    if (attachments.length >= 5) {
+      onError("Max 5 attachments per entry.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+      const dataBase64 = btoa(binary);
+      const meta = await api.addEntryAttachment({
+        entryId,
+        name: file.name,
+        mime: file.type || "application/octet-stream",
+        dataBase64,
+      });
+      onChange?.([
+        ...attachments,
+        {
+          id: meta.id,
+          name: meta.name,
+          mime: meta.mime ?? "application/octet-stream",
+          size: meta.size,
+          createdAt: meta.createdAt ?? meta.created_at ?? "",
+        },
+      ]);
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function download(att: AttachmentMeta) {
+    if (!entryId) return;
+    try {
+      const b64 = await api.getEntryAttachment(entryId, att.id);
+      const bin = atob(b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: att.mime || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.name || "attachment";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  async function remove(att: AttachmentMeta) {
+    if (!entryId) return;
+    try {
+      await api.removeEntryAttachment(entryId, att.id);
+      onChange?.(attachments.filter((a) => a.id !== att.id));
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-[var(--border)] pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium">Attachments</h3>
+        <label
+          className={`cursor-pointer rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:bg-[var(--inset)] hover:text-[var(--foreground)] ${
+            busy || !entryId ? "pointer-events-none opacity-50" : ""
+          }`}
+        >
+          {busy ? "Uploading…" : "+ File"}
+          <input
+            type="file"
+            className="hidden"
+            disabled={busy || !entryId}
+            onChange={(e) => {
+              void onPick(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      </div>
+      <p className="text-xs text-[var(--muted)]">
+        Encrypted sidecars (max 256 KiB, 5 per entry). Not included in encrypted vault export — use
+        snapshots or keep the data folder intact. Save the entry first to attach.
+      </p>
+      {attachments.length === 0 ? (
+        <p className="text-xs text-[var(--muted)]">No attachments.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {attachments.map((att) => (
+            <li
+              key={att.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border)] px-2.5 py-1.5 text-sm"
+            >
+              <span className="min-w-0 truncate">
+                {att.name}{" "}
+                <span className="text-xs text-[var(--muted)]">
+                  ({Math.max(1, Math.round(att.size / 1024))} KiB)
+                </span>
+              </span>
+              <span className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--inset)]"
+                  onClick={() => void download(att)}
+                >
+                  Download
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[var(--danger)]/40 px-2 py-0.5 text-xs text-[var(--danger)]"
+                  onClick={() => void remove(att)}
+                >
+                  Remove
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Minimal escaped markdown → HTML (headings, bold, italic, code, breaks). */
+function simpleMarkdownHtml(src: string): string {
+  const esc = src
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  const lines = esc.split(/\r?\n/).map((line) => {
+    if (/^###\s+/.test(line)) return `<h3 class="font-medium mt-2">${line.replace(/^###\s+/, "")}</h3>`;
+    if (/^##\s+/.test(line)) return `<h2 class="font-medium text-base mt-2">${line.replace(/^##\s+/, "")}</h2>`;
+    if (/^#\s+/.test(line)) return `<h1 class="font-display text-lg mt-2">${line.replace(/^#\s+/, "")}</h1>`;
+    let t = line
+      .replace(/`([^`]+)`/g, '<code class="rounded bg-[var(--inset)] px-1 font-mono text-xs">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    return t ? `<p class="my-1">${t}</p>` : "<br/>";
+  });
+  return lines.join("") || "<p class=\"text-[var(--muted)]\">(empty)</p>";
 }
 
 function TotpLivePreview({

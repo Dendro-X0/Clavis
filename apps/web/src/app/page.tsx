@@ -26,6 +26,7 @@ import {
 } from "@/components/vault/entry-pagination";
 import {
   api,
+  type AttachmentMeta,
   type AppSettings,
   type EntrySummary,
   type EntryType,
@@ -65,6 +66,7 @@ export default function HomePage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [nav, setNav] = useState<NavId>("all");
   const [form, setForm] = useState<UpsertEntryInput | null>(null);
+  const [formAttachments, setFormAttachments] = useState<AttachmentMeta[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     autoLockSeconds: 300,
     clipboardClearSeconds: 15,
@@ -81,6 +83,7 @@ export default function HomePage() {
     autotypeEnabled: false,
     suggestFromForeground: false,
     autotypeKeyDelayMs: 25,
+    snapshotRetain: 10,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
@@ -142,9 +145,15 @@ export default function HomePage() {
       loginCopyTimer.current = null;
     }
     setForm(null);
+    setFormAttachments([]);
     setGeneratorOpen(false);
     setHealthOpen(false);
   }, []);
+
+  function openBlankEntry() {
+    setFormAttachments([]);
+    setForm({ ...blankEntryForm() });
+  }
 
   async function lockVault() {
     clearSensitiveUi();
@@ -198,10 +207,12 @@ export default function HomePage() {
       setNav("all");
       if (!draft) {
         setError("Nothing useful on clipboard — opened a blank entry.");
+        setFormAttachments([]);
         setForm({ ...blankEntryForm() });
         return;
       }
       setError(null);
+      setFormAttachments([]);
       setForm({
         ...blankEntryForm(),
         entryType: draft.entryType ?? "login",
@@ -215,7 +226,7 @@ export default function HomePage() {
       });
     } catch (e) {
       setError(String(e).replace(/^Error:\s*/, ""));
-      setForm({ ...blankEntryForm() });
+      openBlankEntry();
     }
   }
 
@@ -334,6 +345,7 @@ export default function HomePage() {
         e.title.toLowerCase().includes(q) ||
         e.username.toLowerCase().includes(q) ||
         e.url.toLowerCase().includes(q) ||
+        (e.notes ?? "").toLowerCase().includes(q) ||
         e.tags.some((t) => t.toLowerCase().includes(q)) ||
         (e.customFields ?? []).some(
           (f) => f.label.toLowerCase().includes(q) || f.value.toLowerCase().includes(q),
@@ -471,6 +483,7 @@ export default function HomePage() {
     }
     const raw = await api.getEntry(id);
     const e = normalizeEntry(raw);
+    setFormAttachments(e.attachments);
     setForm({
       id: e.id,
       entryType: e.entryType,
@@ -479,14 +492,15 @@ export default function HomePage() {
       password: e.password,
       url: e.url,
       notes: e.notes,
+      notesFormat: e.notesFormat,
       tags: e.tags,
       customFields: e.customFields,
       otpSecret: e.otpSecret,
     });
   }
 
-  async function handleImported(result: ImportResult) {
-    setError(formatImportMessage(result));
+  async function handleImported(result?: ImportResult) {
+    if (result) setError(formatImportMessage(result));
     clearSensitiveUi();
     setCategoryFilter(null);
     setNav("all");
@@ -667,7 +681,7 @@ export default function HomePage() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         setNav("all");
-        setForm({ ...blankEntryForm() });
+        openBlankEntry();
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
@@ -689,7 +703,7 @@ export default function HomePage() {
     switch (id) {
       case "new-entry":
         setNav("all");
-        setForm({ ...blankEntryForm() });
+        openBlankEntry();
         break;
       case "new-from-clipboard":
         newFromClipboard().catch((err) => setError(String(err)));
@@ -809,7 +823,8 @@ export default function HomePage() {
                 error.startsWith("Password copied") ||
                 error.startsWith("Merged") ||
                 error.startsWith("No duplicate") ||
-                error.startsWith("Data directory")
+                error.startsWith("Data directory") ||
+                error.startsWith("Vault snapshot")
                   ? "mb-3 shrink-0 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm"
                   : "mb-3 shrink-0 rounded-md border border-[var(--danger)]/40 bg-[var(--danger)]/10 px-4 py-3 text-sm"
               }
@@ -937,7 +952,7 @@ export default function HomePage() {
                   onReplace={() => {
                     handleReplace().catch((err) => setError(String(err)));
                   }}
-                  onNewEntry={() => setForm({ ...blankEntryForm() })}
+                  onNewEntry={() => openBlankEntry()}
                   onNewFromClipboard={() => {
                     newFromClipboard().catch((err) => setError(String(err)));
                   }}
@@ -977,7 +992,7 @@ export default function HomePage() {
                       onCopyOtp={(id) => {
                         copyTotpCode(id).catch((err) => setError(String(err)));
                       }}
-                      onNewEntry={() => setForm({ ...blankEntryForm() })}
+                      onNewEntry={() => openBlankEntry()}
                       onNewFromClipboard={() => {
                         newFromClipboard().catch((err) => setError(String(err)));
                       }}
@@ -1010,7 +1025,9 @@ export default function HomePage() {
                 <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:h-full lg:w-[400px] xl:w-[440px]">
                   <EntryEditor
                     form={form}
+                    attachments={formAttachments}
                     onChange={(updater) => setForm((f) => (f ? updater(f) : f))}
+                    onAttachmentsChange={setFormAttachments}
                     onClose={() => clearSensitiveUi()}
                     onSave={async () => {
                       setError(null);

@@ -41,6 +41,9 @@ pub struct AppSettings {
     /// Delay between autotype keystrokes (ms).
     #[serde(default = "default_autotype_key_delay_ms")]
     pub autotype_key_delay_ms: u64,
+    /// Max dated vault snapshots to keep under data/snapshots.
+    #[serde(default = "default_snapshot_retain")]
+    pub snapshot_retain: u32,
     /// SHA-256 hex of encrypted `vault.km` after last trusted unlock/persist (integrity signal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_vault_sha256: Option<String>,
@@ -70,6 +73,10 @@ fn default_autotype_key_delay_ms() -> u64 {
     25
 }
 
+fn default_snapshot_retain() -> u32 {
+    10
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -88,6 +95,7 @@ impl Default for AppSettings {
             autotype_enabled: false,
             suggest_from_foreground: false,
             autotype_key_delay_ms: default_autotype_key_delay_ms(),
+            snapshot_retain: default_snapshot_retain(),
             last_vault_sha256: None,
         }
     }

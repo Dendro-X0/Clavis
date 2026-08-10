@@ -26,7 +26,9 @@ pub use import_export::{
     import_credentials_from_path, import_csv_logins, import_encrypted, merge_entries,
 };
 pub use match_rank::{MatchCandidate, rank_entries_for_title};
-pub use model::{CustomField, Entry, EntryType, VaultDocument, VaultMeta, Workspace};
+pub use model::{
+    AttachmentMeta, CustomField, Entry, EntryType, NotesFormat, VaultDocument, VaultMeta, Workspace,
+};
 pub use quick_add::{QuickAddDraft, parse_clipboard_for_quick_add};
 pub use store::{VaultSession, VaultStatus, create_vault, open_vault_file, vault_exists};
 pub use totp::{TotpCode, generate_totp_at, generate_totp_now, normalize_otp_secret, parse_otpauth_uri};
@@ -451,6 +453,18 @@ Password: has-pass
         assert!(entry.otp_secret.is_empty());
         assert!(entry.custom_fields.iter().all(|f| f.value.is_empty()));
         assert_eq!(entry.title, "Bank");
+    }
+
+    #[test]
+    fn seal_blob_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("blob.km");
+        let session = create_vault(&path, "Blob", "master-pw").unwrap();
+        let sealed = session.seal_blob(b"attachment-bytes").unwrap();
+        assert!(sealed.len() > 12);
+        let open = session.open_blob(&sealed).unwrap();
+        assert_eq!(open, b"attachment-bytes");
+        assert!(session.open_blob(&sealed[..8]).is_err());
     }
 
     #[test]

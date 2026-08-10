@@ -85,6 +85,7 @@ Workspaces are **not** in the sidebar.
 17. **Generate / capture / trash (v0.10)**: Password generator presets (Strong / Passphrase / PIN) with apply-to-editor and session-only history (wiped on lock). “New from clipboard” opens an editor draft only (otpauth / labeled / password-like). Soft-delete → Recycle bin; restore or purge; retain days in Settings.
 18. **Password health (v0.11)**: Local report (reuse / short / weak / common denylist); trash excluded. Optional HIBP k-anonymity behind `allowNetwork` + `checkBreaches` (one-shot from Health panel).
 19. **Desktop fill (v0.12)**: Opt-in Windows autotype (confirm shows foreground title; SendInput). Optional title-based suggestions. Defaults off.
+20. **Vault richness (v0.13)**: Settings snapshots (create / restore / retain); entry notes plain|markdown + preview; encrypted attachments (≤256 KiB, 5/entry) with purge-aligned sidecars. Encrypted export is still `vault.km` only.
 
 ### Dialogs
 
@@ -99,6 +100,8 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 | Username | `username` | Primary login id — email **or** username (same field) |
 | TOTP seed | `otpSecret` | Optional Base32 / otpauth URI; codes are SHA-1 · 6 digits · 30s |
 | Categories | `tags` | Freeform labels, comma-separated in editor; shown on list/grid |
+| Notes | `notes` + `notesFormat` | Plain or markdown; searchable when unlocked; optional preview |
+| Attachments | sidecars + meta | Max 256 KiB × 5; encrypted under data/attachments |
 | Custom fields | `customFields` | Extra labeled values (e.g. Email, Phone); add/remove in editor; searchable |
 
 **Custom fields (v0.6.1):** Below Categories, a **Custom fields** section lists `{ label, value }` rows with copy and remove. **Add field** appends a blank row; quick actions prefill label **Email** or **Phone**. Values persist via existing upsert IPC; cleared on lock scrub like other secrets.

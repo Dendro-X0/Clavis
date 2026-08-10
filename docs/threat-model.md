@@ -40,6 +40,9 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Autotype to wrong window | Confirm shows foreground title; re-check immediately before SendInput; abort on change; default off | Done (v0.12) |
 | Foreground title spoofing | Suggestions are heuristics only; never auto-fill without confirm | Done (v0.12) |
 | Always-on input hooks | No persistent keylogger; event-driven fill only while unlocked | Done (v0.12) |
+| Snapshot copies of vault.km | Same ciphertext sensitivity; only under app data dir; retain prune | Done (v0.13) |
+| Attachment plaintext on disk | Sidecars sealed with vault key; purge/empty trash deletes dirs; export omits sidecars (documented) | Done (v0.13) |
+| Markdown notes XSS | Preview escapes HTML; no remote content | Done (v0.13) |
 | Tampered installer (self-signed) | SHA-256 on releases; prefer build-from-tag | Process |
 | Supply-chain (deps) | Lockfiles; CI on `main` / tags | Process |
 
