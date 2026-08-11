@@ -9,6 +9,8 @@ export function normalizeEntryLayout(value: string | undefined): AppSettings["en
   return value === "grid" ? "grid" : "list";
 }
 
+export { normalizeSkin, type AppSkin } from "@/lib/skin";
+
 export type VaultState = "missing" | "locked" | "unlocked";
 
 export type StatusDto = {
@@ -80,6 +82,8 @@ export type AppSettings = {
   clipboardClearSeconds: number;
   biometricUnlock: boolean;
   theme: "light" | "dark" | "system";
+  /** Color scheme skin — independent of light/dark. */
+  skin?: "seafoam" | "graphite";
   entryLayout: "list" | "grid";
   pageSize: 10 | 25 | 50 | 100;
   pinnedWorkspaceIds?: string[];

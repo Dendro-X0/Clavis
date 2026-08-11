@@ -10,7 +10,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 clavis-shell = { workspace = true }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["image-png"] }
 # Direct deps so tauri-build registers plugin ACL permissions for this package.
 tauri-plugin-dialog = "2"
 tauri-plugin-clipboard-manager = "2"

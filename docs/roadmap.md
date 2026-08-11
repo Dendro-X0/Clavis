@@ -307,7 +307,7 @@ Design: `specs/backend/v0.12.0-desktop-fill-match-design.md`
 | Opt-in URL / app-title entry suggestions | Done |
 | Version bump 0.12.0 | Done |
 
-Next: **v0.14** folder sync — design `specs/backend/v0.14.0-folder-sync-design.md`. Post-0.13 UX remediation is on `main` ahead of the next release tag.
+Next: later Phase D (merge UI, store signing) when ready — see v0.15.0 below for the brand/skins polish band.
 
 ### v0.13.0 — Vault richness — done
 
@@ -331,5 +331,15 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Portable migrate copies attachments + snapshots | Done |
 | Docs: attachments travel with data dir; no Clavis cloud | Done |
 | Version bump 0.14.0 | Done |
+
+### v0.15.0 — Brand, skins, and settings polish — done
+
+| Item | Status |
+|------|--------|
+| Shield+lock mark + regenerated desktop/mobile OS icons | Done |
+| Appearance skins: seafoam + graphite (light/dark) | Done |
+| Idle lock **Never**; confirm before intentional lock | Done |
+| Page size as responsive option row (settings + list footer) | Done |
+| Version bump 0.15.0 | Done |
 
 Next: later Phase D (merge UI, store signing) when ready.

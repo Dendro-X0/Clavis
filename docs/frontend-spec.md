@@ -7,31 +7,41 @@
 - **Reference tier:** Obscur dual-theme + Aperio dashboard shell
 - **Stack:** Next.js 16 static export, Tailwind 4, light shadcn-style primitives, lucide-react, next-themes, Tauri v2
 - **Spec status:** approved (implementation target)
-- **API dependency:** Tauri vault/workspace commands + `AppSettings.theme` + `AppSettings.entryLayout`
+- **API dependency:** Tauri vault/workspace commands + `AppSettings.theme` + `AppSettings.skin` + `AppSettings.entryLayout`
 
 ## Visual direction
 
-- Theme: dual (light / dark / system)
-- Accent: seafoam teal on cool slate
+- Theme: dual (light / dark / system) via `next-themes`
+- **Skins** (color schemes): each skin defines a full light + dark token set; persisted as `AppSettings.skin`
+  - **Seafoam** (default) — teal accent on cool slate
+  - **Graphite** — amber accent on cool charcoal / steel gray
 - Surface rule: sidebar and main share shell tier; differentiate with hairline border
 - Density: CRM/Linear (tool, not marketing landing)
 - **NOT:** purple glow, cream+terracotta, newspaper columns, card-in-card stacks, OS titlebar chrome
 
 ## Design tokens
 
+Tokens live as CSS variables on `html[data-skin="…"]` (and `.dark`). Components use `var(--primary)` etc. — never hard-code a skin accent.
+
+### Seafoam (default)
+
 | Token | Light | Dark |
 |-------|-------|------|
 | `--background` | `#e8eef2` | `#0f1c1c` |
 | `--foreground` | `#1a2b2e` | `#e7f2f0` |
-| `--card` | `rgba(255,255,255,0.55)` | `rgba(28,51,51,0.45)` |
-| `--muted` | `#5c7278` | `#8eaeaa` |
-| `--border` | `rgba(26,43,46,0.12)` | `rgba(231,242,240,0.12)` |
 | `--primary` | `#2a8f83` | `#3db8a8` |
-| `--sidebar` | same as shell wash | same as shell wash |
-| `--titlebar` | transparent over gradient | transparent over gradient |
 | `--danger` | `#c45b52` | `#d9776c` |
 
-Shell atmosphere: layered radial + linear gradients (teal wash top-left).
+### Graphite
+
+| Token | Light | Dark |
+|-------|-------|------|
+| `--background` | `#eceef2` | `#12141a` |
+| `--foreground` | `#1a1d24` | `#e9ebf0` |
+| `--primary` | `#9a6b2f` | `#d4a054` |
+| `--danger` | `#c45b52` | `#e08a7a` |
+
+Shell atmosphere: layered radial + linear gradients per skin (accent wash top-left).
 
 ## App shell
 
@@ -130,6 +140,8 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 Preference persists in `AppSettings.entryLayout` (`"list" | "grid"`).
 `AppSettings.pageSize`: `10 | 25 | 50 | 100` (default `25`).
 
+**Page size control:** Row of equal-width options (`10` / `25` / `50` / `100`), not a dropdown — used in Settings → Appearance and the vault list footer. `role="radiogroup"` with `aria-checked` on the selected option; wraps on narrow widths; tap targets use `.touch-target` under `data-compact`.
+
 ## Window chrome
 
 - `decorations: false` (desktop)
@@ -159,6 +171,7 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 `data/config.json`:
 
 - `theme`: `"light" | "dark" | "system"`
+- `skin`: `"seafoam" | "graphite"` (default `seafoam`) — color scheme; independent of light/dark
 - `entryLayout`: `"list" | "grid"` (default `list`)
 - `pageSize`: `10 | 25 | 50 | 100` (default `25`)
 - `pinnedWorkspaceIds`: `string[]` (default `[]`)
@@ -166,7 +179,7 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `allowNetwork`: `boolean` (default `false`) — master outbound HTTP gate; favicon fetch requires both this and `fetchFavicons`
 - `lastVaultSha256`: optional hex string — fingerprint of encrypted `vault.km` (integrity signal, not a signature)
 - `biometricUnlock`: `boolean` (default `false`) — convenience unlock via OS keyring; configure only in Settings
-- `autoLockSeconds`: number (default `300`, min effective `30`) — idle lock from app input
+- `autoLockSeconds`: number (default `300`) — idle lock from app input; `0` = never (idle only; lock-on-hide still applies)
 - `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
 - `clipboardClearSeconds`: number (default `15` for new installs)
 - `trashRetainDays`: number (default `30`) — soft-deleted entries older than this are purged on unlock

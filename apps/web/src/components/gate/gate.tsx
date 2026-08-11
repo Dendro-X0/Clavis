@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ClavisLogo } from "@/components/brand/clavis-logo";
 import { api, type StatusDto } from "@/lib/api";
 import { biometricAuthenticate, biometricStatus } from "@/lib/biometric";
 import { appConfirm } from "@/lib/app-dialogs";
@@ -111,6 +112,7 @@ export function Gate({
 
   return (
     <section className="animate-rise mx-auto w-full max-w-md panel p-6 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+      <ClavisLogo size="lg" className="mb-5" />
       <h2 className="font-display text-2xl">
         {missing ? "Create your vault" : "Unlock"}
       </h2>

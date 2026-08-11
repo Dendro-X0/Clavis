@@ -17,6 +17,9 @@ const sora = Sora({
 export const metadata: Metadata = {
   title: "Clavis",
   description: "Local-first portable credential vault",
+  icons: {
+    icon: "/clavis-mark.svg",
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +28,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-skin="seafoam">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem("clavis-skin");if(s==="graphite"||s==="seafoam")document.documentElement.setAttribute("data-skin",s);}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${fraunces.variable} ${sora.variable} antialiased`}
         style={

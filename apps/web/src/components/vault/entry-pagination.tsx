@@ -2,21 +2,16 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  PageSizeRow,
+  type PageSize,
+} from "@/components/vault/page-size-row";
 import { cn } from "@/lib/utils";
 
-export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
-export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
-
-export function normalizePageSize(value: number | undefined): PageSize {
-  if (value === 10 || value === 25 || value === 50 || value === 100) return value;
-  return 25;
-}
+export {
+  PAGE_SIZE_OPTIONS,
+  normalizePageSize,
+  type PageSize,
+} from "@/components/vault/page-size-row";
 
 export function EntryPagination({
   total,
@@ -45,23 +40,15 @@ export function EntryPagination({
         className,
       )}
     >
-      <div className="flex items-center gap-2 text-[var(--muted)]">
-        <span>Per page</span>
-        <Select
-          value={String(pageSize)}
-          onValueChange={(v) => onPageSizeChange(normalizePageSize(Number(v)))}
-        >
-          <SelectTrigger className="h-8 w-[88px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PAGE_SIZE_OPTIONS.map((n) => (
-              <SelectItem key={n} value={String(n)}>
-                {n}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-[var(--muted)]">
+        <span className="shrink-0">Per page</span>
+        <PageSizeRow
+          value={pageSize}
+          onChange={onPageSizeChange}
+          label="Entries per page"
+          size="sm"
+          className="max-w-[16rem] sm:max-w-[18rem]"
+        />
         <span className="tabular-nums">
           {from}–{to} of {total}
         </span>
@@ -69,7 +56,7 @@ export function EntryPagination({
       <div className="flex items-center gap-1">
         <button
           type="button"
-          className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)] disabled:opacity-40"
+          className="touch-target rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)] disabled:opacity-40"
           disabled={safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
           aria-label="Previous page"
@@ -81,7 +68,7 @@ export function EntryPagination({
         </span>
         <button
           type="button"
-          className="rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)] disabled:opacity-40"
+          className="touch-target rounded-md border border-[var(--border)] p-1.5 text-[var(--muted)] transition hover:bg-[var(--inset)] hover:text-[var(--foreground)] disabled:opacity-40"
           disabled={safePage >= totalPages}
           onClick={() => onPageChange(safePage + 1)}
           aria-label="Next page"

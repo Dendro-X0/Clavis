@@ -1,5 +1,6 @@
 "use client";
 
+import { ClavisLogo } from "@/components/brand/clavis-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { WindowControls } from "@/components/titlebar/window-controls";
 import { cn } from "@/lib/utils";
@@ -21,12 +22,10 @@ export function Titlebar({
       )}
     >
       <div
-        className="flex h-full min-w-0 flex-1 items-center gap-2 pl-1"
+        className="flex h-full min-w-0 flex-1 items-center gap-2.5 pl-1"
         {...(!compact ? { "data-tauri-drag-region": true } : {})}
       >
-        <span className="font-display text-[15px] tracking-tight text-[var(--foreground)]">
-          Clavis
-        </span>
+        <ClavisLogo size="sm" className="min-w-0 gap-2" />
         {!compact && (
           <span className="hidden text-[10px] tracking-[0.18em] text-[var(--muted)] uppercase sm:inline">
             Local vault

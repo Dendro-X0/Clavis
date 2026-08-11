@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Clavis">
+  <rect width="1024" height="1024" rx="192" fill="#0f1c1c"/>
+  <path fill="#3db8a8" d="M512 120 L832 252 L832 520 L664 720 L512 896 L360 720 L192 520 L192 252 Z"/>
+  <!-- shackle as filled U -->
+  <path fill="#0b1616" fill-rule="evenodd" d="
+    M384 460 V340
+    L424 288 H600 L640 340 V460 H576 V360
+    L552 328 H472 L448 360 V460 H384 Z"/>
+  <!-- lock body -->
+  <rect x="360" y="448" width="304" height="240" rx="32" fill="#0b1616"/>
+  <!-- keyway -->
+  <rect x="460" y="520" width="104" height="112" rx="16" fill="#3db8a8"/>
+</svg>

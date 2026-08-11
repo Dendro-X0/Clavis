@@ -20,9 +20,10 @@ import {
   normalizeEntryLayout,
   normalizeTheme,
 } from "@/lib/api";
+import { applyDocumentSkin, normalizeSkin, SKIN_IDS, SKIN_LABELS } from "@/lib/skin";
 import { importCredentialsFileSmart } from "@/lib/import";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
-import { normalizePageSize } from "@/components/vault/entry-pagination";
+import { PageSizeRow } from "@/components/vault/page-size-row";
 import { SettingsCard, SettingsField } from "./settings-ui";
 import { useEffect, useState } from "react";
 import { SETTINGS_SECTION_META, type SettingsSectionId } from "./types";
@@ -172,6 +173,31 @@ function AppearanceSection({ settings, setSettings, theme, setTheme }: SettingsS
         </Select>
       </SettingsField>
 
+      <SettingsField
+        label="Color scheme"
+        hint="Seafoam is the classic teal. Graphite uses amber on cool charcoal — both include light and dark."
+      >
+        <Select
+          value={normalizeSkin(settings.skin)}
+          onValueChange={(value) => {
+            const next = normalizeSkin(value);
+            applyDocumentSkin(next);
+            void persistAppearance({ skin: next });
+          }}
+        >
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Color scheme" />
+          </SelectTrigger>
+          <SelectContent>
+            {SKIN_IDS.map((id) => (
+              <SelectItem key={id} value={id}>
+                {SKIN_LABELS[id]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </SettingsField>
+
       <SettingsField label="Entry layout" hint="Default dashboard view. You can still toggle from the toolbar.">
         <Select
           value={settings.entryLayout ?? "list"}
@@ -191,47 +217,70 @@ function AppearanceSection({ settings, setSettings, theme, setTheme }: SettingsS
       </SettingsField>
 
       <SettingsField label="Entries per page">
-        <Select
-          value={String(normalizePageSize(settings.pageSize))}
-          onValueChange={(value) => {
-            const size = normalizePageSize(Number(value));
+        <PageSizeRow
+          value={settings.pageSize}
+          onChange={(size) => {
             void persistAppearance({ pageSize: size });
           }}
-        >
-          <SelectTrigger className="h-9">
-            <SelectValue placeholder="Page size" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="10">10</SelectItem>
-            <SelectItem value="25">25</SelectItem>
-            <SelectItem value="50">50</SelectItem>
-            <SelectItem value="100">100</SelectItem>
-          </SelectContent>
-        </Select>
+          className="max-w-sm"
+        />
       </SettingsField>
     </SettingsCard>
   );
 }
 
+const IDLE_LOCK_PRESETS = [
+  { value: 0, label: "Never" },
+  { value: 60, label: "1 minute" },
+  { value: 120, label: "2 minutes" },
+  { value: 300, label: "5 minutes" },
+  { value: 600, label: "10 minutes" },
+  { value: 900, label: "15 minutes" },
+  { value: 1800, label: "30 minutes" },
+  { value: 3600, label: "1 hour" },
+] as const;
+
+function normalizeIdleLockSeconds(value: number | undefined): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 300;
+  if (n === 0) return 0;
+  const presets = IDLE_LOCK_PRESETS.map((p) => p.value).filter((v) => v > 0);
+  if (presets.includes(n as (typeof presets)[number])) return n;
+  return presets.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), 300);
+}
+
 function LockClipboardSection({ settings, setSettings }: SettingsSectionsProps) {
+  const idleValue = String(normalizeIdleLockSeconds(settings.autoLockSeconds));
+
   return (
     <SettingsCard
       title="Auto-lock"
       description="Idle timer uses app input (pointer/key), not OS system-idle. Lock-on-hide covers tab switch, minimize, and backgrounding the WebView."
     >
-      <SettingsField label="Idle lock (seconds)">
-        <input
-          type="number"
-          min={30}
-          className="inset-field h-9 w-full px-3"
-          value={settings.autoLockSeconds}
-          onChange={(e) =>
+      <SettingsField
+        label="Idle lock"
+        hint="Locks after no pointer or keyboard activity in the app. Never disables idle auto-lock only — lock-on-hide still applies if enabled."
+      >
+        <Select
+          value={idleValue}
+          onValueChange={(value) => {
             setSettings({
               ...settings,
-              autoLockSeconds: Number(e.target.value) || 300,
-            })
-          }
-        />
+              autoLockSeconds: normalizeIdleLockSeconds(Number(value)),
+            });
+          }}
+        >
+          <SelectTrigger className="h-9">
+            <SelectValue placeholder="Idle lock" />
+          </SelectTrigger>
+          <SelectContent>
+            {IDLE_LOCK_PRESETS.map((p) => (
+              <SelectItem key={p.value} value={String(p.value)}>
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </SettingsField>
       <label className="flex items-start gap-2.5 py-2 text-sm">
         <input

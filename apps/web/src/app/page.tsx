@@ -39,7 +39,9 @@ import {
   normalizeEntry,
   normalizeEntryLayout,
   normalizeTheme,
+  normalizeSkin,
 } from "@/lib/api";
+import { SkinApplier } from "@/components/skin-applier";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/lib/clipboard";
 import { blankEntryForm } from "@/lib/sensitive";
@@ -83,6 +85,7 @@ export default function HomePage() {
     clipboardClearSeconds: 15,
     biometricUnlock: false,
     theme: "system",
+    skin: "seafoam",
     entryLayout: "list",
     pageSize: 25,
     pinnedWorkspaceIds: [],
@@ -212,6 +215,17 @@ export default function HomePage() {
     await refreshStatus();
   }
 
+  async function confirmLockVault() {
+    const ok = await appConfirm({
+      title: "Lock vault?",
+      description: "You will need your master password (or convenience unlock) to open it again.",
+      confirmLabel: "Lock",
+      cancelLabel: "Cancel",
+    });
+    if (!ok) return;
+    await lockVault();
+  }
+
   async function confirmAndAutotype(id: string, mode: PaletteAutotypeMode) {
     if (!settings.autotypeEnabled) {
       setError("Enable autotype in Settings first.");
@@ -292,6 +306,7 @@ export default function HomePage() {
         setSettings({
           ...s,
           theme: normalizeTheme(s.theme),
+          skin: normalizeSkin(s.skin),
           entryLayout: normalizeEntryLayout(s.entryLayout),
           pageSize: normalizePageSize(s.pageSize),
           pinnedWorkspaceIds: s.pinnedWorkspaceIds ?? [],
@@ -304,6 +319,7 @@ export default function HomePage() {
           autotypeEnabled: Boolean(s.autotypeEnabled),
           suggestFromForeground: Boolean(s.suggestFromForeground),
           autotypeKeyDelayMs: s.autotypeKeyDelayMs ?? 25,
+          snapshotRetain: s.snapshotRetain ?? 10,
         });
         if (s.theme) setTheme(normalizeTheme(s.theme));
       })
@@ -332,7 +348,9 @@ export default function HomePage() {
   const resetIdle = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     if (status?.state !== "unlocked") return;
-    const ms = Math.max(30, settings.autoLockSeconds) * 1000;
+    const seconds = settings.autoLockSeconds;
+    if (!seconds || seconds <= 0) return;
+    const ms = Math.max(30, seconds) * 1000;
     idleTimer.current = setTimeout(() => {
       clearSensitiveUi();
       api.lock()
@@ -801,7 +819,7 @@ export default function HomePage() {
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
         e.preventDefault();
-        lockVault().catch((err) => setError(String(err)));
+        confirmLockVault().catch((err) => setError(String(err)));
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === ",") {
@@ -834,7 +852,7 @@ export default function HomePage() {
         setNav("settings");
         break;
       case "lock":
-        lockVault().catch((err) => setError(String(err)));
+        confirmLockVault().catch((err) => setError(String(err)));
         break;
       case "focus-search":
         setNav("all");
@@ -850,6 +868,7 @@ export default function HomePage() {
 
   return (
     <div className="app-shell" data-compact={compact ? "true" : "false"}>
+      <SkinApplier skin={settings.skin} />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
@@ -921,7 +940,9 @@ export default function HomePage() {
             onOpenTrash={() => setTrashOpen(true)}
             onOpenHealth={() => setHealthOpen(true)}
             trashCount={trashCount}
-            onLock={() => lockVault()}
+            onLock={() => {
+              confirmLockVault().catch((err) => setError(String(err)));
+            }}
           />
         )}
 

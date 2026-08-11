@@ -81,8 +81,8 @@ export function SettingsSidebar({
                 index > 0 && "settings-nav-group--divided",
               )}
             >
-              <p className="settings-nav-group__label">{group.label}</p>
-              <ul className="space-y-0.5">
+              <h2 className="settings-nav-group__label">{group.label}</h2>
+              <ul className="settings-nav-group__items">
                 {group.items.map((item) => (
                   <li key={item.id}>
                     <button

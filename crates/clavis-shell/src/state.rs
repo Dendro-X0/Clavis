@@ -12,6 +12,9 @@ pub struct AppSettings {
     pub biometric_unlock: bool,
     #[serde(default = "default_theme")]
     pub theme: String,
+    /// Color scheme skin (`seafoam` | `graphite`). Independent of light/dark.
+    #[serde(default = "default_skin")]
+    pub skin: String,
     #[serde(default = "default_entry_layout")]
     pub entry_layout: String,
     #[serde(default = "default_page_size")]
@@ -53,6 +56,10 @@ fn default_theme() -> String {
     "system".into()
 }
 
+fn default_skin() -> String {
+    "seafoam".into()
+}
+
 fn default_entry_layout() -> String {
     "list".into()
 }
@@ -84,6 +91,7 @@ impl Default for AppSettings {
             clipboard_clear_seconds: 15,
             biometric_unlock: false,
             theme: default_theme(),
+            skin: default_skin(),
             entry_layout: default_entry_layout(),
             page_size: default_page_size(),
             pinned_workspace_ids: Vec::new(),

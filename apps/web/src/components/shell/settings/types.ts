@@ -36,13 +36,13 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: "appearance",
     label: "Appearance",
     category: "general",
-    keywords: ["theme", "light", "dark", "system", "layout", "grid", "list", "page", "size"],
+    keywords: ["theme", "light", "dark", "system", "skin", "color", "seafoam", "graphite", "layout", "grid", "list", "page", "size"],
   },
   {
     id: "lock-clipboard",
     label: "Lock & clipboard",
     category: "security",
-    keywords: ["auto-lock", "idle", "hide", "clipboard", "clear", "seconds"],
+    keywords: ["auto-lock", "idle", "hide", "clipboard", "clear", "seconds", "never"],
   },
   {
     id: "convenience-unlock",
@@ -108,7 +108,7 @@ export const SETTINGS_SECTION_META: Record<
 > = {
   appearance: {
     title: "Appearance",
-    description: "Theme, entry layout, and pagination defaults for the vault UI.",
+    description: "Theme, color scheme (skin), entry layout, and pagination defaults.",
   },
   "lock-clipboard": {
     title: "Lock & clipboard",
