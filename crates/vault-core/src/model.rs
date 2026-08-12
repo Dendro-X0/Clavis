@@ -170,16 +170,14 @@ pub struct VaultDocument {
 impl VaultDocument {
     pub fn new(name: impl Into<String>) -> Self {
         let now = Utc::now();
-        let personal = Workspace::new("Personal");
-        let active = personal.id.clone();
         Self {
             meta: VaultMeta {
                 name: name.into(),
                 created_at: now,
                 updated_at: now,
             },
-            workspaces: vec![personal],
-            active_workspace_id: active,
+            workspaces: Vec::new(),
+            active_workspace_id: String::new(),
             entries: Vec::new(),
         }
     }
@@ -187,12 +185,12 @@ impl VaultDocument {
     /// Migrate legacy `entries` and ensure a valid active workspace.
     pub fn normalize(&mut self) {
         if self.workspaces.is_empty() {
-            let mut ws = Workspace::new("Personal");
             if !self.entries.is_empty() {
+                let mut ws = Workspace::new("Imported");
                 ws.entries = std::mem::take(&mut self.entries);
+                self.active_workspace_id = ws.id.clone();
+                self.workspaces.push(ws);
             }
-            self.active_workspace_id = ws.id.clone();
-            self.workspaces.push(ws);
         } else if !self.entries.is_empty() {
             // Merge leftover legacy entries into first workspace once.
             let first = &mut self.workspaces[0];
@@ -202,10 +200,11 @@ impl VaultDocument {
 
         self.entries.clear();
 
-        if !self
-            .workspaces
-            .iter()
-            .any(|w| w.id == self.active_workspace_id)
+        if !self.workspaces.is_empty()
+            && !self
+                .workspaces
+                .iter()
+                .any(|w| w.id == self.active_workspace_id)
         {
             self.active_workspace_id = self.workspaces[0].id.clone();
         }

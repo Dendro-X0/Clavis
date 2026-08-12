@@ -342,4 +342,13 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Page size as responsive option row (settings + list footer) | Done |
 | Version bump 0.15.0 | Done |
 
+### v0.16.0 — Onboarding and import fixes — done
+
+| Item | Status |
+|------|--------|
+| Color scheme light/dark swatch previews in Settings | Done |
+| Fix duplicate workspaces on drag-and-drop import (Tauri) | Done |
+| New vaults start with no empty default workspace | Done |
+| Version bump 0.16.0 | Done |
+
 Next: later Phase D (merge UI, store signing) when ready.

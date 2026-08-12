@@ -141,18 +141,18 @@ impl VaultSession {
     }
 
     pub fn delete_workspace(&mut self, id: &str) -> Result<()> {
-        if self.document.workspaces.len() <= 1 {
-            return Err(VaultError::Message(
-                "cannot delete the last workspace".into(),
-            ));
-        }
         let before = self.document.workspaces.len();
         self.document.workspaces.retain(|w| w.id != id);
         if self.document.workspaces.len() == before {
             return Err(VaultError::Message("workspace not found".into()));
         }
         if self.document.active_workspace_id == id {
-            self.document.active_workspace_id = self.document.workspaces[0].id.clone();
+            self.document.active_workspace_id = self
+                .document
+                .workspaces
+                .first()
+                .map(|w| w.id.clone())
+                .unwrap_or_default();
         }
         self.document.meta.updated_at = Utc::now();
         self.persist()
@@ -287,10 +287,9 @@ impl VaultSession {
 
     /// Active (non-deleted) entries in the active workspace.
     pub fn list_entries(&self) -> Result<Vec<&Entry>> {
-        let ws = self
-            .document
-            .active_workspace()
-            .ok_or_else(|| VaultError::Message("no active workspace".into()))?;
+        let Some(ws) = self.document.active_workspace() else {
+            return Ok(Vec::new());
+        };
         Ok(ws.entries.iter().filter(|e| !e.is_deleted()).collect())
     }
 

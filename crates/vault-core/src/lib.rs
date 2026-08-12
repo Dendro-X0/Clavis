@@ -48,6 +48,12 @@ mod tests {
         }
     }
 
+    fn ensure_workspace(session: &mut VaultSession, name: &str) {
+        if session.list_workspaces().is_empty() {
+            session.create_workspace(name).unwrap();
+        }
+    }
+
     #[test]
     fn round_trip_encrypt_decrypt() {
         let doc = VaultDocument::new("test");
@@ -76,6 +82,7 @@ mod tests {
         let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
         crate::format::write_all_atomic(&path, &encoded).unwrap();
         let mut session = open_vault_file(&path, "pw").unwrap();
+        ensure_workspace(&mut session, "demo");
 
         let mut entry = Entry::new(EntryType::Login, "GitHub");
         entry.username = "alice".into();
@@ -286,9 +293,13 @@ Password: has-pass
     #[test]
     fn plaintext_not_in_file() {
         let mut d = VaultDocument::new("secret-vault");
+        let mut ws = Workspace::new("Secrets");
+        let active = ws.id.clone();
         let mut entry = Entry::new(EntryType::Login, "Bank");
         entry.password = "super-secret-password-xyz".into();
-        d.active_workspace_mut().unwrap().entries.push(entry);
+        ws.entries.push(entry);
+        d.workspaces.push(ws);
+        d.active_workspace_id = active;
         let bytes = encode_vault(&d, "master", &fast_params()).unwrap();
         let hay = String::from_utf8_lossy(&bytes);
         assert!(!hay.contains("super-secret-password-xyz"));
@@ -305,6 +316,7 @@ Password: has-pass
         crate::format::write_all_atomic(&vault, &encoded).unwrap();
 
         let mut session = open_vault_file(&vault, "pw").unwrap();
+        ensure_workspace(&mut session, "demo");
         let mut entry = Entry::new(EntryType::Api, "Token");
         entry.password = "tok-123".into();
         session.upsert_entry(entry).unwrap();
@@ -326,7 +338,7 @@ Password: has-pass
         let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
         crate::format::write_all_atomic(&path, &encoded).unwrap();
         let mut session = open_vault_file(&path, "pw").unwrap();
-        assert_eq!(session.list_workspaces().len(), 1);
+        assert_eq!(session.list_workspaces().len(), 0);
 
         let mut a = Entry::new(EntryType::Login, "A");
         a.password = "1".into();
@@ -334,7 +346,7 @@ Password: has-pass
         let ws = session
             .import_as_workspace("Test Account", Some("Test Account.txt".into()), vec![a])
             .unwrap();
-        assert_eq!(session.list_workspaces().len(), 2);
+        assert_eq!(session.list_workspaces().len(), 1);
         assert_eq!(session.active_workspace_id(), ws.id);
         assert_eq!(session.list_entries().unwrap().len(), 1);
 
@@ -405,10 +417,10 @@ Password: has-pass
         session
             .import_as_workspace("dup", None, vec![b])
             .unwrap();
-        assert_eq!(session.list_workspaces().len(), 3); // Personal + 2 dups
+        assert_eq!(session.list_workspaces().len(), 2);
         let removed = session.merge_duplicate_workspaces().unwrap();
         assert_eq!(removed, 1);
-        assert_eq!(session.list_workspaces().len(), 2);
+        assert_eq!(session.list_workspaces().len(), 1);
         let dup = session
             .list_workspaces()
             .iter()
@@ -472,6 +484,7 @@ Password: has-pass
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("lock.km");
         let mut session = create_vault(&path, "LockTest", "master-pw").unwrap();
+        ensure_workspace(&mut session, "Main");
         let mut e = Entry::new(EntryType::Login, "Site");
         e.password = "secret-pass".into();
         session.upsert_entry(e).unwrap();
@@ -499,6 +512,7 @@ Password: has-pass
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("vault.km");
         let mut session = create_vault(&path, "Tmp", "pw").unwrap();
+        ensure_workspace(&mut session, "Main");
         let mut e = Entry::new(EntryType::Login, "Keep");
         e.password = "ok".into();
         session.upsert_entry(e).unwrap();
@@ -598,6 +612,7 @@ Password: has-pass
         let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
         crate::format::write_all_atomic(&path, &encoded).unwrap();
         let mut session = open_vault_file(&path, "pw").unwrap();
+        ensure_workspace(&mut session, "demo");
 
         let mut entry = Entry::new(EntryType::Login, "TrashMe");
         entry.password = "secret".into();
@@ -630,6 +645,7 @@ Password: has-pass
         let encoded = encode_vault(&VaultDocument::new("demo"), "pw", &params).unwrap();
         crate::format::write_all_atomic(&path, &encoded).unwrap();
         let mut session = open_vault_file(&path, "pw").unwrap();
+        ensure_workspace(&mut session, "demo");
 
         let mut old = Entry::new(EntryType::Login, "OldTrash");
         old.password = "x".into();

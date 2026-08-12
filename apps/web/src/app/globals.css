@@ -31,8 +31,61 @@ html[data-skin="seafoam"] {
   color-scheme: light;
 }
 
+/* Skin preview scope (for side-by-side Light/Dark swatches in Settings).
+   These mirror the `html[data-skin="..."]` variables so preview panels don't
+   need to mutate global theme state. */
+.skin-scope[data-skin="seafoam"] {
+  --background: #e8eef2;
+  --foreground: #1a2b2e;
+  --card: rgba(255, 255, 255, 0.62);
+  --modal: #f2f8f9;
+  --modal-backdrop: rgba(15, 28, 28, 0.55);
+  --muted: #5c7278;
+  --border: rgba(26, 43, 46, 0.12);
+  --primary: #2a8f83;
+  --primary-fg: #f4fffc;
+  --accent-wash: rgba(42, 143, 131, 0.16);
+  --glow: rgba(42, 143, 131, 0.22);
+  --danger: #c45b52;
+  --sidebar: transparent;
+  --titlebar: transparent;
+  --ring: rgba(42, 143, 131, 0.45);
+  --inset: rgba(255, 255, 255, 0.72);
+  --surface: rgba(255, 255, 255, 0.35);
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "Sora", "Segoe UI", sans-serif;
+  --shell-gradient:
+    radial-gradient(1100px 560px at 8% -8%, var(--glow), transparent 55%),
+    radial-gradient(900px 480px at 100% 0%, rgba(120, 160, 175, 0.22), transparent 50%),
+    linear-gradient(165deg, #edf3f6 0%, var(--background) 42%, #dfe8ec 100%);
+  color-scheme: light;
+}
+
 .dark,
 html[data-skin="seafoam"].dark {
+  --background: #0f1c1c;
+  --foreground: #e7f2f0;
+  --card: rgba(28, 51, 51, 0.48);
+  --modal: #1a2e2e;
+  --modal-backdrop: rgba(0, 0, 0, 0.65);
+  --muted: #8eaeaa;
+  --border: rgba(231, 242, 240, 0.12);
+  --primary: #3db8a8;
+  --primary-fg: #0b1616;
+  --accent-wash: rgba(61, 184, 168, 0.14);
+  --glow: rgba(61, 184, 168, 0.18);
+  --danger: #d9776c;
+  --ring: rgba(61, 184, 168, 0.4);
+  --inset: rgba(15, 28, 28, 0.65);
+  --surface: rgba(255, 255, 255, 0.03);
+  --shell-gradient:
+    radial-gradient(1200px 600px at 10% -10%, var(--glow), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(40, 90, 88, 0.35), transparent 50%),
+    linear-gradient(160deg, #0f1c1c, #152626 45%, #101a1a);
+  color-scheme: dark;
+}
+
+.skin-scope[data-skin="seafoam"].dark {
   --background: #0f1c1c;
   --foreground: #e7f2f0;
   --card: rgba(28, 51, 51, 0.48);
@@ -79,7 +132,53 @@ html[data-skin="graphite"] {
   color-scheme: light;
 }
 
+.skin-scope[data-skin="graphite"] {
+  --background: #eceef2;
+  --foreground: #1a1d24;
+  --card: rgba(255, 255, 255, 0.7);
+  --modal: #f4f5f8;
+  --modal-backdrop: rgba(18, 20, 26, 0.5);
+  --muted: #5c6370;
+  --border: rgba(26, 29, 36, 0.12);
+  --primary: #9a6b2f;
+  --primary-fg: #fff8f0;
+  --accent-wash: rgba(154, 107, 47, 0.14);
+  --glow: rgba(154, 107, 47, 0.2);
+  --danger: #c45b52;
+  --ring: rgba(154, 107, 47, 0.45);
+  --inset: rgba(255, 255, 255, 0.78);
+  --surface: rgba(255, 255, 255, 0.4);
+  --shell-gradient:
+    radial-gradient(1100px 560px at 8% -8%, var(--glow), transparent 55%),
+    radial-gradient(900px 480px at 100% 0%, rgba(120, 130, 150, 0.2), transparent 50%),
+    linear-gradient(165deg, #f0f1f5 0%, var(--background) 42%, #e2e4ea 100%);
+  color-scheme: light;
+}
+
 html[data-skin="graphite"].dark {
+  --background: #12141a;
+  --foreground: #e9ebf0;
+  --card: rgba(32, 36, 46, 0.55);
+  --modal: #1c2029;
+  --modal-backdrop: rgba(0, 0, 0, 0.7);
+  --muted: #9aa3b2;
+  --border: rgba(233, 235, 240, 0.12);
+  --primary: #d4a054;
+  --primary-fg: #1a1208;
+  --accent-wash: rgba(212, 160, 84, 0.14);
+  --glow: rgba(212, 160, 84, 0.16);
+  --danger: #e08a7a;
+  --ring: rgba(212, 160, 84, 0.4);
+  --inset: rgba(12, 14, 20, 0.7);
+  --surface: rgba(255, 255, 255, 0.04);
+  --shell-gradient:
+    radial-gradient(1200px 600px at 10% -10%, var(--glow), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(50, 58, 78, 0.4), transparent 50%),
+    linear-gradient(160deg, #12141a, #181b24 45%, #0e1016);
+  color-scheme: dark;
+}
+
+.skin-scope[data-skin="graphite"].dark {
   --background: #12141a;
   --foreground: #e9ebf0;
   --card: rgba(32, 36, 46, 0.55);

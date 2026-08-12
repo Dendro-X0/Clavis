@@ -196,6 +196,69 @@ function AppearanceSection({ settings, setSettings, theme, setTheme }: SettingsS
             ))}
           </SelectContent>
         </Select>
+
+        <div className="mt-3">
+          <div className="mb-1 text-xs text-[var(--muted)]">Preview</div>
+          <div className="flex gap-2">
+            <div
+              className="skin-scope flex-1 rounded-md border border-[var(--border)] p-2"
+              data-skin={normalizeSkin(settings.skin)}
+            >
+              <div className="text-center text-xs font-medium">Light</div>
+              <div className="mt-2 space-y-2">
+                <div
+                  className="h-14 rounded-md border border-[var(--border)]"
+                  style={{ background: "var(--background)", color: "var(--foreground)" }}
+                >
+                  <div className="flex h-full items-center justify-center font-medium">
+                    Aa
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="h-10 rounded-md border border-[var(--border)]"
+                    style={{ background: "var(--surface)" }}
+                    aria-hidden
+                  />
+                  <div
+                    className="h-10 rounded-md"
+                    style={{ background: "var(--primary)", color: "var(--primary-fg)" }}
+                    aria-hidden
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              className="skin-scope dark flex-1 rounded-md border border-[var(--border)] p-2"
+              data-skin={normalizeSkin(settings.skin)}
+            >
+              <div className="text-center text-xs font-medium">Dark</div>
+              <div className="mt-2 space-y-2">
+                <div
+                  className="h-14 rounded-md border border-[var(--border)]"
+                  style={{ background: "var(--background)", color: "var(--foreground)" }}
+                >
+                  <div className="flex h-full items-center justify-center font-medium">
+                    Aa
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div
+                    className="h-10 rounded-md border border-[var(--border)]"
+                    style={{ background: "var(--surface)" }}
+                    aria-hidden
+                  />
+                  <div
+                    className="h-10 rounded-md"
+                    style={{ background: "var(--primary)", color: "var(--primary-fg)" }}
+                    aria-hidden
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </SettingsField>
 
       <SettingsField label="Entry layout" hint="Default dashboard view. You can still toggle from the toolbar.">

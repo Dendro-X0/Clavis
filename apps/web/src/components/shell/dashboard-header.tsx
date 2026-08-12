@@ -46,7 +46,7 @@ export function DashboardHeader({
   onNewFromClipboard?: () => void;
 }) {
   const active = workspaces.find((w) => w.active);
-  const canDelete = workspaces.length > 1;
+  const canDelete = workspaces.length > 0;
   const pinned = new Set(pinnedWorkspaceIds);
 
   return (
@@ -103,7 +103,7 @@ export function DashboardHeader({
                   </button>
                   <button
                     type="button"
-                    aria-label={canDelete ? `Delete ${ws.name}` : "Cannot delete the last workspace"}
+                    aria-label={`Delete ${ws.name}`}
                     disabled={!canDelete}
                     className="rounded p-1 text-[var(--muted)] transition hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-35"
                     onClick={() => onDeleteWorkspace(ws.id)}

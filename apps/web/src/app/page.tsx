@@ -201,7 +201,28 @@ export default function HomePage() {
     setHealthOpen(false);
   }, []);
 
-  function openBlankEntry() {
+  async function openBlankEntry() {
+    if (workspaces.length === 0) {
+      const name = await appPrompt({
+        title: "New workspace",
+        description: "Create a workspace before adding entries.",
+        inputLabel: "Workspace name",
+        placeholder: "e.g. Personal",
+        confirmLabel: "Create",
+      });
+      if (!name?.trim()) return;
+      try {
+        setError(null);
+        await api.createWorkspace(name.trim());
+        setCategoryFilter(null);
+        setPage(1);
+        await refreshVault();
+        setNav("all");
+      } catch (e) {
+        setError(String(e).replace(/^Error:\s*/, ""));
+        return;
+      }
+    }
     setFormAttachments([]);
     setForm({ ...blankEntryForm() });
   }
@@ -288,7 +309,7 @@ export default function HomePage() {
       });
     } catch (e) {
       setError(String(e).replace(/^Error:\s*/, ""));
-      openBlankEntry();
+      openBlankEntry().catch((err) => setError(String(err)));
     }
   }
 
@@ -814,7 +835,7 @@ export default function HomePage() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
         e.preventDefault();
         setNav("all");
-        openBlankEntry();
+        openBlankEntry().catch((err) => setError(String(err)));
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
@@ -836,7 +857,7 @@ export default function HomePage() {
     switch (id) {
       case "new-entry":
         setNav("all");
-        openBlankEntry();
+        openBlankEntry().catch((err) => setError(String(err)));
         break;
       case "new-from-clipboard":
         newFromClipboard().catch((err) => setError(String(err)));
@@ -1085,7 +1106,9 @@ export default function HomePage() {
                   onReplace={() => {
                     handleReplace().catch((err) => setError(String(err)));
                   }}
-                  onNewEntry={() => openBlankEntry()}
+                  onNewEntry={() => {
+                    openBlankEntry().catch((err) => setError(String(err)));
+                  }}
                   onNewFromClipboard={() => {
                     newFromClipboard().catch((err) => setError(String(err)));
                   }}
@@ -1097,7 +1120,8 @@ export default function HomePage() {
                       selectedId={form?.id}
                       copyFlash={copyFlash}
                       layout={settings.entryLayout}
-                      emptyWorkspace={!query.trim() && entries.length === 0}
+                      emptyWorkspace={workspaces.length === 0 || (!query.trim() && entries.length === 0)}
+                      noWorkspaces={workspaces.length === 0}
                       activeWorkspaceId={activeWorkspace?.id}
                       workspaceName={activeWorkspace?.name}
                       fetchFavicons={
@@ -1125,7 +1149,9 @@ export default function HomePage() {
                       onCopyOtp={(id) => {
                         copyTotpCode(id).catch((err) => setError(String(err)));
                       }}
-                      onNewEntry={() => openBlankEntry()}
+                      onNewEntry={() => {
+                    openBlankEntry().catch((err) => setError(String(err)));
+                  }}
                       onNewFromClipboard={() => {
                         newFromClipboard().catch((err) => setError(String(err)));
                       }}

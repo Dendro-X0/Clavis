@@ -226,6 +226,7 @@ export function EntryList({
   onReplace,
   workspaceName,
   activeWorkspaceId,
+  noWorkspaces,
   fetchFavicons = false,
 }: {
   entries: EntrySummary[];
@@ -247,6 +248,7 @@ export function EntryList({
   onReplace: () => void;
   workspaceName?: string;
   activeWorkspaceId?: string;
+  noWorkspaces?: boolean;
   fetchFavicons?: boolean;
 }) {
   const compact = useCompactSurface();
@@ -267,6 +269,7 @@ export function EntryList({
         onError={onError}
         onOpenSettings={onOpenSettings}
         onReplace={onReplace}
+        noWorkspaces={noWorkspaces}
         workspaceName={workspaceName}
       />
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { FileUp } from "lucide-react";
 import { api, type ImportMode, type ImportResult } from "@/lib/api";
 import { importCredentialsFileSmart, importCredentialsTextSmart } from "@/lib/import";
@@ -29,11 +29,9 @@ export async function importDroppedPaths(
     if (TEXT_EXTS.has(ext) || SHEET_EXTS.has(ext) || ext === "") {
       const result = await importCredentialsFileSmart(path, currentMode);
       if (!result) {
-        // User cancelled replace prompt for this file; skip remaining.
         return last;
       }
       last = result;
-      // Subsequent files in the same drop always create new workspaces (with collision prompt).
       currentMode = "new";
     } else {
       throw new Error(`Unsupported file type: .${ext || "?"}`);
@@ -71,6 +69,48 @@ export async function importBrowserFiles(
   return last;
 }
 
+// ---------------------------------------------------------------------------
+// Singleton Tauri native drop handler.
+// onDragDropEvent is window-global — if every FileDropZone registered its own
+// listener, a single file drop would trigger N imports (one per mounted zone).
+// Instead we register once and let the *most recently focused* zone handle it.
+// ---------------------------------------------------------------------------
+
+type DropSubscriber = {
+  onPaths: (paths: string[]) => Promise<void>;
+  onActive: (active: boolean) => void;
+};
+
+let globalSubscriber: DropSubscriber | null = null;
+let globalUnlisten: (() => void) | null = null;
+let globalInitStarted = false;
+
+function setGlobalSubscriber(sub: DropSubscriber | null) {
+  globalSubscriber = sub;
+}
+
+async function ensureGlobalTauriDrop() {
+  if (globalInitStarted) return;
+  globalInitStarted = true;
+  if (!(await isTauri())) return;
+  try {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    globalUnlisten = await getCurrentWindow().onDragDropEvent(async (event) => {
+      if (!globalSubscriber) return;
+      if (event.payload.type === "enter" || event.payload.type === "over") {
+        globalSubscriber.onActive(true);
+      } else if (event.payload.type === "leave") {
+        globalSubscriber.onActive(false);
+      } else if (event.payload.type === "drop") {
+        globalSubscriber.onActive(false);
+        await globalSubscriber.onPaths(event.payload.paths);
+      }
+    });
+  } catch {
+    /* ignore — browser-only build */
+  }
+}
+
 export function FileDropZone({
   className,
   children,
@@ -87,6 +127,7 @@ export function FileDropZone({
   mode?: ImportMode;
 }) {
   const [active, setActive] = useState(false);
+  const isTauriEnv = useRef(false);
 
   const handlePaths = useCallback(
     async (paths: string[]) => {
@@ -101,27 +142,24 @@ export function FileDropZone({
   );
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    const sub: DropSubscriber = {
+      onPaths: handlePaths,
+      onActive: setActive,
+    };
+
     (async () => {
-      if (!(await isTauri())) return;
-      try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
-        unlisten = await getCurrentWindow().onDragDropEvent(async (event) => {
-          if (event.payload.type === "enter" || event.payload.type === "over") {
-            setActive(true);
-          } else if (event.payload.type === "leave") {
-            setActive(false);
-          } else if (event.payload.type === "drop") {
-            setActive(false);
-            await handlePaths(event.payload.paths);
-          }
-        });
-      } catch {
-        /* ignore */
+      await ensureGlobalTauriDrop();
+      if (await isTauri()) {
+        isTauriEnv.current = true;
+        setGlobalSubscriber(sub);
       }
     })();
+
     return () => {
-      unlisten?.();
+      // Only clear if we're still the active subscriber.
+      if (globalSubscriber === sub) {
+        setGlobalSubscriber(null);
+      }
     };
   }, [handlePaths]);
 
@@ -149,6 +187,7 @@ export function FileDropZone({
       onDrop={async (e) => {
         e.preventDefault();
         setActive(false);
+        if (isTauriEnv.current) return;
         if (!e.dataTransfer.files?.length) return;
         try {
           const result = await importBrowserFiles(e.dataTransfer.files, mode);

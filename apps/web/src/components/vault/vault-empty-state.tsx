@@ -12,6 +12,7 @@ export function VaultEmptyState({
   onError,
   onOpenSettings,
   onReplace,
+  noWorkspaces,
   workspaceName,
 }: {
   onNewEntry: () => void;
@@ -20,16 +21,23 @@ export function VaultEmptyState({
   onError: (message: string) => void;
   onOpenSettings: () => void;
   onReplace?: () => void;
+  noWorkspaces?: boolean;
   workspaceName?: string;
 }) {
   return (
     <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-6 p-6">
       <div className="max-w-md text-center">
         <h3 className="settings-section-title text-[var(--foreground)]">
-          {workspaceName ? `${workspaceName} is empty` : "This workspace is empty"}
+          {noWorkspaces
+            ? "No workspaces yet"
+            : workspaceName
+              ? `${workspaceName} is empty`
+              : "This workspace is empty"}
         </h3>
         <p className="settings-section-desc mt-2">
-          Create a login, or bring credentials in from a file or the clipboard.
+          {noWorkspaces
+            ? "Import a credentials file to create your first workspace, or create one manually."
+            : "Create a login, or bring credentials in from a file or the clipboard."}
         </p>
       </div>
 
@@ -130,7 +138,7 @@ export function VaultEmptyState({
         >
           Paste → new workspace
         </button>
-        {onReplace && (
+        {onReplace && !noWorkspaces && (
           <button
             type="button"
             className="text-[var(--danger)] underline-offset-2 hover:underline"

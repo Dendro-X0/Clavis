@@ -34,7 +34,7 @@ export function Gate({
   onDone: () => Promise<void>;
   onError: (e: string) => void;
 }) {
-  const [name, setName] = useState("Personal");
+  const [name, setName] = useState("My vault");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [bioAvailable, setBioAvailable] = useState(false);
@@ -192,7 +192,7 @@ export function Gate({
             if (missing) {
               if (password.length < 8) throw new Error("Use at least 8 characters.");
               if (password !== confirm) throw new Error("Passwords do not match.");
-              await api.createVault(name || "Personal", password);
+              await api.createVault(name || "My vault", password);
               try {
                 localStorage.setItem("clavis_show_onboarding", "1");
               } catch {
