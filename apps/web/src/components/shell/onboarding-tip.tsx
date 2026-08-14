@@ -1,17 +1,21 @@
 "use client";
 
 import { X } from "lucide-react";
-import { formatChord } from "@/lib/keybindings";
+import { formatActionChord } from "@/lib/keybindings";
 
 export function OnboardingTip({
   onDismiss,
   onImportHint,
+  keybindingOverrides,
 }: {
   onDismiss: () => void;
   onImportHint?: () => void;
+  keybindingOverrides?: Record<string, string> | null;
 }) {
-  const kbd = (chord: string) => (
-    <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">{formatChord(chord)}</kbd>
+  const actionKbd = (action: Parameters<typeof formatActionChord>[0]) => (
+    <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">
+      {formatActionChord(action, keybindingOverrides)}
+    </kbd>
   );
 
   return (
@@ -21,8 +25,8 @@ export function OnboardingTip({
         <p className="mt-1 text-[var(--muted)]">
           Import a credentials file to create a workspace, or add an entry.{" "}
           <span className="text-[var(--foreground)]">Copy</span> pastes username then password
-          for login forms. Shortcuts: {kbd("/")} search · {kbd("mod+k")} palette · {kbd("mod+n")}{" "}
-          new · {kbd("mod+l")} lock · {kbd("?")} help.
+          for login forms. Shortcuts: {actionKbd("search")} search · {actionKbd("palette")} palette ·{" "}
+          {actionKbd("newEntry")} new · {actionKbd("lock")} lock · {actionKbd("shortcutsHelp")} help.
         </p>
         {onImportHint && (
           <button

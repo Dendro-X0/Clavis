@@ -166,6 +166,20 @@ export function formatChord(chord: string): string {
     .join(mac ? "" : "+");
 }
 
+export function primaryChord(
+  action: KeybindingAction,
+  overrides?: KeybindingOverrides | Record<string, string> | null,
+): string {
+  return resolveBindings(overrides)[action][0] ?? "";
+}
+
+export function formatActionChord(
+  action: KeybindingAction,
+  overrides?: KeybindingOverrides | Record<string, string> | null,
+): string {
+  return formatChord(primaryChord(action, overrides));
+}
+
 export function formatChords(chords: string[]): string {
   return chords.map(formatChord).filter(Boolean).join(" / ");
 }

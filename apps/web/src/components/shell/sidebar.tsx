@@ -16,12 +16,12 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { formatChord } from "@/lib/keybindings";
+import { formatActionChord } from "@/lib/keybindings";
 import type { EntryType, WorkspaceSummary } from "@/lib/api";
 
 export type NavId = "all" | EntryType | "settings";
 
-const vaultItems: { id: NavId; label: string; icon: typeof Shield }[] = [
+export const vaultNavItems: { id: NavId; label: string; icon: typeof Shield }[] = [
   { id: "all", label: "All entries", icon: Shield },
   { id: "login", label: "Logins", icon: KeyRound },
   { id: "note", label: "Notes", icon: StickyNote },
@@ -41,6 +41,7 @@ export function AppSidebar({
   pinnedWorkspaceIds,
   onSelectWorkspace,
   collapsed,
+  keybindingOverrides,
 }: {
   active: NavId;
   onNavigate: (id: NavId) => void;
@@ -53,8 +54,9 @@ export function AppSidebar({
   pinnedWorkspaceIds?: string[];
   onSelectWorkspace?: (id: string) => void;
   collapsed?: boolean;
+  keybindingOverrides?: Record<string, string> | null;
 }) {
-  const modHint = formatChord("mod+k");
+  const paletteHint = formatActionChord("palette", keybindingOverrides);
 
   const pinnedList = useMemo(() => {
     if (!workspaces?.length) return [];
@@ -86,8 +88,8 @@ export function AppSidebar({
         {onSearch && (
           <button
             type="button"
-            title={`Search (${modHint})`}
-            aria-label={`Search (${modHint})`}
+            title={`Search (${paletteHint})`}
+            aria-label={`Search (${paletteHint})`}
             onClick={onSearch}
             className={cn(
               "mb-1 flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-[var(--muted)] transition hover:bg-[var(--accent-wash)]/60 hover:text-[var(--foreground)]",
@@ -99,13 +101,13 @@ export function AppSidebar({
               <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                 <span>Search</span>
                 <kbd className="rounded border border-[var(--border)] px-1 text-[10px] text-[var(--muted)]">
-                  {modHint}
+                  {paletteHint}
                 </kbd>
               </span>
             )}
           </button>
         )}
-        {vaultItems.map((item) => {
+        {vaultNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
           return (

@@ -1012,11 +1012,22 @@ export default function HomePage() {
           onOpenChange={setPaletteOpen}
           entries={allEntries}
           workspaces={workspaces}
+          keybindingOverrides={settings.keybindingOverrides}
+          compact={compact}
           onSelectEntry={(id, workspaceId) => {
             openEntry(id, workspaceId).catch((err) => setError(String(err)));
           }}
           onSelectWorkspace={(id) => {
             handleSelectWorkspace(id).catch((err) => setError(String(err)));
+          }}
+          onSelectSettingsSection={(section) => {
+            clearSensitiveUi();
+            setNav("settings");
+            setSettingsSection(section);
+          }}
+          onNavigate={(id) => {
+            setNav(id);
+            if (id === "settings") clearSensitiveUi();
           }}
           onCopyEntry={(id, mode) => {
             if (mode === "login") {
@@ -1060,6 +1071,7 @@ export default function HomePage() {
             collapsed={sidebarCollapsed}
             workspaces={workspaces}
             pinnedWorkspaceIds={settings.pinnedWorkspaceIds ?? []}
+            keybindingOverrides={settings.keybindingOverrides}
             onSelectWorkspace={(id) => {
               handleSelectWorkspace(id).catch((err) => setError(String(err)));
             }}
@@ -1161,6 +1173,7 @@ export default function HomePage() {
               <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
                 {showOnboarding && (
                   <OnboardingTip
+                    keybindingOverrides={settings.keybindingOverrides}
                     onDismiss={() => {
                       setShowOnboarding(false);
                       try {
