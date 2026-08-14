@@ -4,6 +4,8 @@
 **Product stance:** local-first OSS credential vault; no cloud account required  
 **Signing (near term):** self-signed / developer-signed builds; store listing and Apple/Google signing later
 
+**Product docs:** [features.md](features.md) (purpose, design, features) · demo GIFs on [README](../README.md)
+
 ---
 
 ## North stars
@@ -369,5 +371,13 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Vault nav + deduplicated palette results | Done |
 | Dynamic shortcut labels from keybinding overrides | Done |
 | Version bump 0.18.0 | Done |
+
+### v0.18.x — Product documentation — done
+
+| Item | Status |
+|------|--------|
+| `docs/features.md` — purpose, design, feature reference | Done |
+| README demo GIFs (search, import, appearance, keyboard, recycle bin) | Done |
+| Expanded `architecture.md` and `START-HERE.md` index | Done |
 
 Next: later Phase D (merge UI, store signing) when ready.
