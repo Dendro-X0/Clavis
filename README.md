@@ -1,7 +1,63 @@
 # Clavis (Keys Manager)
 
-Local-first portable credential vault. Tauri v2 + Rust core + Next.js UI.  
+**Local-first, portable credential vault** — Tauri v2 + Rust core + Next.js UI.  
 **OSS · self-signed / unsigned releases** (see below). Current version: **0.18.0**.
+
+Clavis keeps passwords, API tokens, and secure notes in an encrypted file you control. No cloud account, no vendor sync service — copy the install folder to USB, point a synced folder at Syncthing, or run entirely offline. Unlock with a master password; find and copy credentials in a few keystrokes.
+
+**Detailed guide:** [docs/features.md](docs/features.md) · **Threat model:** [docs/threat-model.md](docs/threat-model.md) · **Roadmap:** [docs/roadmap.md](docs/roadmap.md)
+
+---
+
+## Demos
+
+### Search and command palette
+
+Global search from the sidebar or `Ctrl/Cmd+K`. Jump to any entry, workspace, vault view, or settings section; copy credentials by typing after you filter.
+
+![Command palette — search entries, settings, and vault navigation](docs/demos/search.gif)
+
+### Import credentials
+
+Drop a CSV or export file onto the vault. Clavis creates a workspace (named from the file) and imports entries in one step.
+
+![Drag-and-drop import creates a workspace](docs/demos/import-files.gif)
+
+### Appearance and layout
+
+Light, dark, or system theme; **Seafoam** and **Graphite** skins; default list or grid layout and page size — all in Settings → Appearance.
+
+![Appearance settings — theme, skin, and layout](docs/demos/appearance-settings.gif)
+
+### Keyboard-first workflow
+
+List focus with arrow keys or `j`/`k`; copy login, user, pass, or TOTP without the mouse. Press `?` for the cheatsheet; remap any shortcut under Settings → Keyboard.
+
+![Keyboard shortcuts — help overlay and remapping](docs/demos/keyboard.gif)
+
+### Recycle bin
+
+Deleting an entry moves it to the recycle bin (soft delete). Restore mistakes or purge permanently; retention days are configurable in Settings.
+
+![Soft delete, recycle bin, restore and purge](docs/demos/delete-recycle-bin.gif)
+
+---
+
+## Features at a glance
+
+| Area | Highlights |
+|------|------------|
+| **Vault** | Argon2id + AES-256-GCM `vault.km`; login, note, API, and custom entry types |
+| **Workspaces** | Per-import containers; rename, delete, merge; no empty default on new vaults |
+| **Search** | Toolbar search across all workspaces; command palette for navigation and actions |
+| **Copy / fill** | Sequential clipboard copy with auto-clear; optional Windows autotype (confirm first) |
+| **Security** | Auto-lock, lock-on-hide, optional keyring unlock, local password health, offline-by-default |
+| **Portability** | Data next to the binary; optional custom/synced data folder |
+| **Backups** | Encrypted export, snapshots, recycle bin with retain policy |
+
+Full feature and design write-up: **[docs/features.md](docs/features.md)**.
+
+---
 
 ## Prerequisites
 
@@ -32,7 +88,7 @@ Light/dark theme toggle lives in the custom titlebar and Settings. Theme prefere
 
 Credential imports create a **workspace** (named from the file). If that name already exists, Clavis asks whether to **replace** it. Workspaces live in the **dashboard** strip (not the sidebar). Toggle **list / grid** for entries; name and categorize items in the editor.
 
-**Search & shortcuts** (Windows / Linux / macOS): toolbar search matches all workspaces when you type a query; `Ctrl/Cmd+K` opens the command palette; `/` focuses toolbar search; `Ctrl/Cmd+N` new entry; `Ctrl/Cmd+L` lock; `Ctrl/Cmd+,` settings; `?` shortcuts help; ↑/↓ or `j`/`k` move list focus; `c`/`u`/`p`/`o` copy login/user/pass/TOTP; `Esc` closes palette/editor. Remap in Settings → Keyboard.
+**Search & shortcuts** (Windows / Linux / macOS): toolbar search matches all workspaces when you type a query; `Ctrl/Cmd+K` opens the command palette (rebindable); `/` focuses toolbar search; `Ctrl/Cmd+N` new entry; `Ctrl/Cmd+L` lock; `Ctrl/Cmd+,` settings; `?` shortcuts help; ↑/↓ or `j`/`k` move list focus; `c`/`u`/`p`/`o` copy login/user/pass/TOTP; `Esc` closes palette/editor. Remap in Settings → Keyboard.
 
 ## Installing self-signed builds
 
@@ -49,7 +105,7 @@ GitHub Releases may include installers that are **not** signed by Microsoft/Appl
 **Always verify checksums** against `SHA256SUMS` / `SHA256SUMS-*.txt` (or hashes listed on the release) before running a downloaded binary. Compare publisher fingerprints with [`TRUST.md`](TRUST.md) when present. Prefer building from source if you do not trust a binary:
 
 ```bash
-git checkout v0.13.0   # or the release tag
+git checkout v0.18.0   # or the release tag
 pnpm install
 pnpm build
 ```
@@ -64,7 +120,7 @@ apps/desktop      @clavis/desktop Desktop Tauri shell
 apps/mobile       @clavis/mobile  Mobile preview shell (Android/iOS)
 crates/vault-core                 Encrypted vault library
 crates/clavis-shell               Shared Tauri IPC
-docs/                             Start-here, threat model, roadmap, platforms
+docs/                             Features, threat model, roadmap, demos
 scripts/                          Release checksum helper
 ```
 
@@ -76,4 +132,4 @@ Offline-first: outbound network is off by default (`allowNetwork`); optional fav
 
 **Multi-device:** point Settings → Data folder at a Syncthing/cloud/USB directory you sync yourself (keep `vault.km` + `attachments/` together). Concurrent edits are last-write-wins; Clavis locks if the file changes under an open session. There is no Clavis cloud.
 
-See [docs/START-HERE.md](docs/START-HERE.md). Platforms & keyring: [docs/platforms.md](docs/platforms.md). Future work: [docs/roadmap.md](docs/roadmap.md).
+See [docs/START-HERE.md](docs/START-HERE.md) for the dev loop. Platforms & keyring: [docs/platforms.md](docs/platforms.md). Architecture: [docs/architecture.md](docs/architecture.md).

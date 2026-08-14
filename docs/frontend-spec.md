@@ -1,5 +1,7 @@
 # Frontend Spec — Clavis UI Redesign
 
+Product overview and feature tour: [features.md](features.md). Demo GIFs: [demos/](demos/) (embedded in [README](../README.md)).
+
 ## Meta
 
 - **Product:** Clavis (Keys Manager)

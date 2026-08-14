@@ -4,6 +4,8 @@
 
 A **local-first**, **portable** credential manager. No cloud accounts. The master password unlocks an AES-256-GCM vault stored only under the app install directory (desktop) or OS app sandbox (mobile preview).
 
+**New to the project?** Read [features.md](features.md) for purpose, design, and a full feature tour (with links to demo GIFs on the [README](../README.md)).
+
 ## Layout
 
 | Path | Role |
@@ -13,28 +15,18 @@ A **local-first**, **portable** credential manager. No cloud accounts. The maste
 | `apps/desktop/src-tauri` | Desktop Tauri entry |
 | `apps/mobile/src-tauri` | Mobile preview Tauri entry |
 | `apps/web` | Next.js static UI + Tailwind |
-| `specs/backend/vault-core-design.md` | Vault format contract |
-| `specs/backend/mobile-preview-design.md` | Phase C mobile design |
-| `specs/backend/v0.3.0-ux-design.md` | v0.3.0 palette / pins / favicons |
-| `specs/backend/v0.4.0-mobile-ux-design.md` | v0.4.0 swipe + biometric |
-| `specs/backend/v0.5.0-security-hygiene-design.md` | v0.5.0 memory hygiene + auto-lock policy |
-| `specs/backend/v0.6.0-backup-portability-design.md` | v0.6.0 KDF transparency + atomic vault writes |
-| `specs/backend/v0.6.1-custom-fields-ui-design.md` | Custom fields editor UI + Next.js 16 |
-| `specs/backend/v0.7.0-offline-portable-security-design.md` | Offline-first + USB portable + integrity warn |
-| `specs/backend/v0.8.0-totp-interop-design.md` | TOTP (otpauth) + CSV interop |
-| `specs/backend/v0.9.0-mobile-installers-design.md` | v0.9.0 Android/iOS sideload installers + CI |
-| `specs/backend/post-0.9.0-friction-hygiene-umbrella.md` | Phase E bands v0.10–v0.13 |
-| `specs/backend/v0.10.0-generate-capture-design.md` | v0.10 generator / quick-add / soft-delete |
-| `specs/backend/v0.11.0-password-health-design.md` | v0.11 password health + optional HIBP |
-| `specs/backend/v0.12.0-desktop-fill-match-design.md` | v0.12 desktop autotype + title match (Windows first) |
-| `specs/backend/v0.13.0-vault-richness-design.md` | v0.13 snapshots / attachments / structured notes |
-| `specs/backend/v0.14.0-folder-sync-design.md` | v0.14 optional user-folder / Syncthing data-dir sync |
-| `docs/threat-model.md` | Threat assumptions (v2: desktop + mobile) |
+| `docs/features.md` | Product purpose, design, feature reference |
+| `docs/demos/` | README demo GIFs (embedded in root README) |
+| `docs/frontend-spec.md` | UI tokens, shell layout, keyboard contract |
+| `docs/architecture.md` | Stack diagram and locking summary |
+| `docs/threat-model.md` | Threat assumptions (desktop + mobile) |
 | `docs/roadmap.md` | Security, UX, self-signed multi-platform plan |
 | `docs/release-checklist.md` | Tag, checksums, self-signed publish steps |
 | `docs/platforms.md` | Desktop + mobile matrix, data dir, keyring |
 | `docs/signet-ship.md` | Signet CI secrets + ship collect for mobile releases |
+| `docs/vault-format.md` | On-disk vault format overview |
 | `signet.toml` | Signet multi-target ship config (self path) |
+| `specs/backend/` | Versioned design specs (vault, mobile, UX bands) |
 
 ## Dev loop
 
