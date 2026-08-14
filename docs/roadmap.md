@@ -372,12 +372,13 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Dynamic shortcut labels from keybinding overrides | Done |
 | Version bump 0.18.0 | Done |
 
-### v0.18.x — Product documentation — done
+### v0.18.1 — Product documentation — done
 
 | Item | Status |
 |------|--------|
 | `docs/features.md` — purpose, design, feature reference | Done |
 | README demo GIFs (search, import, appearance, keyboard, recycle bin) | Done |
-| Expanded `architecture.md` and `START-HERE.md` index | Done |
+| Expanded `architecture.md`, `START-HERE.md`, roadmap doc links | Done |
+| Version bump 0.18.1 | Done |
 
 Next: later Phase D (merge UI, store signing) when ready.
