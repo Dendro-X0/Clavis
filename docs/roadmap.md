@@ -361,4 +361,13 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Persist `keybindingOverrides` in AppSettings | Done |
 | Version bump 0.17.0 | Done |
 
+### v0.18.0 — Command palette search — done
+
+| Item | Status |
+|------|--------|
+| Settings sections searchable from command palette | Done |
+| Vault nav + deduplicated palette results | Done |
+| Dynamic shortcut labels from keybinding overrides | Done |
+| Version bump 0.18.0 | Done |
+
 Next: later Phase D (merge UI, store signing) when ready.

@@ -80,7 +80,7 @@ Workspaces are **not** in the sidebar.
    - **Pagination**: page size 10 / 25 / 50 / 100 (user-selectable); footer with prev/next and range
    - Editor panel when creating/editing
 4. Settings replaces main when nav=settings — **two-pane layout**: categorized sidebar (search + section nav with hairline category dividers) + section content; compact uses section dropdown. Nav width is fluid (`clamp`); content column scales up to ~52rem on ultra-wide. Minimal field rows with hairline dividers; nav uses left accent bar (matches main sidebar).
-5. **Command palette** (`Mod+K`): search entries globally + actions (New, Settings, Lock, Focus search, Toggle layout). `/` focuses toolbar search. `Mod+,` opens Settings. Esc closes palette then editor. **Mod** = ⌘ on macOS, Ctrl on Windows/Linux.
+5. **Command palette** (`Mod+K`, user-rebindable): search entries, workspaces, vault nav, settings sections, and actions (New, Lock, Focus search, Toggle layout). Shortcut hints and sidebar badge reflect `keybindingOverrides`. `/` focuses toolbar search. Esc closes palette then editor. **Mod** = ⌘ on macOS, Ctrl on Windows/Linux.
 6. **v0.3.0 palette**: switch workspace rows; per-entry Copy login / User / Pass actions.
 6b. **Keyboard package**: central `keybindings` registry; list focus nav; shortcuts help (`?`); Settings → Keyboard to view/rebind; confirm Enter/Esc; Gate Enter submits unlock.
 7. **Sidebar workspace pins**: pinned IDs under Vault; pin/unpin from workspace cards; active workspace always listed if not pinned.
