@@ -14,8 +14,9 @@ import {
   StickyNote,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { formatChord } from "@/lib/keybindings";
 import type { EntryType, WorkspaceSummary } from "@/lib/api";
 
 export type NavId = "all" | EntryType | "settings";
@@ -27,15 +28,6 @@ const vaultItems: { id: NavId; label: string; icon: typeof Shield }[] = [
   { id: "api", label: "API / tokens", icon: FileKey2 },
   { id: "custom", label: "Custom", icon: NotebookPen },
 ];
-
-function useModKeyHint() {
-  const [hint, setHint] = useState("Ctrl+K");
-  useEffect(() => {
-    const mac = /Mac|iPhone|iPad/.test(navigator.platform) || navigator.userAgent.includes("Mac");
-    setHint(mac ? "⌘K" : "Ctrl+K");
-  }, []);
-  return hint;
-}
 
 export function AppSidebar({
   active,
@@ -62,7 +54,7 @@ export function AppSidebar({
   onSelectWorkspace?: (id: string) => void;
   collapsed?: boolean;
 }) {
-  const modHint = useModKeyHint();
+  const modHint = formatChord("mod+k");
 
   const pinnedList = useMemo(() => {
     if (!workspaces?.length) return [];

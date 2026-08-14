@@ -28,6 +28,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const [promptState, setPromptState] = useState<PromptState | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
   const inputId = useId();
 
   const confirm = useCallback((options: ConfirmOptions) => {
@@ -58,6 +59,13 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     }
   }, [promptState]);
 
+  useEffect(() => {
+    if (confirmState) {
+      const t = window.setTimeout(() => confirmBtnRef.current?.focus(), 30);
+      return () => window.clearTimeout(t);
+    }
+  }, [confirmState]);
+
   function closeConfirm(result: boolean) {
     confirmState?.resolve(result);
     setConfirmState(null);
@@ -78,7 +86,26 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           if (!open) closeConfirm(false);
         }}
       >
-        <DialogContent showClose={false} onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent
+          showClose={false}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onKeyDown={(e) => {
+            if (!confirmState) return;
+            if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              closeConfirm(false);
+              return;
+            }
+            if (e.key === "Enter") {
+              const t = e.target as HTMLElement | null;
+              if (t && (t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+              e.preventDefault();
+              e.stopPropagation();
+              closeConfirm(true);
+            }
+          }}
+        >
           {confirmState && (
             <>
               <DialogHeader>
@@ -96,6 +123,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                   {confirmState.cancelLabel ?? "Cancel"}
                 </button>
                 <button
+                  ref={confirmBtnRef}
                   type="button"
                   className={confirmState.danger ? "btn-danger" : "btn-primary"}
                   onClick={() => closeConfirm(true)}
@@ -114,7 +142,16 @@ export function DialogProvider({ children }: { children: ReactNode }) {
           if (!open) closePrompt(null);
         }}
       >
-        <DialogContent showClose={false}>
+        <DialogContent
+          showClose={false}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              e.stopPropagation();
+              closePrompt(null);
+            }
+          }}
+        >
           {promptState && (
             <form
               onSubmit={(e) => {

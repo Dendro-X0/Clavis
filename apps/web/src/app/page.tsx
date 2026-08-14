@@ -41,9 +41,11 @@ import {
   normalizeTheme,
   normalizeSkin,
 } from "@/lib/api";
+import { ShortcutsHelp } from "@/components/shell/shortcuts-help";
 import { SkinApplier } from "@/components/skin-applier";
 import { appConfirm, appPrompt } from "@/lib/app-dialogs";
 import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/lib/clipboard";
+import { isTypingTarget, matchAction } from "@/lib/keybindings";
 import { blankEntryForm } from "@/lib/sensitive";
 import { useCompactSurface } from "@/lib/use-compact-surface";
 import {
@@ -104,6 +106,8 @@ export default function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const [listFocusIndex, setListFocusIndex] = useState(0);
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
@@ -784,6 +788,17 @@ export default function HomePage() {
   }
 
   const unlocked = status?.state === "unlocked";
+  const listFocusId = pagedEntries[listFocusIndex]?.id ?? null;
+
+  useEffect(() => {
+    setListFocusIndex(0);
+  }, [query, nav, categoryFilter, activeWorkspace?.id, pageSize, safePage]);
+
+  useEffect(() => {
+    if (listFocusIndex >= pagedEntries.length) {
+      setListFocusIndex(Math.max(0, pagedEntries.length - 1));
+    }
+  }, [pagedEntries.length, listFocusIndex]);
 
   useEffect(() => {
     if (compact) setSidebarCollapsed(true);
@@ -792,18 +807,24 @@ export default function HomePage() {
   useEffect(() => {
     if (!unlocked) return;
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const typing =
-        target &&
-        (target.tagName === "INPUT" ||
-          target.tagName === "TEXTAREA" ||
-          target.tagName === "SELECT" ||
-          target.isContentEditable);
+      const typing = isTypingTarget(e.target);
+      const overrides = settings.keybindingOverrides ?? {};
+      const modalBlocking =
+        paletteOpen ||
+        shortcutsHelpOpen ||
+        generatorOpen ||
+        trashOpen ||
+        healthOpen;
 
       if (e.key === "Escape") {
         if (paletteOpen) {
           e.preventDefault();
           setPaletteOpen(false);
+          return;
+        }
+        if (shortcutsHelpOpen) {
+          e.preventDefault();
+          setShortcutsHelpOpen(false);
           return;
         }
         if (clipboardClearEndsAt != null) {
@@ -818,40 +839,127 @@ export default function HomePage() {
         return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen(true);
-        return;
-      }
+      const action = matchAction(e, overrides);
+      if (!action) return;
 
-      if (typing && e.key !== "Escape") return;
+      const always =
+        action === "palette" ||
+        action === "lock" ||
+        action === "settings" ||
+        action === "newEntry";
 
-      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault();
-        setPaletteOpen(false);
-        document.getElementById("vault-search")?.focus();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") {
-        e.preventDefault();
-        setNav("all");
-        openBlankEntry().catch((err) => setError(String(err)));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l") {
-        e.preventDefault();
-        confirmLockVault().catch((err) => setError(String(err)));
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === ",") {
-        e.preventDefault();
-        clearSensitiveUi();
-        setNav("settings");
+      if (typing && !always) return;
+      if (modalBlocking && action !== "palette" && action !== "shortcutsHelp") return;
+
+      const inVaultList = nav !== "settings" && pagedEntries.length > 0 && !modalBlocking;
+
+      switch (action) {
+        case "palette":
+          e.preventDefault();
+          setShortcutsHelpOpen(false);
+          setPaletteOpen(true);
+          break;
+        case "search":
+          if (typing || modalBlocking) return;
+          e.preventDefault();
+          setPaletteOpen(false);
+          document.getElementById("vault-search")?.focus();
+          break;
+        case "newEntry":
+          e.preventDefault();
+          setNav("all");
+          openBlankEntry().catch((err) => setError(String(err)));
+          break;
+        case "lock":
+          e.preventDefault();
+          confirmLockVault().catch((err) => setError(String(err)));
+          break;
+        case "settings":
+          e.preventDefault();
+          clearSensitiveUi();
+          setNav("settings");
+          break;
+        case "shortcutsHelp":
+          if (typing) return;
+          e.preventDefault();
+          setPaletteOpen(false);
+          setShortcutsHelpOpen(true);
+          break;
+        case "listUp":
+          if (!inVaultList || typing) return;
+          e.preventDefault();
+          setListFocusIndex((i) => Math.max(0, i - 1));
+          break;
+        case "listDown":
+          if (!inVaultList || typing) return;
+          e.preventDefault();
+          setListFocusIndex((i) => Math.min(pagedEntries.length - 1, i + 1));
+          break;
+        case "listOpen": {
+          if (!inVaultList || typing) return;
+          const entry = pagedEntries[listFocusIndex];
+          if (!entry) return;
+          e.preventDefault();
+          openEntry(entry.id, entry.workspaceId).catch((err) => setError(String(err)));
+          break;
+        }
+        case "copyLogin": {
+          if (!inVaultList || typing) return;
+          const entry = pagedEntries[listFocusIndex];
+          if (!entry) return;
+          e.preventDefault();
+          copyLoginSequence(entry.id).catch((err) => setError(String(err)));
+          break;
+        }
+        case "copyUser": {
+          if (!inVaultList || typing) return;
+          const entry = pagedEntries[listFocusIndex];
+          if (!entry) return;
+          e.preventDefault();
+          void (async () => {
+            const user = normalizeEntry(await api.getEntry(entry.id)).username;
+            await copyText(`${entry.id}:user`, user);
+          })();
+          break;
+        }
+        case "copyPass": {
+          if (!inVaultList || typing) return;
+          const entry = pagedEntries[listFocusIndex];
+          if (!entry) return;
+          e.preventDefault();
+          void (async () => {
+            const pass = normalizeEntry(await api.getEntry(entry.id)).password;
+            await copyText(`${entry.id}:pass`, pass);
+          })();
+          break;
+        }
+        case "copyOtp": {
+          if (!inVaultList || typing) return;
+          const entry = pagedEntries[listFocusIndex];
+          if (!entry?.hasOtp) return;
+          e.preventDefault();
+          copyTotpCode(entry.id).catch((err) => setError(String(err)));
+          break;
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [unlocked, form, refreshStatus, paletteOpen, clipboardClearEndsAt, clearSensitiveUi]);
+  }, [
+    unlocked,
+    form,
+    paletteOpen,
+    shortcutsHelpOpen,
+    generatorOpen,
+    trashOpen,
+    healthOpen,
+    clipboardClearEndsAt,
+    clearSensitiveUi,
+    settings.keybindingOverrides,
+    nav,
+    pagedEntries,
+    listFocusIndex,
+  ]);
 
   function handlePaletteAction(id: PaletteActionId) {
     switch (id) {
@@ -940,6 +1048,11 @@ export default function HomePage() {
           }}
         />
       )}
+      <ShortcutsHelp
+        open={shortcutsHelpOpen}
+        onClose={() => setShortcutsHelpOpen(false)}
+        overrides={settings.keybindingOverrides}
+      />
       <div className="flex min-h-0 flex-1">
         {unlocked && (
           <AppSidebar
@@ -1038,6 +1151,7 @@ export default function HomePage() {
                   await refreshStatus();
                   setNav("all");
                 }}
+                onOpenShortcutsHelp={() => setShortcutsHelpOpen(true)}
               />
             </div>
           )}
@@ -1122,14 +1236,17 @@ export default function HomePage() {
                       layout={settings.entryLayout}
                       emptyWorkspace={workspaces.length === 0 || (!query.trim() && entries.length === 0)}
                       noWorkspaces={workspaces.length === 0}
+                      listFocusId={listFocusId}
                       activeWorkspaceId={activeWorkspace?.id}
                       workspaceName={activeWorkspace?.name}
                       fetchFavicons={
                         Boolean(settings.fetchFavicons) && Boolean(settings.allowNetwork)
                       }
-                      onSelect={(id, workspaceId) =>
-                        openEntry(id, workspaceId).catch((err) => setError(String(err)))
-                      }
+                      onSelect={(id, workspaceId) => {
+                        const idx = pagedEntries.findIndex((e) => e.id === id);
+                        if (idx >= 0) setListFocusIndex(idx);
+                        openEntry(id, workspaceId).catch((err) => setError(String(err)));
+                      }}
                       onCopyLogin={(id) => {
                         copyLoginSequence(id).catch((err) => setError(String(err)));
                       }}

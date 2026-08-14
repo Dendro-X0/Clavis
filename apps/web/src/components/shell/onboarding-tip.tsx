@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { formatChord } from "@/lib/keybindings";
 
 export function OnboardingTip({
   onDismiss,
@@ -9,6 +10,10 @@ export function OnboardingTip({
   onDismiss: () => void;
   onImportHint?: () => void;
 }) {
+  const kbd = (chord: string) => (
+    <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">{formatChord(chord)}</kbd>
+  );
+
   return (
     <div className="mb-3 flex shrink-0 items-start gap-3 rounded-md border border-[var(--primary)]/35 bg-[var(--accent-wash)] px-4 py-3 text-sm">
       <div className="min-w-0 flex-1">
@@ -16,14 +21,8 @@ export function OnboardingTip({
         <p className="mt-1 text-[var(--muted)]">
           Import a credentials file to create a workspace, or add an entry.{" "}
           <span className="text-[var(--foreground)]">Copy</span> pastes username then password
-          for login forms. Shortcuts:{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">/</kbd> search ·{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+K</kbd>{" "}
-          palette ·{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+N</kbd>{" "}
-          new ·{" "}
-          <kbd className="rounded border border-[var(--border)] px-1 text-[10px]">Ctrl/Cmd+L</kbd>{" "}
-          lock.
+          for login forms. Shortcuts: {kbd("/")} search · {kbd("mod+k")} palette · {kbd("mod+n")}{" "}
+          new · {kbd("mod+l")} lock · {kbd("?")} help.
         </p>
         {onImportHint && (
           <button

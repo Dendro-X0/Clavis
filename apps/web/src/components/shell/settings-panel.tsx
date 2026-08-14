@@ -16,6 +16,7 @@ export function SettingsPanel({
   onImported,
   onWorkspacesChanged,
   onDataDirChanged,
+  onOpenShortcutsHelp,
   compact = false,
   activeSection,
   onActiveSectionChange,
@@ -28,6 +29,7 @@ export function SettingsPanel({
   onImported: (result?: ImportResult) => Promise<void>;
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
   onDataDirChanged?: () => void | Promise<void>;
+  onOpenShortcutsHelp?: () => void;
   compact?: boolean;
   /** Controlled settings section (URL / parent sync). */
   activeSection?: SettingsSectionId;
@@ -154,6 +156,7 @@ export function SettingsPanel({
     onImported,
     onWorkspacesChanged,
     onDataDirChanged,
+    onOpenShortcutsHelp,
   };
 
   return (

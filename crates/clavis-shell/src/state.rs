@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -50,6 +51,9 @@ pub struct AppSettings {
     /// SHA-256 hex of encrypted `vault.km` after last trusted unlock/persist (integrity signal).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_vault_sha256: Option<String>,
+    /// Keyboard shortcut overrides: actionId → chord (e.g. `"palette": "mod+k"`).
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub keybinding_overrides: HashMap<String, String>,
 }
 
 fn default_theme() -> String {
@@ -105,6 +109,7 @@ impl Default for AppSettings {
             autotype_key_delay_ms: default_autotype_key_delay_ms(),
             snapshot_retain: default_snapshot_retain(),
             last_vault_sha256: None,
+            keybinding_overrides: HashMap::new(),
         }
     }
 }

@@ -106,6 +106,8 @@ export type AppSettings = {
   snapshotRetain?: number;
   /** Encrypted vault fingerprint (integrity signal). */
   lastVaultSha256?: string | null;
+  /** Keyboard shortcut overrides: actionId → chord. */
+  keybindingOverrides?: Record<string, string>;
 };
 
 export type ForegroundWindowInfo = {

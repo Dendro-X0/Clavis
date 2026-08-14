@@ -27,6 +27,15 @@ import { PageSizeRow } from "@/components/vault/page-size-row";
 import { SettingsCard, SettingsField } from "./settings-ui";
 import { useEffect, useState } from "react";
 import { SETTINGS_SECTION_META, type SettingsSectionId } from "./types";
+import {
+  KEYBINDING_GROUPS,
+  KEYBINDING_LABELS,
+  eventToChord,
+  findConflict,
+  formatChords,
+  resolveBindings,
+  type KeybindingAction,
+} from "@/lib/keybindings";
 
 function formatImportMessage(result: {
   count: number;
@@ -71,6 +80,7 @@ export type SettingsSectionsProps = {
   onImported: (result?: import("@/lib/api").ImportResult) => Promise<void>;
   onWorkspacesChanged: (list: WorkspaceSummary[]) => void | Promise<void>;
   onDataDirChanged?: () => void | Promise<void>;
+  onOpenShortcutsHelp?: () => void;
 };
 
 export function SettingsSectionContent(props: SettingsSectionsProps) {
@@ -100,6 +110,8 @@ function renderSection(p: SettingsSectionsProps) {
   switch (p.active) {
     case "appearance":
       return <AppearanceSection {...p} />;
+    case "keyboard":
+      return <KeyboardSection {...p} />;
     case "lock-clipboard":
       return <LockClipboardSection {...p} />;
     case "convenience-unlock":
@@ -288,6 +300,136 @@ function AppearanceSection({ settings, setSettings, theme, setTheme }: SettingsS
           className="max-w-sm"
         />
       </SettingsField>
+    </SettingsCard>
+  );
+}
+
+function KeyboardSection({ settings, setSettings, onError, onOpenShortcutsHelp }: SettingsSectionsProps) {
+  const [capturing, setCapturing] = useState<KeybindingAction | null>(null);
+  const [captureHint, setCaptureHint] = useState<string | null>(null);
+  const overrides = settings.keybindingOverrides ?? {};
+  const resolved = resolveBindings(overrides);
+
+  async function persistOverrides(next: Record<string, string>) {
+    const updated = { ...settings, keybindingOverrides: next };
+    setSettings(updated);
+    try {
+      await api.saveSettings(updated);
+    } catch (e) {
+      onError(String(e).replace(/^Error:\s*/, ""));
+    }
+  }
+
+  useEffect(() => {
+    if (!capturing) return;
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.key === "Escape") {
+        setCapturing(null);
+        setCaptureHint(null);
+        return;
+      }
+      const chord = eventToChord(e);
+      if (!chord) {
+        setCaptureHint("Press a key combination…");
+        return;
+      }
+      const conflict = findConflict(capturing, chord, {
+        ...overrides,
+        [capturing]: chord,
+      });
+      if (conflict) {
+        setCaptureHint(`Conflicts with “${KEYBINDING_LABELS[conflict]}”. Try another.`);
+        return;
+      }
+      const next = { ...overrides, [capturing]: chord };
+      void persistOverrides(next);
+      setCapturing(null);
+      setCaptureHint(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- capture session only
+  }, [capturing, overrides]);
+
+  return (
+    <SettingsCard
+      title="Shortcuts"
+      description="Click Change, then press the new keys. Esc cancels capture."
+    >
+      {KEYBINDING_GROUPS.map((group) => (
+        <div key={group.id} className="mb-4 last:mb-0">
+          <p className="mb-2 text-[10px] font-semibold tracking-[0.16em] text-[var(--muted)] uppercase">
+            {group.label}
+          </p>
+          <ul className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+            {group.actions.map((action) => {
+              const isCapturing = capturing === action;
+              return (
+                <li
+                  key={action}
+                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"
+                >
+                  <span className="min-w-0 flex-1 text-[var(--foreground)]">
+                    {KEYBINDING_LABELS[action]}
+                  </span>
+                  <kbd className="rounded border border-[var(--border)] bg-[var(--inset)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--muted)]">
+                    {isCapturing ? "Press keys…" : formatChords(resolved[action])}
+                  </kbd>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      className="btn-ghost-sm"
+                      onClick={() => {
+                        setCapturing(action);
+                        setCaptureHint(`Recording for ${KEYBINDING_LABELS[action]}…`);
+                      }}
+                    >
+                      {isCapturing ? "Listening" : "Change"}
+                    </button>
+                    {overrides[action] && (
+                      <button
+                        type="button"
+                        className="btn-ghost-sm"
+                        onClick={() => {
+                          const next = { ...overrides };
+                          delete next[action];
+                          void persistOverrides(next);
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
+      {captureHint && (
+        <p className="mt-2 text-xs text-[var(--muted)]" role="status">
+          {captureHint}
+        </p>
+      )}
+
+      <div className="settings-actions mt-4">
+        <button
+          type="button"
+          className="btn-ghost"
+          disabled={Object.keys(overrides).length === 0}
+          onClick={() => void persistOverrides({})}
+        >
+          Reset all to defaults
+        </button>
+        {onOpenShortcutsHelp && (
+          <button type="button" className="btn-ghost" onClick={onOpenShortcutsHelp}>
+            View cheatsheet
+          </button>
+        )}
+      </div>
     </SettingsCard>
   );
 }

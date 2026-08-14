@@ -351,4 +351,14 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | New vaults start with no empty default workspace | Done |
 | Version bump 0.16.0 | Done |
 
+### v0.17.0 — Keyboard controls package — done
+
+| Item | Status |
+|------|--------|
+| List focus nav (↑↓ / j k) + copy keys (c / u / p / o) | Done |
+| Shortcuts help overlay (`?`) + Settings → Keyboard remap | Done |
+| Confirm Enter/Esc; Gate Enter-to-unlock; Mod ⌘/Ctrl | Done |
+| Persist `keybindingOverrides` in AppSettings | Done |
+| Version bump 0.17.0 | Done |
+
 Next: later Phase D (merge UI, store signing) when ready.

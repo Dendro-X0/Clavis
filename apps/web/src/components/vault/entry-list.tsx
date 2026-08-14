@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { EntrySummary, EntryType, ImportResult } from "@/lib/api";
 import type { EntryLayout } from "@/components/shell/dashboard-header";
 import { EntryIcon } from "@/components/vault/entry-icon";
@@ -227,6 +227,7 @@ export function EntryList({
   workspaceName,
   activeWorkspaceId,
   noWorkspaces,
+  listFocusId,
   fetchFavicons = false,
 }: {
   entries: EntrySummary[];
@@ -249,10 +250,18 @@ export function EntryList({
   workspaceName?: string;
   activeWorkspaceId?: string;
   noWorkspaces?: boolean;
+  /** Keyboard list focus (distinct from editor selection). */
+  listFocusId?: string | null;
   fetchFavicons?: boolean;
 }) {
   const compact = useCompactSurface();
   const [menuEntry, setMenuEntry] = useState<EntrySummary | null>(null);
+
+  useEffect(() => {
+    if (!listFocusId) return;
+    const el = document.querySelector(`[data-list-focus="true"]`);
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [listFocusId]);
 
   function foreignWorkspace(e: EntrySummary) {
     if (!e.workspaceName) return null;
@@ -303,11 +312,13 @@ export function EntryList({
             const wsLabel = foreignWorkspace(e);
             const card = (
               <div
+                data-list-focus={listFocusId === e.id ? "true" : undefined}
                 className={cn(
                   "entry-card-virtual flex h-full w-full flex-col gap-2 rounded-lg border p-4 text-left transition",
                   selectedId === e.id
                     ? "border-[var(--primary)]/45 bg-[var(--accent-wash)]"
                     : "border-[var(--border)] bg-[var(--card)]/50 hover:border-[var(--primary)]/30 hover:bg-[var(--accent-wash)]/40",
+                  listFocusId === e.id && "ring-2 ring-[var(--ring)] ring-offset-1 ring-offset-[var(--background)]",
                 )}
               >
                 <button
@@ -383,9 +394,11 @@ export function EntryList({
           const wsLabel = foreignWorkspace(e);
           const row = (
             <div
+              data-list-focus={listFocusId === e.id ? "true" : undefined}
               className={cn(
                 "entry-row-virtual flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition min-h-[56px]",
                 selectedId === e.id ? "bg-[var(--accent-wash)]" : "hover:bg-[var(--accent-wash)]/40",
+                listFocusId === e.id && "ring-2 ring-inset ring-[var(--ring)]",
               )}
             >
               <button

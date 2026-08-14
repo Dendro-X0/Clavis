@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EntrySummary, WorkspaceSummary } from "@/lib/api";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { formatChord } from "@/lib/keybindings";
 import { cn } from "@/lib/utils";
 
 export type PaletteActionId =
@@ -52,12 +53,12 @@ type PaletteItem =
     };
 
 const ACTIONS: Extract<PaletteItem, { kind: "action" }>[] = [
-  { kind: "action", id: "new-entry", label: "New entry", hint: "Ctrl/Cmd+N" },
+  { kind: "action", id: "new-entry", label: "New entry", hint: "mod+n" },
   { kind: "action", id: "new-from-clipboard", label: "New from clipboard", hint: "" },
   { kind: "action", id: "recycle-bin", label: "Open recycle bin", hint: "" },
   { kind: "action", id: "password-health", label: "Password health", hint: "" },
-  { kind: "action", id: "settings", label: "Open settings", hint: "Ctrl/Cmd+," },
-  { kind: "action", id: "lock", label: "Lock vault", hint: "Ctrl/Cmd+L" },
+  { kind: "action", id: "settings", label: "Open settings", hint: "mod+," },
+  { kind: "action", id: "lock", label: "Lock vault", hint: "mod+l" },
   { kind: "action", id: "focus-search", label: "Focus toolbar search", hint: "/" },
   { kind: "action", id: "toggle-layout", label: "Toggle list / grid layout", hint: "" },
 ];
@@ -308,7 +309,9 @@ export function CommandPalette({
                   <span className="block truncate font-medium">{item.label}</span>
                   {item.hint && (
                     <span className="mt-0.5 block truncate text-xs text-[var(--muted)]">
-                      {item.hint}
+                      {item.hint.includes("+") || item.hint.startsWith("mod")
+                        ? formatChord(item.hint)
+                        : item.hint}
                     </span>
                   )}
                 </span>

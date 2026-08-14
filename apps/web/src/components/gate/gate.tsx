@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ClavisLogo } from "@/components/brand/clavis-logo";
 import { api, type StatusDto } from "@/lib/api";
 import { biometricAuthenticate, biometricStatus } from "@/lib/biometric";
@@ -108,6 +108,35 @@ export function Gate({
     }
   }
 
+  async function submitPassword(e?: FormEvent) {
+    e?.preventDefault();
+    try {
+      if (missing) {
+        if (password.length < 8) throw new Error("Use at least 8 characters.");
+        if (password !== confirm) throw new Error("Passwords do not match.");
+        await api.createVault(name || "My vault", password);
+        try {
+          localStorage.setItem("clavis_show_onboarding", "1");
+        } catch {
+          /* ignore */
+        }
+      } else {
+        const unlocked = await api.unlock(password);
+        await warnIfVaultChanged(unlocked);
+      }
+      clearGateSecrets(setPassword, setConfirm);
+      await onDone();
+    } catch (err) {
+      const msg = String(err).replace(/^Error:\s*/, "");
+      if (msg.includes("do not match") || msg.includes("at least 8")) {
+        onError(msg);
+        return;
+      }
+      clearGateSecrets(setPassword, setConfirm);
+      onError(msg);
+    }
+  }
+
   const showBio = !missing && bioEnabled && bioAvailable;
 
   return (
@@ -135,17 +164,6 @@ export function Gate({
         </ol>
       )}
 
-      {missing && (
-        <label className="mt-5 block text-sm">
-          Vault name
-          <input
-            className="inset-field mt-1 w-full px-3 py-2"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-      )}
-
       {showBio && (
         <button
           type="button"
@@ -157,70 +175,53 @@ export function Gate({
         </button>
       )}
 
-      <label className="mt-4 block text-sm">
-        Master password
-        <input
-          type="password"
-          className="inset-field mt-1 w-full px-3 py-2"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoFocus={!showBio}
-          autoComplete="current-password"
-        />
-      </label>
+      <form onSubmit={(e) => void submitPassword(e)}>
+        {missing && (
+          <label className="mt-5 block text-sm">
+            Vault name
+            <input
+              className="inset-field mt-1 w-full px-3 py-2"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="organization"
+            />
+          </label>
+        )}
 
-      {missing && (
         <label className="mt-4 block text-sm">
-          Confirm password
+          Master password
           <input
             type="password"
             className="inset-field mt-1 w-full px-3 py-2"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus={!showBio}
+            autoComplete="current-password"
           />
         </label>
-      )}
 
-      <button
-        type="button"
-        className={
-          showBio ? "btn-ghost mt-3 w-full py-2.5 font-medium" : "btn-primary mt-6 w-full py-2.5"
-        }
-        onClick={async () => {
-          try {
-            if (missing) {
-              if (password.length < 8) throw new Error("Use at least 8 characters.");
-              if (password !== confirm) throw new Error("Passwords do not match.");
-              await api.createVault(name || "My vault", password);
-              try {
-                localStorage.setItem("clavis_show_onboarding", "1");
-              } catch {
-                /* ignore */
-              }
-            } else {
-              const unlocked = await api.unlock(password);
-              await warnIfVaultChanged(unlocked);
-            }
-            clearGateSecrets(setPassword, setConfirm);
-            await onDone();
-          } catch (e) {
-            // Validation errors keep fields for correction; IPC failures clear secrets.
-            const msg = String(e).replace(/^Error:\s*/, "");
-            if (
-              msg.includes("do not match") ||
-              msg.includes("at least 8")
-            ) {
-              onError(msg);
-              return;
-            }
-            clearGateSecrets(setPassword, setConfirm);
-            onError(msg);
+        {missing && (
+          <label className="mt-4 block text-sm">
+            Confirm password
+            <input
+              type="password"
+              className="inset-field mt-1 w-full px-3 py-2"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+        )}
+
+        <button
+          type="submit"
+          className={
+            showBio ? "btn-ghost mt-3 w-full py-2.5 font-medium" : "btn-primary mt-6 w-full py-2.5"
           }
-        }}
-      >
-        {missing ? "Create vault" : showBio ? "Unlock with password" : "Unlock"}
-      </button>
+        >
+          {missing ? "Create vault" : showBio ? "Unlock with password" : "Unlock"}
+        </button>
+      </form>
 
       {!missing && (
         <p className="mt-4 text-xs text-[var(--muted)]">

@@ -1,7 +1,7 @@
 # Clavis (Keys Manager)
 
 Local-first portable credential vault. Tauri v2 + Rust core + Next.js UI.  
-**OSS · self-signed / unsigned releases** (see below). Current version: **0.16.0**.
+**OSS · self-signed / unsigned releases** (see below). Current version: **0.17.0**.
 
 ## Prerequisites
 
@@ -32,7 +32,7 @@ Light/dark theme toggle lives in the custom titlebar and Settings. Theme prefere
 
 Credential imports create a **workspace** (named from the file). If that name already exists, Clavis asks whether to **replace** it. Workspaces live in the **dashboard** strip (not the sidebar). Toggle **list / grid** for entries; name and categorize items in the editor.
 
-**Search & shortcuts** (Windows / Linux / macOS): toolbar search matches all workspaces when you type a query; `Ctrl/Cmd+K` opens the command palette; `/` focuses toolbar search; `Ctrl/Cmd+N` new entry; `Ctrl/Cmd+L` lock; `Ctrl/Cmd+,` settings; `Esc` closes palette/editor.
+**Search & shortcuts** (Windows / Linux / macOS): toolbar search matches all workspaces when you type a query; `Ctrl/Cmd+K` opens the command palette; `/` focuses toolbar search; `Ctrl/Cmd+N` new entry; `Ctrl/Cmd+L` lock; `Ctrl/Cmd+,` settings; `?` shortcuts help; ↑/↓ or `j`/`k` move list focus; `c`/`u`/`p`/`o` copy login/user/pass/TOTP; `Esc` closes palette/editor. Remap in Settings → Keyboard.
 
 ## Installing self-signed builds
 

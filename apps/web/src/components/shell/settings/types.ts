@@ -1,5 +1,6 @@
 export type SettingsSectionId =
   | "appearance"
+  | "keyboard"
   | "lock-clipboard"
   | "convenience-unlock"
   | "master-password"
@@ -37,6 +38,21 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     label: "Appearance",
     category: "general",
     keywords: ["theme", "light", "dark", "system", "skin", "color", "seafoam", "graphite", "layout", "grid", "list", "page", "size"],
+  },
+  {
+    id: "keyboard",
+    label: "Keyboard",
+    category: "general",
+    keywords: [
+      "shortcut",
+      "hotkey",
+      "keybinding",
+      "keymap",
+      "ctrl",
+      "cmd",
+      "mod",
+      "palette",
+    ],
   },
   {
     id: "lock-clipboard",
@@ -109,6 +125,10 @@ export const SETTINGS_SECTION_META: Record<
   appearance: {
     title: "Appearance",
     description: "Theme, color scheme (skin), entry layout, and pagination defaults.",
+  },
+  keyboard: {
+    title: "Keyboard",
+    description: "View and remap shortcuts. Mod is ⌘ on macOS and Ctrl on Windows/Linux.",
   },
   "lock-clipboard": {
     title: "Lock & clipboard",

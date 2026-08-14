@@ -80,8 +80,9 @@ Workspaces are **not** in the sidebar.
    - **Pagination**: page size 10 / 25 / 50 / 100 (user-selectable); footer with prev/next and range
    - Editor panel when creating/editing
 4. Settings replaces main when nav=settings — **two-pane layout**: categorized sidebar (search + section nav with hairline category dividers) + section content; compact uses section dropdown. Nav width is fluid (`clamp`); content column scales up to ~52rem on ultra-wide. Minimal field rows with hairline dividers; nav uses left accent bar (matches main sidebar).
-5. **Command palette** (`Ctrl/Cmd+K`): search entries globally + actions (New, Settings, Lock, Focus search, Toggle layout). `/` focuses toolbar search. `Ctrl/Cmd+,` opens Settings. Esc closes palette then editor.
+5. **Command palette** (`Mod+K`): search entries globally + actions (New, Settings, Lock, Focus search, Toggle layout). `/` focuses toolbar search. `Mod+,` opens Settings. Esc closes palette then editor. **Mod** = ⌘ on macOS, Ctrl on Windows/Linux.
 6. **v0.3.0 palette**: switch workspace rows; per-entry Copy login / User / Pass actions.
+6b. **Keyboard package**: central `keybindings` registry; list focus nav; shortcuts help (`?`); Settings → Keyboard to view/rebind; confirm Enter/Esc; Gate Enter submits unlock.
 7. **Sidebar workspace pins**: pinned IDs under Vault; pin/unpin from workspace cards; active workspace always listed if not pinned.
 8. **Clipboard toast**: countdown while auto-clear is pending after copy.
 9. **Entry icons**: lettermark from host/title; optional favicon fetch when `fetchFavicons` is on.
@@ -113,7 +114,37 @@ All destructive or naming prompts use custom Radix dialogs via an app-level host
 | Controls | Shared CSS kit: `btn-primary` / `btn-ghost` / `btn-danger` (+ `-sm` / `btn-icon`) |
 | Large lists | `entry-row-virtual` / `entry-card-virtual` (`content-visibility: auto`) — no virtualizer dep yet |
 | Deep links | Hash query (`#nav=…&q=…&tag=…&page=…&section=…`); no secrets; cleared toward defaults on lock |
-| Keyboard | Skip link → `#main-content` |
+| Keyboard | Skip link → `#main-content`; see **Keyboard** below |
+
+### Keyboard
+
+Central module: `apps/web/src/lib/keybindings.ts`. Chords use `mod` for the platform primary modifier (⌘ macOS / Ctrl Win+Linux).
+
+**When chords apply:** vault unlocked; not typing in `input`/`textarea`/`select`/contenteditable (except Escape and Mod chords that always work); dialogs/modals take precedence over list/global shortcuts.
+
+| Action ID | Default | Group |
+|-----------|---------|-------|
+| `palette` | `mod+k` | Global |
+| `search` | `/` | Global |
+| `newEntry` | `mod+n` | Global |
+| `lock` | `mod+l` | Global |
+| `settings` | `mod+,` | Global |
+| `shortcutsHelp` | `?` | Global |
+| `listUp` | `arrowup` (+ alias `k`) | List |
+| `listDown` | `arrowdown` (+ alias `j`) | List |
+| `listOpen` | `enter` | List |
+| `copyLogin` | `c` | List |
+| `copyUser` | `u` | List |
+| `copyPass` | `p` | List |
+| `copyOtp` | `o` | List |
+
+**List focus:** `listFocusIndex` over current page of entries; ring distinct from editor selection (`data-list-focus`). Reset on page/filter/workspace change. Skip when Settings, empty list, or dialogs open.
+
+**Dialogs:** `appConfirm` — Enter confirms, Esc cancels; autofocus primary button. `appPrompt` — Enter submits form, Esc cancels. Gate unlock/create — form submit on Enter.
+
+**Settings → Keyboard (General):** table of action + platform-formatted chord; Change (capture) with conflict check; Reset all. Overrides persist as `AppSettings.keybindingOverrides` (`Record<actionId, chord>`).
+
+**Shortcuts help:** `?` or Settings link opens overlay grouped Global / List / Dialogs with resolved (override-aware) labels.
 
 ### Entries: name & categorize
 
@@ -187,3 +218,4 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `autotypeEnabled`: `boolean` (default `false`) — Windows SendInput after confirm
 - `suggestFromForeground`: `boolean` (default `false`) — title heuristic suggestions
 - `autotypeKeyDelayMs`: number (default `25`)
+- `keybindingOverrides`: `Record<string, string>` (default `{}`) — actionId → chord overrides; empty = defaults
