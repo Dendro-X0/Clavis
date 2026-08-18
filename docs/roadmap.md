@@ -381,11 +381,14 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Expanded `architecture.md`, `START-HERE.md`, roadmap doc links | Done |
 | Version bump 0.18.1 | Done |
 
-### v0.19.0 — Desktop tray / background — in progress
+### v0.19.0 — Entry preview, large dialog, and tray — done
 
 | Item | Status |
 |------|--------|
-| Close-to-tray + tray Show / Lock / Quit | Implementing |
-| `runInBackground` setting (default on) + single-instance restore | Implementing |
+| View/Edit preview with per-field copy | Done |
+| Large centered dialog for preview and edit | Done |
+| Close-to-tray + tray Show / Lock / Quit | Done |
+| `runInBackground` setting (default on) + single-instance restore | Done |
+| Version bump 0.19.0 | Done |
 
 Next: later Phase D (merge UI, store signing) when ready.

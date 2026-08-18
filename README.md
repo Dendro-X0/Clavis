@@ -1,7 +1,7 @@
 # Clavis (Keys Manager)
 
 **Local-first, portable credential vault** — Tauri v2 + Rust core + Next.js UI.  
-**OSS · self-signed / unsigned releases** (see below). Current version: **0.18.1**.
+**OSS · self-signed / unsigned releases** (see below). Current version: **0.19.0**.
 
 Clavis keeps passwords, API tokens, and secure notes in an encrypted file you control. No cloud account, no vendor sync service — copy the install folder to USB, point a synced folder at Syncthing, or run entirely offline. Unlock with a master password; find and copy credentials in a few keystrokes.
 
@@ -105,7 +105,7 @@ GitHub Releases may include installers that are **not** signed by Microsoft/Appl
 **Always verify checksums** against `SHA256SUMS` / `SHA256SUMS-*.txt` (or hashes listed on the release) before running a downloaded binary. Compare publisher fingerprints with [`TRUST.md`](TRUST.md) when present. Prefer building from source if you do not trust a binary:
 
 ```bash
-git checkout v0.18.1   # or the release tag
+git checkout v0.19.0   # or the release tag
 pnpm install
 pnpm build
 ```
