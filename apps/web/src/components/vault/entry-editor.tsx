@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api, type AttachmentMeta, type EntryType, type UpsertEntryInput } from "@/lib/api";
 import { CopyIconButton } from "@/components/ui/copy-button";
+import { ModalShell } from "@/components/ui/modal-shell";
+import { EntryPreview, ExpandToggle, ModeToggle } from "@/components/vault/entry-preview";
+import { cn } from "@/lib/utils";
 import {
   hasParsedCredentialFields,
   parseLabeledCredentialFields,
@@ -16,9 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type EditorMode = "view" | "edit";
+
 export function EntryEditor({
   form,
   attachments = [],
+  fetchFavicons = false,
+  expanded = false,
+  compact = false,
+  onExpandedChange,
   onChange,
   onAttachmentsChange,
   onClose,
@@ -26,10 +35,19 @@ export function EntryEditor({
   onDelete,
   onGenerate,
   onCopy,
+  onCopyLogin,
+  onCopyAll,
+  onCopyUser,
+  onCopyPass,
+  onCopyOtp,
   onError,
 }: {
   form: UpsertEntryInput;
   attachments?: AttachmentMeta[];
+  fetchFavicons?: boolean;
+  expanded?: boolean;
+  compact?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
   onChange: (updater: (prev: UpsertEntryInput) => UpsertEntryInput) => void;
   onAttachmentsChange?: (list: AttachmentMeta[]) => void;
   onClose: () => void;
@@ -38,9 +56,60 @@ export function EntryEditor({
   onGenerate: () => Promise<void>;
   /** Optional hook after a successful field copy (e.g. schedule clipboard clear). */
   onCopy?: () => void | Promise<void>;
+  onCopyLogin?: () => void;
+  onCopyAll?: () => void;
+  onCopyUser?: () => void;
+  onCopyPass?: () => void;
+  onCopyOtp?: () => void;
   onError: (e: string) => void;
 }) {
+  const [mode, setMode] = useState<EditorMode>(form.id ? "view" : "edit");
   const [showMdPreview, setShowMdPreview] = useState(false);
+
+  useEffect(() => {
+    setMode(form.id ? "view" : "edit");
+    setShowMdPreview(false);
+  }, [form.id]);
+
+  const canToggleExpand = Boolean(onExpandedChange) && !compact;
+
+  function wrapSurface(surface: ReactNode) {
+    if (!expanded) return surface;
+    return (
+      <ModalShell
+        open
+        onClose={() => (compact ? onClose() : onExpandedChange?.(false))}
+        label={form.title.trim() || (form.id ? "Entry" : "New entry")}
+        panelClassName="max-w-[min(96vw,72rem)] h-[min(92vh,900px)] max-h-[min(92vh,900px)] overflow-hidden p-0"
+      >
+        {surface}
+      </ModalShell>
+    );
+  }
+
+  if (mode === "view" && form.id) {
+    return wrapSurface(
+      <EntryPreview
+        form={form}
+        attachments={attachments}
+        fetchFavicons={fetchFavicons}
+        expanded={expanded}
+        onExpandedChange={canToggleExpand ? onExpandedChange : undefined}
+        onModeChange={setMode}
+        onEdit={() => setMode("edit")}
+        onClose={onClose}
+        onDelete={onDelete}
+        onCopy={onCopy}
+        onCopyLogin={onCopyLogin}
+        onCopyAll={onCopyAll}
+        onCopyUser={onCopyUser}
+        onCopyPass={onCopyPass}
+        onCopyOtp={onCopyOtp}
+        onError={onError}
+      />,
+    );
+  }
+
   const setForm = (patch: Partial<UpsertEntryInput> | ((f: UpsertEntryInput) => UpsertEntryInput)) => {
     onChange((f) => (typeof patch === "function" ? patch(f) : { ...f, ...patch }));
   };
@@ -72,10 +141,18 @@ export function EntryEditor({
     }
   }
 
-  return (
-    <section className="animate-rise flex h-full min-h-0 flex-col overflow-hidden panel">
+  return wrapSurface(
+    <section
+      className={cn(
+        "animate-rise flex h-full min-h-0 flex-col overflow-hidden",
+        expanded ? "bg-transparent" : "panel",
+      )}
+    >
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
-        <h2 className="font-display text-xl">{form.id ? "Edit entry" : "New entry"}</h2>
+        <div className="flex min-w-0 items-center gap-3">
+          <h2 className="font-display text-xl">{form.id ? "Edit entry" : "New entry"}</h2>
+          {form.id && <ModeToggle mode={mode} onChange={setMode} />}
+        </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -85,6 +162,9 @@ export function EntryEditor({
           >
             Paste fields
           </button>
+          {canToggleExpand && onExpandedChange && (
+            <ExpandToggle expanded={expanded} onChange={onExpandedChange} />
+          )}
           <button
             type="button"
             className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -94,7 +174,13 @@ export function EntryEditor({
           </button>
         </div>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto scroll-region p-4">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto scroll-region p-4",
+          expanded ? "grid grid-cols-1 gap-6 md:grid-cols-2 md:items-start" : "space-y-3",
+        )}
+      >
+        <div className="space-y-3">
         <label className="block text-sm">
           Type
           <Select
@@ -163,6 +249,8 @@ export function EntryEditor({
           onCopy={onCopy}
           onError={onError}
         />
+        </div>
+        <div className="space-y-3">
         <label className="block text-sm">
           Notes
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -195,12 +283,18 @@ export function EntryEditor({
           </div>
           {(form.notesFormat ?? "plain") === "markdown" && showMdPreview ? (
             <div
-              className="inset-field mt-1 min-h-24 w-full overflow-auto px-3 py-2 text-sm leading-relaxed"
+              className={cn(
+                "inset-field mt-1 min-h-24 w-full overflow-auto px-3 py-2 text-sm leading-relaxed",
+                expanded && "min-h-48",
+              )}
               dangerouslySetInnerHTML={{ __html: simpleMarkdownHtml(form.notes) }}
             />
           ) : (
             <textarea
-              className="inset-field mt-1 min-h-24 w-full px-3 py-2 font-mono text-sm"
+              className={cn(
+                "inset-field mt-1 min-h-24 w-full px-3 py-2 font-mono text-sm",
+                expanded && "min-h-48",
+              )}
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             />
@@ -358,6 +452,7 @@ export function EntryEditor({
             </ul>
           )}
         </div>
+        </div>
       </div>
       <div className="flex flex-wrap gap-2 border-t border-[var(--border)] px-4 py-3 shrink-0">
         <button
@@ -384,7 +479,7 @@ export function EntryEditor({
           </button>
         )}
       </div>
-    </section>
+    </section>,
   );
 }
 

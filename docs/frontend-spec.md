@@ -80,7 +80,8 @@ Workspaces are **not** in the sidebar.
 3. **Entry surface**
    - List or grid of entries (active workspace, or global search results)
    - **Pagination**: page size 10 / 25 / 50 / 100 (user-selectable); footer with prev/next and range
-   - Editor panel when creating/editing
+   - Selecting an existing entry opens a **View** panel (grouped credentials / notes / fields with per-field copy). **Edit** is a toggle; new entries open in Edit.
+   - **Large dialog**: Maximize on the panel opens a centered `ModalShell` (`~72rem` × `~92vh`) with the same View/Edit surface and a two-column layout (credentials left, notes/attachments right). Dock returns to the side panel. Compact (`<768px`) opens the large dialog by default. Esc docks on desktop; Esc closes the entry on compact. Close still discards the panel.
 4. Settings replaces main when nav=settings — **two-pane layout**: categorized sidebar (search + section nav with hairline category dividers) + section content; compact uses section dropdown. Nav width is fluid (`clamp`); content column scales up to ~52rem on ultra-wide. Minimal field rows with hairline dividers; nav uses left accent bar (matches main sidebar).
 5. **Command palette** (`Mod+K`, user-rebindable): search entries, workspaces, vault nav, settings sections, and actions (New, Lock, Focus search, Toggle layout). Shortcut hints and sidebar badge reflect `keybindingOverrides`. `/` focuses toolbar search. Esc closes palette then editor. **Mod** = ⌘ on macOS, Ctrl on Windows/Linux.
 6. **v0.3.0 palette**: switch workspace rows; per-entry Copy login / User / Pass actions.
@@ -91,7 +92,7 @@ Workspaces are **not** in the sidebar.
 10. **v0.4.0 compact gestures**: swipe right → copy login; swipe left → open entry; long-press → Copy all / User / Pass menu. Granular copy buttons hidden on compact; desktop buttons unchanged.
 11. **Biometric / convenience unlock**: **off by default**. Enable only in Settings (`biometricUnlock` + store master password in OS keyring). Gate never opts the user in. When enabled and OS biometrics are available (mobile), primary “Unlock with biometrics”; otherwise desktop may silent-try keyring. Master password always available.
 12. **Sensitive UI lifecycle (v0.5.0)**: clear Gate/settings password fields after success or IPC error; discard entry editor and cancel pending login-copy timers on lock; list copy paths keep secrets ephemeral (not in React list state).
-13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on).
+13. **Auto-lock Settings**: idle seconds + **Lock when window is hidden** (`lockOnHide`, default on). Desktop **Keep running in the tray** (`runInBackground`, default on): Close hides to the system tray; Quit from the tray menu exits.
 14. **Encrypted backup KDF (v0.6.0)**: Settings Import/export shows active vault KDF (Argon2id params + AES-256-GCM). Export confirms with those params. Import peeks the file header (no password), warns if weaker than app defaults, and offers **Upgrade KDF to defaults** (password prompt) after import when the live vault is still weak.
 15. **Offline-first portable (v0.7.0)**: Settings portable kit; **Make portable** copies vault into `{exe}/data/`; `allowNetwork` (default off) gates outbound HTTP; hold-to-reveal password fields; unlock may warn if `vault.km` SHA-256 changed since last session.
 16. **TOTP (v0.8.0)**: Optional `otpSecret` on entries; live code + Copy code; Copy login sequences user → password → TOTP when set. CSV imports map Bitwarden/KeePass `totp` columns.
@@ -100,6 +101,7 @@ Workspaces are **not** in the sidebar.
 19. **Desktop fill (v0.12)**: Opt-in Windows autotype (confirm shows foreground title; SendInput). Optional title-based suggestions. Defaults off.
 20. **Vault richness (v0.13)**: Settings snapshots (create / restore / retain); entry notes plain|markdown + preview; encrypted attachments (≤256 KiB, 5/entry) with purge-aligned sidecars. Encrypted export is still `vault.km` only.
 21. **UX remediation (post-0.13)**: Calm unlocked home (compact workspace strip); simplified empty state (1 primary + secondary actions); hardened `ModalShell` (focus trap); success toast vs error banner with `aria-live`; a11y labels + `prefers-reduced-motion`; shared `btn-*` kit; list/grid `content-visibility` for large vaults; optional hash URL state for nav/search/tag/page/settings section; skip link to main; grid/list open targets are real `<button>`s (no `div[role=button]`); sidebar icon actions have `aria-label`.
+22. **Entry view + large dialog**: View/Edit toggle on existing entries; expand to a large modal for comfortable reading of notes and selective copy.
 
 ### Dialogs
 
@@ -213,7 +215,8 @@ Shell root may set `data-compact="true"` for CSS hooks (`.touch-target`, hide `[
 - `lastVaultSha256`: optional hex string — fingerprint of encrypted `vault.km` (integrity signal, not a signature)
 - `biometricUnlock`: `boolean` (default `false`) — convenience unlock via OS keyring; configure only in Settings
 - `autoLockSeconds`: number (default `300`) — idle lock from app input; `0` = never (idle only; lock-on-hide still applies)
-- `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background)
+- `lockOnHide`: `boolean` (default `true`) — lock when document is hidden (tab / minimize / background / tray)
+- `runInBackground`: `boolean` (default `true`, desktop) — Close hides to tray instead of quitting
 - `clipboardClearSeconds`: number (default `15` for new installs)
 - `trashRetainDays`: number (default `30`) — soft-deleted entries older than this are purged on unlock
 - `checkBreaches`: `boolean` (default `false`) — opt-in HIBP; requires `allowNetwork`

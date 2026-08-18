@@ -2,7 +2,7 @@ use std::fs;
 use std::io::Read;
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use zeroize::Zeroize;
 use vault_core::{
     AttachmentMeta, Entry, EntryType, GenerateOptions, HealthReport, HealthReportOptions,
@@ -197,7 +197,7 @@ fn sha256_hex_file(path: &std::path::Path) -> Result<String, String> {
     Ok(format!("{hash:x}"))
 }
 
-fn load_settings_disk(app: &AppHandle) -> Result<AppSettings, String> {
+pub(crate) fn load_settings_disk(app: &AppHandle) -> Result<AppSettings, String> {
     let path = config_path(app)?;
     if path.is_file() {
         let text = fs::read_to_string(&path).map_err(map_err)?;
@@ -253,7 +253,7 @@ fn record_vault_fingerprint(app: &AppHandle, state: &State<'_, AppState>) -> Res
     Ok(())
 }
 
-fn force_lock_session(state: &State<'_, AppState>) -> Result<(), String> {
+fn force_lock_session(state: &AppState) -> Result<(), String> {
     let mut guard = state.session.lock().map_err(|e| e.to_string())?;
     if let Some(session) = guard.take() {
         session.into_locked();
@@ -569,6 +569,13 @@ pub fn unlock(
 #[tauri::command]
 pub fn lock(state: State<'_, AppState>) -> Result<(), String> {
     force_lock_session(&state)
+}
+
+/// Lock from native chrome (tray). Emits `vault-locked` so the UI can return to Gate.
+pub fn lock_app(app: &tauri::AppHandle) -> Result<(), String> {
+    force_lock_session(&app.state::<AppState>())?;
+    let _ = app.emit("vault-locked", ());
+    Ok(())
 }
 
 #[tauri::command]

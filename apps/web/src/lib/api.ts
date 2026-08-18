@@ -108,6 +108,8 @@ export type AppSettings = {
   lastVaultSha256?: string | null;
   /** Keyboard shortcut overrides: actionId → chord. */
   keybindingOverrides?: Record<string, string>;
+  /** Desktop: close-to-tray instead of quitting. Default true. */
+  runInBackground?: boolean;
 };
 
 export type ForegroundWindowInfo = {

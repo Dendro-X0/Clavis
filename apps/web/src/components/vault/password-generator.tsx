@@ -106,6 +106,7 @@ export function PasswordGeneratorPanel({
         onClose();
       }}
       label="Password generator"
+      className="z-[110]"
       panelClassName="max-w-md"
     >
       <div className="p-4">

@@ -92,7 +92,7 @@ Full token tables and layout rules: [frontend-spec.md](frontend-spec.md).
 |---------|------------|
 | Appearance | Theme, skin, list/grid default, page size |
 | Keyboard | View and remap shortcuts |
-| Lock & clipboard | Idle auto-lock, lock on hide, clipboard clear timing |
+| Lock & clipboard | Idle auto-lock, lock on hide, optional tray keep-alive, clipboard clear timing |
 | Convenience unlock | OS keyring / biometrics (off by default) |
 | Master password | Change vault encryption password |
 | Data folder | Portable path vs custom synced directory |
@@ -105,7 +105,7 @@ Full token tables and layout rules: [frontend-spec.md](frontend-spec.md).
 
 ### Security and hygiene
 
-- Auto-lock on idle and when the window is hidden (configurable).
+- Auto-lock on idle and when the window is hidden (configurable). Desktop close-to-tray keeps the process alive; lock-on-hide still applies unless turned off.
 - Master password and derived keys zeroized on lock; sensitive UI cleared.
 - Optional vault file fingerprint warning if `vault.km` changed on disk since last unlock.
 - Password health report (local reuse/weak/short); optional Have I Been Pwned k-anonymity check when network is enabled.

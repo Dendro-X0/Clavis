@@ -48,6 +48,7 @@ import { copyToClipboard, formatEntryForClipboard, readClipboardText } from "@/l
 import { isTypingTarget, matchAction } from "@/lib/keybindings";
 import { blankEntryForm } from "@/lib/sensitive";
 import { useCompactSurface } from "@/lib/use-compact-surface";
+import { cn } from "@/lib/utils";
 import {
   readVaultUrlFromLocation,
   writeVaultUrlToLocation,
@@ -82,6 +83,7 @@ export default function HomePage() {
   const [urlHydrated, setUrlHydrated] = useState(false);
   const [form, setForm] = useState<UpsertEntryInput | null>(null);
   const [formAttachments, setFormAttachments] = useState<AttachmentMeta[]>([]);
+  const [entryExpanded, setEntryExpanded] = useState(false);
   const [settings, setSettings] = useState<AppSettings>({
     autoLockSeconds: 300,
     clipboardClearSeconds: 15,
@@ -100,6 +102,7 @@ export default function HomePage() {
     suggestFromForeground: false,
     autotypeKeyDelayMs: 25,
     snapshotRetain: 10,
+    runInBackground: true,
   });
   const [page, setPage] = useState(1);
   const [copyFlash, setCopyFlash] = useState<string | null>(null);
@@ -201,9 +204,14 @@ export default function HomePage() {
     }
     setForm(null);
     setFormAttachments([]);
+    setEntryExpanded(false);
     setGeneratorOpen(false);
     setHealthOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (form && compact) setEntryExpanded(true);
+  }, [form, compact]);
 
   async function openBlankEntry() {
     if (workspaces.length === 0) {
@@ -345,6 +353,7 @@ export default function HomePage() {
           suggestFromForeground: Boolean(s.suggestFromForeground),
           autotypeKeyDelayMs: s.autotypeKeyDelayMs ?? 25,
           snapshotRetain: s.snapshotRetain ?? 10,
+          runInBackground: s.runInBackground !== false,
         });
         if (s.theme) setTheme(normalizeTheme(s.theme));
       })
@@ -407,6 +416,27 @@ export default function HomePage() {
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
   }, [resetIdle, status?.state, refreshStatus, clearSensitiveUi, settings.lockOnHide]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        if (cancelled) return;
+        unlisten = await listen("vault-locked", () => {
+          clearSensitiveUi();
+          refreshStatus().catch(() => undefined);
+        });
+      } catch {
+        /* browser / no Tauri */
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [clearSensitiveUi, refreshStatus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1311,10 +1341,22 @@ export default function HomePage() {
               </div>
 
               {form && (
-                <div className="flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:h-full lg:w-[400px] xl:w-[440px]">
+                <div
+                  className={cn(
+                    entryExpanded
+                      ? "contents"
+                      : "flex min-h-0 w-full shrink-0 flex-col overflow-hidden lg:h-full lg:w-[420px] xl:w-[480px]",
+                  )}
+                >
                   <EntryEditor
                     form={form}
                     attachments={formAttachments}
+                    fetchFavicons={
+                      Boolean(settings.fetchFavicons) && Boolean(settings.allowNetwork)
+                    }
+                    expanded={entryExpanded}
+                    compact={compact}
+                    onExpandedChange={setEntryExpanded}
                     onChange={(updater) => setForm((f) => (f ? updater(f) : f))}
                     onAttachmentsChange={setFormAttachments}
                     onClose={() => clearSensitiveUi()}
@@ -1347,6 +1389,43 @@ export default function HomePage() {
                         /* browser clipboard has no clear API */
                       }
                     }}
+                    onCopyLogin={
+                      form.id
+                        ? () => {
+                            copyLoginSequence(form.id!).catch((err) => setError(String(err)));
+                          }
+                        : undefined
+                    }
+                    onCopyAll={
+                      form.id
+                        ? async () => {
+                            const full = normalizeEntry(await api.getEntry(form.id!));
+                            const block = formatEntryForClipboard(full);
+                            await copyText(`${form.id}:all`, block);
+                          }
+                        : undefined
+                    }
+                    onCopyUser={
+                      form.id
+                        ? async () => {
+                            await copyText(`${form.id}:user`, form.username);
+                          }
+                        : undefined
+                    }
+                    onCopyPass={
+                      form.id
+                        ? async () => {
+                            await copyText(`${form.id}:pass`, form.password);
+                          }
+                        : undefined
+                    }
+                    onCopyOtp={
+                      form.id
+                        ? () => {
+                            copyTotpCode(form.id!).catch((err) => setError(String(err)));
+                          }
+                        : undefined
+                    }
                     onError={setError}
                   />
                 </div>

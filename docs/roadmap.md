@@ -381,4 +381,11 @@ Design: `specs/backend/v0.14.0-folder-sync-design.md`
 | Expanded `architecture.md`, `START-HERE.md`, roadmap doc links | Done |
 | Version bump 0.18.1 | Done |
 
+### v0.19.0 — Desktop tray / background — in progress
+
+| Item | Status |
+|------|--------|
+| Close-to-tray + tray Show / Lock / Quit | Implementing |
+| `runInBackground` setting (default on) + single-instance restore | Implementing |
+
 Next: later Phase D (merge UI, store signing) when ready.

@@ -675,3 +675,17 @@ body::-webkit-scrollbar {
 [data-compact="true"] .panel {
   border-radius: 12px;
 }
+
+.entry-preview__notes {
+  max-height: min(40vh, 280px);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+
+.entry-preview__notes--expanded {
+  max-height: min(70vh, 560px);
+}
+
+.entry-preview__body {
+  background: color-mix(in oklab, var(--background) 40%, transparent);
+}

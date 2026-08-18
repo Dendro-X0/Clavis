@@ -58,7 +58,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
     id: "lock-clipboard",
     label: "Lock & clipboard",
     category: "security",
-    keywords: ["auto-lock", "idle", "hide", "clipboard", "clear", "seconds", "never"],
+    keywords: ["auto-lock", "idle", "hide", "clipboard", "clear", "seconds", "never", "tray", "background", "quit"],
   },
   {
     id: "convenience-unlock",
@@ -132,7 +132,7 @@ export const SETTINGS_SECTION_META: Record<
   },
   "lock-clipboard": {
     title: "Lock & clipboard",
-    description: "Idle auto-lock, lock-on-hide, and clipboard auto-clear timing.",
+    description: "Idle auto-lock, lock-on-hide, tray background, and clipboard auto-clear timing.",
   },
   "convenience-unlock": {
     title: "Convenience unlock",

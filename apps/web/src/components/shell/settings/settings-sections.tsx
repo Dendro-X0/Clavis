@@ -454,7 +454,7 @@ function normalizeIdleLockSeconds(value: number | undefined): number {
   return presets.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), 300);
 }
 
-function LockClipboardSection({ settings, setSettings }: SettingsSectionsProps) {
+function LockClipboardSection({ settings, setSettings, compact }: SettingsSectionsProps) {
   const idleValue = String(normalizeIdleLockSeconds(settings.autoLockSeconds));
 
   return (
@@ -501,6 +501,23 @@ function LockClipboardSection({ settings, setSettings }: SettingsSectionsProps) 
           </span>
         </span>
       </label>
+      {!compact && (
+        <label className="flex items-start gap-2.5 py-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={settings.runInBackground !== false}
+            onChange={(e) => setSettings({ ...settings, runInBackground: e.target.checked })}
+          />
+          <span>
+            <span className="font-medium">Keep running in the tray</span>
+            <span className="mt-0.5 block text-xs text-[var(--muted)]">
+              Close hides the window instead of quitting. Left-click the tray icon to show Clavis;
+              use Quit in the tray menu to exit. Lock-on-hide still applies when the window is hidden.
+            </span>
+          </span>
+        </label>
+      )}
       <SettingsField label="Clipboard clear (seconds)" hint="New installs default to 15 seconds.">
         <input
           type="number"

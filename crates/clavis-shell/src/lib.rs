@@ -6,9 +6,13 @@ mod commands;
 mod paths;
 mod state;
 
+use tauri::Manager;
+
 pub use state::{AppSettings, AppState};
+pub use commands::lock_app;
 
 /// Attach plugins, state, and invoke handlers to a Tauri builder.
+/// Call [`prepare`] from the host crate's `.setup` (a second `.setup` replaces the first).
 pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry> {
     builder
         .plugin(tauri_plugin_dialog::init())
@@ -81,9 +85,16 @@ pub fn attach(builder: tauri::Builder<tauri::Wry>) -> tauri::Builder<tauri::Wry>
             commands::read_entry_icon,
             commands::fetch_entry_icon,
         ])
-        .setup(|app| {
-            let data_dir = paths::ensure_data_dir(app.handle())?;
-            println!("Clavis data dir: {}", data_dir.display());
-            Ok(())
-        })
+}
+
+/// Ensure the data directory exists and hydrate settings into `AppState`.
+pub fn prepare(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let data_dir = paths::ensure_data_dir(app)?;
+    println!("Clavis data dir: {}", data_dir.display());
+    let settings = commands::load_settings_disk(app).unwrap_or_default();
+    *app.state::<AppState>()
+        .settings
+        .lock()
+        .map_err(|e| e.to_string())? = settings;
+    Ok(())
 }

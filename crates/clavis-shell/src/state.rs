@@ -54,6 +54,9 @@ pub struct AppSettings {
     /// Keyboard shortcut overrides: actionId → chord (e.g. `"palette": "mod+k"`).
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub keybinding_overrides: HashMap<String, String>,
+    /// Desktop: close-to-tray instead of quitting. Default on.
+    #[serde(default = "default_run_in_background")]
+    pub run_in_background: bool,
 }
 
 fn default_theme() -> String {
@@ -88,6 +91,10 @@ fn default_snapshot_retain() -> u32 {
     10
 }
 
+fn default_run_in_background() -> bool {
+    true
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -110,6 +117,7 @@ impl Default for AppSettings {
             snapshot_retain: default_snapshot_retain(),
             last_vault_sha256: None,
             keybinding_overrides: HashMap::new(),
+            run_in_background: default_run_in_background(),
         }
     }
 }

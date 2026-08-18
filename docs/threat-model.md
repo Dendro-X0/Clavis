@@ -27,7 +27,7 @@ Supersedes informal v1 notes for **desktop now** and **mobile later**. Clavis re
 | Wrong password | AEAD fail → closed | Done |
 | Accidental cloud sync of plaintext | No Clavis cloud; export is encrypted backup | Done |
 | Clipboard residue | Configurable clear (default 15s new installs); sequential user→pass | Done / improving (v0.7.0) |
-| Idle / background exposure | Auto-lock idle timer; optional lock-on-hide (`lockOnHide`, default on) | Done (v0.5.0 Settings) |
+| Idle / background exposure | Auto-lock idle timer; optional lock-on-hide (`lockOnHide`, default on); tray hide still locks unless lock-on-hide is off | Done (v0.5.0 / v0.19 tray) |
 | Malware with same-user memory access while unlocked | Out of scope while unlocked; lock/drop scrub shortens window (allocator residual possible) — **not antivirus** | Explicit |
 | Evil maid + weak master password offline | Strong password + KDF cost; vault SHA-256 fingerprint warns if `vault.km` changed since last unlock | Explicit / improving (v0.7.0) |
 | Network exfil / host intent leak | Offline-first: `allowNetwork` default off; favicon fetch gated | Done (v0.7.0) |
